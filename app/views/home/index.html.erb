@@ -1,0 +1,37 @@
+<main class="shell" data-controller="logo" data-logo-state-value="idle">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Sonzra home">
+      <%= image_tag "/brand/sonzra-mark.svg", class: "brand__mark", alt: "" %>
+      <span>sonzra</span>
+    </a>
+    <a class="ghost-button" href="https://github.com/" rel="noreferrer">Open source</a>
+  </header>
+
+  <section class="hero">
+    <div class="hero__copy">
+      <span class="eyebrow">Self-hosted • Private • Built for Jellyfin</span>
+      <h1>Your audio.<br><span>Your server.</span></h1>
+      <p>Music, podcasts, and audiobooks in one fast, live player—designed for the web and ready for Hotwire Native.</p>
+      <div class="actions"><button class="primary-button">Connect Jellyfin</button><button class="secondary-button">Explore library</button></div>
+      <div class="media-types"><span>♫ Music</span><span>◉ Podcasts</span><span>▤ Audiobooks</span></div>
+    </div>
+
+    <aside class="player-card">
+      <div class="artwork"><%= image_tag "/brand/sonzra-mark.svg", alt: "Sonzra waveform S" %></div>
+      <p class="overline">NOW PLAYING</p><h2>Stargazing</h2><p>Mild Minds · Dream State</p>
+      <div class="waveform" aria-hidden="true"><% 48.times do |i| %><i style="--i:<%= i %>"></i><% end %></div>
+      <div class="progress"><span></span></div>
+      <div class="controls"><button>↶</button><button>◀</button><button class="play">Ⅱ</button><button>▶</button><button>↷</button></div>
+    </aside>
+  </section>
+
+  <section class="live-demo">
+    <div><span class="eyebrow">A living identity</span><h2>The logo responds to the app.</h2><p>Use the state buttons to preview the Stimulus-powered identity system.</p></div>
+    <div class="logo-stage"><%= image_tag "/brand/sonzra-mark.svg", alt: "Animated Sonzra logo" %><span data-logo-target="label">idle</span></div>
+    <div class="state-buttons">
+      <% %w[idle playing loading buffering connecting paused error].each do |state| %>
+        <button data-action="logo#setState" data-state="<%= state %>"><%= state.capitalize %></button>
+      <% end %>
+    </div>
+  </section>
+</main>

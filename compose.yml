@@ -1,0 +1,11 @@
+services:
+  sonzra:
+    build: .
+    ports: ["3000:3000"]
+    environment:
+      RAILS_MASTER_KEY: ${RAILS_MASTER_KEY:-development-only-change-me}
+      SOLID_QUEUE_IN_PUMA: "true"
+    volumes:
+      - sonzra_storage:/rails/storage
+volumes:
+  sonzra_storage:

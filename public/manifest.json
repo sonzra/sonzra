@@ -1,0 +1,22 @@
+{
+  "name": "Sonzra",
+  "short_name": "Sonzra",
+  "description": "A self-hosted Jellyfin player for music, podcasts, and audiobooks.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c0c16",
+  "theme_color": "#7a5af8",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ]
+}
