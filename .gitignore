@@ -8,4 +8,8 @@
 /public/assets
 /config/master.key
 .env*
+!.env.example
 .DS_Store
+
+# Ignore key files for decrypting credentials and more.
+/config/*.key
