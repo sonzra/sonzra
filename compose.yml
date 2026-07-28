@@ -1,10 +1,11 @@
 services:
   sonzra:
-    build: .
+    image: ${SONZRA_IMAGE:?Set SONZRA_IMAGE to the Sonzra image you want to run}
     ports: ["3000:3000"]
     environment:
-      RAILS_MASTER_KEY: ${RAILS_MASTER_KEY:-development-only-change-me}
+      SONZRA_SECRET_KEY: ${SONZRA_SECRET_KEY:-}
       SOLID_QUEUE_IN_PUMA: "true"
+      RAILS_ASSUME_SSL: ${RAILS_ASSUME_SSL:-false}
     volumes:
       - sonzra_storage:/rails/storage
 volumes:

@@ -1,4 +1,20 @@
 #!/bin/bash -e
+
+secret_file="/rails/storage/.sonzra_secret_key"
+
+if [ -z "${SONZRA_SECRET_KEY:-}" ]; then
+  if [ -s "$secret_file" ]; then
+    SONZRA_SECRET_KEY="$(<"$secret_file")"
+  else
+    umask 077
+    SONZRA_SECRET_KEY="$(head -c 48 /dev/urandom | base64 | tr -d '\n')"
+    printf '%s' "$SONZRA_SECRET_KEY" > "$secret_file"
+  fi
+fi
+
+export SONZRA_SECRET_KEY
+export SECRET_KEY_BASE="${SECRET_KEY_BASE:-$SONZRA_SECRET_KEY}"
+
 if [ "${1}" == "./bin/rails" ] && [ "${2}" == "server" ]; then
   ./bin/rails db:prepare
 fi

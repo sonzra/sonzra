@@ -21,18 +21,54 @@ bin/dev
 
 Open `http://localhost:3000`.
 
-Before creating a server connection, configure Active Record Encryption. Run
-`bin/rails db:encryption:init`, store the three generated values in your
-environment (or encrypted Rails credentials), and use `.env.example` as the
-variable reference. For credentials, nest the generated values under
-`active_record_encryption` using the keys `primary_key`, `deterministic_key`,
-and `key_derivation_salt`. Do not commit these keys.
+For a non-container development setup, configure Active Record Encryption with
+environment variables or Rails credentials before creating a server connection.
+Container deployments generate and persist their own encryption root secret
+automatically.
 
 ## Docker
 
+Sonzra is distributed as one container image. Its SQLite databases and Solid
+Cache, Queue, and Cable data live in `/rails/storage`, which must be mounted as
+a persistent volume.
+
+Copy `.env.example` to `.env` and set the image name. No Rails setup command is
+needed. Sonzra creates its own root secret on first boot and persists it in the
+storage volume. You may set `SONZRA_SECRET_KEY` yourself when using a secret
+manager; keep its value unchanged for the lifetime of the installation.
+
+Do not copy or publish this repository's `config/master.key` or
+`config/credentials.yml.enc`. They are deliberately excluded from the image.
+Each installation owns its secrets through its private storage volume (or its
+platform's secret manager). Back up that volume together with the selected
+`SONZRA_SECRET_KEY`; losing both makes previously encrypted server credentials
+unreadable.
+
+### Docker Compose
+
 ```bash
-docker compose up --build
+docker compose up -d
 ```
+
+Compose creates and manages the named `sonzra_storage` volume declared in
+[`compose.yml`](compose.yml). To deploy a release image, set `SONZRA_IMAGE` in
+your `.env` to `ghcr.io/<owner>/sonzra:<version>` and run `docker compose pull`
+before `docker compose up -d`.
+
+### Docker
+
+```bash
+docker volume create sonzra_storage
+docker run -d --name sonzra --restart unless-stopped -p 3000:3000 \
+  --env-file .env \
+  -e SOLID_QUEUE_IN_PUMA=true \
+  -v sonzra_storage:/rails/storage \
+  ghcr.io/<owner>/sonzra:<version>
+```
+
+For a private GitHub Container Registry image, authenticate the host first with
+`docker login ghcr.io`. Publish a GitHub Release tagged as a semantic version
+(for example `v1.0.0`) to build and publish versioned and `latest` images.
 
 ## Brand assets
 See [`docs/BRAND.md`](docs/BRAND.md). The starter page includes a Stimulus controller demonstrating live logo states.

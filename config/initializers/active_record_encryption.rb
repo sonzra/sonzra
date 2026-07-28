@@ -1,8 +1,11 @@
+require Rails.root.join("lib/sonzra/encryption_keys")
+
 Rails.application.configure do
+  root_secret = ENV["SONZRA_SECRET_KEY"].presence
   encryption_key = lambda do |name|
-    ENV.fetch("ACTIVE_RECORD_ENCRYPTION_#{name.upcase}") do
+    ENV["ACTIVE_RECORD_ENCRYPTION_#{name.upcase}"].presence ||
+      (Sonzra::EncryptionKeys.for(name, root_secret: root_secret) if root_secret) ||
       Rails.application.credentials.dig(:active_record_encryption, name)
-    end
   end
 
   config.active_record.encryption.primary_key = encryption_key.call(:primary_key)
