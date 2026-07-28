@@ -1,11 +1,14 @@
 services:
   sonzra:
-    image: ${SONZRA_IMAGE:?Set SONZRA_IMAGE to the Sonzra image you want to run}
+    image: ghcr.io/sonzra/sonzra:latest
+    restart: unless-stopped
     ports: ["3000:3000"]
     environment:
-      SONZRA_SECRET_KEY: ${SONZRA_SECRET_KEY:-}
       SOLID_QUEUE_IN_PUMA: "true"
       RAILS_ASSUME_SSL: ${RAILS_ASSUME_SSL:-false}
+      # Optional: set a stable value through your secret manager. If omitted,
+      # Sonzra generates and persists one in the named volume on first boot.
+      # SONZRA_SECRET_KEY: change-me
     volumes:
       - sonzra_storage:/rails/storage
 volumes:
