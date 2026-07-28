@@ -9,6 +9,7 @@ Rails.application.configure do
   config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "info")
   config.cache_store = :solid_cache_store
   config.active_job.queue_adapter = :solid_queue
+  config.solid_queue.connects_to = { database: { writing: :queue } }
   config.action_cable.mount_path = "/cable"
   config.active_storage.service = :local
 end
