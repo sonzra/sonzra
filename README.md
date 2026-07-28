@@ -1,6 +1,34 @@
-# Sonzra
+<p align="center">
+  <img src="public/brand/sonzra-mark.svg" width="96" alt="Sonzra logo">
+</p>
 
-A browser-first, self-hosted and open-source audio player for Jellyfin, built with Rails, Turbo, Stimulus, Action Cable, and a Hotwire Native-friendly navigation model.
+<h1 align="center">sonzra</h1>
+
+<p align="center"><strong>Your private listening home.</strong></p>
+
+<p align="center">
+  A self-hosted, open-source player for Jellyfin music, podcasts, and audiobooks.
+</p>
+
+<p align="center">
+  Built with Rails · Turbo · Stimulus · Hotwire Native ready
+</p>
+
+## What Sonzra is
+
+Sonzra turns a personal Jellyfin library into a music-first listening
+experience: browse artists and albums, rediscover recently played music, queue
+what comes next, and keep playback running as you move through the app. Every
+account connects to its own Jellyfin user, so library access and listening data
+remain personal.
+
+<table>
+  <tr>
+    <td><strong>Music-first</strong><br>Recent, most-played, genre, artist, and album shelves.</td>
+    <td><strong>One player</strong><br>Streaming playback, queue management, progress, and volume controls.</td>
+    <td><strong>Self-hosted</strong><br>A single container image with persistent local storage.</td>
+  </tr>
+</table>
 
 ## Stack
 - Ruby **4.0.6**
