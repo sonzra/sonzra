@@ -1,0 +1,24 @@
+<main class="settings-shell">
+  <header class="settings-header">
+    <%= link_to "← Home", root_path, class: "back-link" %>
+  </header>
+
+  <section class="form-page">
+    <p class="eyebrow">Administration</p>
+    <h1>Registration settings</h1>
+    <p>Control whether new people can create a Sonzra account. Existing users can always sign in.</p>
+    <%= render "shared/flash" %>
+    <p class="settings-status">New sign-ups are currently <strong><%= @application_setting.registrations_enabled? ? "enabled" : "disabled" %></strong>.</p>
+
+    <%= form_with model: @application_setting, url: admin_registration_settings_path, method: :patch, class: "connection-form" do |form| %>
+      <label class="settings-toggle">
+        <%= form.check_box :registrations_enabled %>
+        <span>
+          <strong>Allow new sign-ups</strong>
+          <small>When disabled, the account creation page is unavailable.</small>
+        </span>
+      </label>
+      <div class="form-actions"><%= form.submit "Save settings", class: "primary-button" %></div>
+    <% end %>
+  </section>
+</main>

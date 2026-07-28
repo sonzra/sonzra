@@ -7,7 +7,8 @@ class ServerConnectionsControllerTest < ActionDispatch::IntegrationTest
       provider: :jellyfin,
       base_url: "https://jellyfin.example.com",
       username: "bruno",
-      password: "secret"
+      password: "secret",
+      user: users(:one)
     )
   end
 
@@ -51,6 +52,15 @@ class ServerConnectionsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_redirected_to server_connections_url
+  end
+
+  test "does not expose another user's server connection" do
+    other_user = User.create!(email_address: "other@example.com", password: "password", password_confirmation: "password")
+    other_connection = ServerConnection.create!(connection_params.merge(name: "Private server", user: other_user))
+
+    get server_connection_url(other_connection)
+
+    assert_response :not_found
   end
 
   private

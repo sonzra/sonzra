@@ -1,0 +1,7 @@
+<header class="listen-topbar">
+  <%= link_to root_path, class: "brand", aria: { label: "Sonzra home" } do %><%= image_tag "/brand/sonzra-mark.svg", class: "brand__mark", alt: "" %><span>sonzra</span><% end %>
+  <nav class="listen-topbar__nav" aria-label="Primary navigation">
+    <%= link_to "Home", root_path, class: "listen-topbar__link" %><%= link_to "Artists", library_artists_path, class: "listen-topbar__link" %><%= link_to "Albums", library_albums_path, class: "listen-topbar__link" %><%= link_to "Audiobooks", library_audiobooks_path, class: "listen-topbar__link" %><%= link_to "Podcasts", library_podcasts_path, class: "listen-topbar__link" %><%= link_to "Servers", server_connections_path, class: "listen-topbar__link" %>
+  </nav>
+  <div class="listen-topbar__account"><%= link_to server_connections_path, class: "listen-settings-link", aria: { label: "Manage server connections" } do %><span aria-hidden="true">⚙</span><span>Settings</span><% end %><%= link_to "Admin", admin_registration_settings_path, class: "listen-settings-link" if current_user.admin? %><%= button_to "Sign out", session_path, method: :delete, class: "text-button" %></div>
+</header>

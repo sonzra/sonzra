@@ -1,0 +1,12 @@
+<main class="auth-page">
+  <section class="auth-card">
+    <%= link_to root_path, class: "auth-brand auth-brand--hero", aria: { label: "Sonzra" } do %><%= image_tag "/brand/sonzra-mark.svg", alt: "" %><span>sonzra</span><% end %>
+    <p class="auth-sign-in-copy">Enter your email and we’ll send you a secure password reset link.</p>
+    <%= tag.div(flash[:alert], class: "auth-flash auth-flash--alert", role: "alert") if flash[:alert] %>
+    <%= form_with url: passwords_path, class: "auth-form" do |form| %>
+      <div class="field"><%= form.label :email_address, "Email address" %><%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", placeholder: "you@example.com", value: params[:email_address] %></div>
+      <%= form.submit "Email reset instructions", class: "primary-button" %>
+    <% end %>
+    <p class="auth-card__footer"><%= link_to "Back to sign in", new_session_path %>.</p>
+  </section>
+</main>

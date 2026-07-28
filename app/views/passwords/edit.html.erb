@@ -1,0 +1,14 @@
+<main class="auth-page">
+  <section class="auth-card">
+    <%= link_to root_path, class: "auth-brand", aria: { label: "Sonzra" } do %><%= image_tag "/brand/sonzra-mark.svg", alt: "" %><span>sonzra</span><% end %>
+    <span class="auth-kicker">Password reset</span>
+    <h1>Choose a new password.</h1>
+    <p>Use a password you don’t use elsewhere to keep your account secure.</p>
+    <%= tag.div(flash[:alert], class: "auth-flash auth-flash--alert", role: "alert") if flash[:alert] %>
+    <%= form_with url: password_path(params[:token]), method: :put, class: "auth-form" do |form| %>
+      <div class="field"><%= form.label :password, "New password" %><%= form.password_field :password, required: true, autocomplete: "new-password", placeholder: "New password", maxlength: 72 %></div>
+      <div class="field"><%= form.label :password_confirmation, "Confirm new password" %><%= form.password_field :password_confirmation, required: true, autocomplete: "new-password", placeholder: "Repeat new password", maxlength: 72 %></div>
+      <%= form.submit "Save new password", class: "primary-button" %>
+    <% end %>
+  </section>
+</main>

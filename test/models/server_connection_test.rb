@@ -45,7 +45,8 @@ class ServerConnectionTest < ActiveSupport::TestCase
       provider: :jellyfin,
       base_url: "https://jellyfin.example.com",
       username: "bruno",
-      password: "secret"
+      password: "secret",
+      user: users(:one)
     }
   end
 end

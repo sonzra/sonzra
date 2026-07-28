@@ -1,0 +1,14 @@
+<main class="auth-page">
+  <section class="auth-card">
+    <%= link_to root_path, class: "auth-brand auth-brand--hero", aria: { label: "Sonzra" } do %><%= image_tag "/brand/sonzra-mark.svg", alt: "" %><span>sonzra</span><% end %>
+    <p class="auth-sign-in-copy">Sign in to your personal music library.</p>
+    <%= tag.div(flash[:alert], class: "auth-flash auth-flash--alert", role: "alert") if flash[:alert] %>
+    <%= tag.div(flash[:notice], class: "auth-flash", role: "status") if flash[:notice] %>
+    <%= form_with url: session_path, class: "auth-form" do |form| %>
+      <div class="field"><%= form.label :email_address, "Email address" %><%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", placeholder: "you@example.com", value: params[:email_address] %></div>
+      <div class="field"><span class="auth-form__label"><%= form.label :password %><%= link_to "Forgot password?", new_password_path %></span><%= form.password_field :password, required: true, autocomplete: "current-password", placeholder: "Your password", maxlength: 72 %></div>
+      <%= form.submit "Sign in", class: "primary-button" %>
+    <% end %>
+    <% if registrations_enabled? %><p class="auth-card__footer">New to Sonzra? <%= link_to "Create an account", new_registration_path %>.</p><% end %>
+  </section>
+</main>

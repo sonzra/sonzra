@@ -10,7 +10,13 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_27_220000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_28_160100) do
+  create_table "application_settings", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.boolean "registrations_enabled", default: true, null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "server_connections", force: :cascade do |t|
     t.string "base_url", null: false
     t.datetime "created_at", null: false
@@ -18,7 +24,30 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_27_220000) do
     t.text "password", null: false
     t.string "provider", null: false
     t.datetime "updated_at", null: false
+    t.integer "user_id"
     t.text "username", null: false
-    t.index ["name"], name: "index_server_connections_on_name", unique: true
+    t.index ["user_id", "name"], name: "index_server_connections_on_user_id_and_name", unique: true
+    t.index ["user_id"], name: "index_server_connections_on_user_id"
   end
+
+  create_table "sessions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "ip_address"
+    t.datetime "updated_at", null: false
+    t.string "user_agent"
+    t.integer "user_id", null: false
+    t.index ["user_id"], name: "index_sessions_on_user_id"
+  end
+
+  create_table "users", force: :cascade do |t|
+    t.boolean "admin", default: false, null: false
+    t.datetime "created_at", null: false
+    t.string "email_address", null: false
+    t.string "password_digest", null: false
+    t.datetime "updated_at", null: false
+    t.index ["email_address"], name: "index_users_on_email_address", unique: true
+  end
+
+  add_foreign_key "server_connections", "users"
+  add_foreign_key "sessions", "users"
 end

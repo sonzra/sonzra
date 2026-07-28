@@ -2,19 +2,19 @@ class ServerConnectionsController < ApplicationController
   before_action :set_server_connection, only: %i[show edit update destroy test_connection]
 
   def index
-    @server_connections = ServerConnection.order(:name)
+    @server_connections = current_user.server_connections.order(:name)
   end
 
   def show; end
 
   def new
-    @server_connection = ServerConnection.new(provider: :jellyfin)
+    @server_connection = current_user.server_connections.new(provider: :jellyfin)
   end
 
   def edit; end
 
   def create
-    @server_connection = ServerConnection.new(server_connection_params)
+    @server_connection = current_user.server_connections.new(server_connection_params)
 
     if @server_connection.save
       redirect_to @server_connection, notice: "Server connection created."
@@ -46,7 +46,7 @@ class ServerConnectionsController < ApplicationController
   private
 
   def set_server_connection
-    @server_connection = ServerConnection.find(params.expect(:id))
+    @server_connection = current_user.server_connections.find(params.expect(:id))
   end
 
   def server_connection_params

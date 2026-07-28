@@ -5,13 +5,15 @@ class ServerConnection < ApplicationRecord
 
   encrypts :username, :password
 
+  belongs_to :user
+
   enum :provider, PROVIDERS, validate: true
 
   before_validation :normalize_base_url
 
   validates :name, :provider, :base_url, :username, presence: true
   validates :password, presence: true, on: :create
-  validates :name, uniqueness: true
+  validates :name, uniqueness: { scope: :user_id }
   validate :base_url_uses_http
 
   private

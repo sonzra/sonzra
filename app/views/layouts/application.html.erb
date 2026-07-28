@@ -10,11 +10,28 @@
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
     <link rel="manifest" href="/manifest.json">
-    <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32">
+    <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "auth", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "media_content", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "genre_links", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "player", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "queue", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "queue_overlay", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "queue_details", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "queue_artwork", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "queue_controls", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "queue_history", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "main_player_layout", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "responsive", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
-  <body><%= yield %></body>
+  <% if authenticated? %><body data-controller="player"><% else %><body><% end %>
+    <% if authenticated? %><%= render "shared/navigation" %><% end %>
+    <%= yield %>
+    <% if authenticated? %><%= render "shared/player" %><%= render "shared/player_queue" %><% end %>
+  </body>
 </html>
