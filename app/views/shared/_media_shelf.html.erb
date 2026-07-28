@@ -1,0 +1,28 @@
+<section class="listen-section">
+  <div class="listen-section__heading"><div><p class="listen-kicker"><%= eyebrow %></p><h2><%= title %></h2></div></div>
+  <div class="listen-shelf-wrap" data-controller="shelf">
+    <button class="listen-shelf__button listen-shelf__button--left" type="button" data-action="shelf#scrollLeft" aria-label="Scroll <%= title.downcase %> left"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7" /></svg></button>
+    <div class="listen-shelf" data-shelf-target="content">
+      <% items.each do |item| %>
+        <% artwork_path = library_artwork_path(server_connection, item) %>
+        <article class="listen-card">
+          <%= link_to library_item_server_connection_path(server_connection, item["Id"]), class: "listen-card__art", style: "--first:#7a5af8;--second:#43d7c6", data: { turbo_frame: "_top" } do %>
+            <% if artwork_path %><%= image_tag artwork_path, alt: "", loading: "lazy" %><% else %><%= image_tag "/brand/sonzra-mark.svg", class: "listen-card__fallback", alt: "" %><% end %>
+          <% end %>
+          <% if item["Type"].in?([ "Audio", "AudioBook" ]) %>
+            <button class="listen-card__play" type="button" aria-label="Play <%= item["Name"] %>" data-action="player#replaceQueue" data-player-source-param="<%= audio_server_connection_path(server_connection, item["Id"]) %>" data-player-item-id-param="<%= item["Id"] %>" data-player-reporting-url-param="<%= playback_reports_server_connection_path(server_connection) %>" data-player-title-param="<%= item["Name"] %>" data-player-artist-param="<%= item["AlbumArtist"] || item["Artists"]&.join(", ") || "Unknown artist" %>" data-player-artwork-param="<%= artwork_path || "/brand/sonzra-mark.svg" %>" data-player-duration-param="<%= track_duration(item["RunTimeTicks"]) %>">▶</button><button class="listen-card__queue" type="button" aria-label="Add <%= item["Name"] %> to queue" data-action="player#appendQueue" data-player-source-param="<%= audio_server_connection_path(server_connection, item["Id"]) %>" data-player-item-id-param="<%= item["Id"] %>" data-player-reporting-url-param="<%= playback_reports_server_connection_path(server_connection) %>" data-player-title-param="<%= item["Name"] %>" data-player-artist-param="<%= item["AlbumArtist"] || item["Artists"]&.join(", ") || "Unknown artist" %>" data-player-artwork-param="<%= artwork_path || "/brand/sonzra-mark.svg" %>" data-player-duration-param="<%= track_duration(item["RunTimeTicks"]) %>">+</button>
+          <% elsif item["Type"] == "MusicAlbum" %>
+            <button class="listen-card__play" type="button" aria-label="Play <%= item["Name"] %>" data-action="player#replaceQueue" data-player-queue-url-param="<%= playback_queue_server_connection_path(server_connection, item["Id"]) %>">▶</button><button class="listen-card__queue" type="button" aria-label="Add <%= item["Name"] %> to queue" data-action="player#appendQueue" data-player-queue-url-param="<%= playback_queue_server_connection_path(server_connection, item["Id"]) %>">+</button>
+          <% elsif item["Type"] == "MusicArtist" %>
+            <button class="listen-card__play" type="button" aria-label="Play random songs by <%= item["Name"] %>" data-action="player#replaceQueue" data-player-queue-url-param="<%= playback_queue_server_connection_path(server_connection, item["Id"]) %>">▶</button><button class="listen-card__queue" type="button" aria-label="Add random songs by <%= item["Name"] %> to queue" data-action="player#appendQueue" data-player-queue-url-param="<%= playback_queue_server_connection_path(server_connection, item["Id"]) %>">+</button>
+          <% else %>
+            <button class="listen-card__play" type="button" aria-label="Play <%= item["Name"] %>">▶</button>
+          <% end %>
+          <h3><%= link_to item["Name"], library_item_server_connection_path(server_connection, item["Id"]), data: { turbo_frame: "_top" } %></h3>
+          <p><%= item["AlbumArtist"] || item["Artists"]&.join(", ") || item["Type"] %></p>
+        </article>
+      <% end %>
+    </div>
+    <button class="listen-shelf__button listen-shelf__button--right" type="button" data-action="shelf#scrollRight" aria-label="Scroll <%= title.downcase %> right"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7" /></svg></button>
+  </div>
+</section>

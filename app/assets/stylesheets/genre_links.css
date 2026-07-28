@@ -1,0 +1,19 @@
+.listen-genre {
+  flex: 0 0 auto;
+  border: 1px solid #ffffff1e;
+  border-radius: 999px;
+  background: #ffffff08;
+  color: #d9d6e7;
+  padding: 7px 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.listen-genre:hover,
+.listen-genre:focus-visible {
+  border-color: #a990ff;
+  background: #7a5af833;
+  outline: 0;
+}

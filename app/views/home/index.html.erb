@@ -1,97 +1,10 @@
 <div class="listen-app">
-  <header class="listen-topbar">
-    <%= link_to root_path, class: "brand", aria: { label: "Sonzra home" } do %>
-      <%= image_tag "/brand/sonzra-mark.svg", class: "brand__mark", alt: "" %>
-      <span>sonzra</span>
-    <% end %>
-
-    <nav class="listen-topbar__nav" aria-label="Primary navigation">
-      <%= link_to "Home", root_path, class: "listen-topbar__link listen-topbar__link--active" %>
-      <a class="listen-topbar__link" href="#recently-played">Recently played</a>
-      <%= link_to "Servers", server_connections_path, class: "listen-topbar__link" %>
-    </nav>
-
-    <%= link_to server_connections_path, class: "listen-settings-link", aria: { label: "Manage server connections" } do %>
-      <span aria-hidden="true">⚙</span><span>Settings</span>
-    <% end %>
-  </header>
-
   <main class="listen-main">
-    <section class="listen-welcome" aria-labelledby="listen-welcome-heading">
-      <div>
-        <p class="listen-kicker">Good evening</p>
-        <h1 id="listen-welcome-heading">What do you want to hear?</h1>
-      </div>
-      <%= link_to "Set up a server", new_server_connection_path, class: "listen-setup-link" %>
-    </section>
-
-    <section class="listen-hero" aria-label="Featured mix">
-      <div class="listen-hero__art" aria-hidden="true">
-        <span></span><span></span><span></span><span></span><span></span>
-      </div>
-      <div class="listen-hero__copy">
-        <p class="listen-kicker">Made for your evening</p>
-        <h2>Slow glow</h2>
-        <p>Warm electronics, spacious vocals, and a little room to breathe.</p>
-        <div class="listen-hero__actions">
-          <button class="listen-play-button" type="button"><span aria-hidden="true">▶</span> Play mix</button>
-          <button class="listen-icon-button" type="button" aria-label="Save Slow glow">♡</button>
-          <button class="listen-icon-button" type="button" aria-label="More options for Slow glow">•••</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="listen-section" aria-labelledby="moods-heading">
-      <div class="listen-section__heading">
-        <div><p class="listen-kicker">Start somewhere</p><h2 id="moods-heading">Pick a mood</h2></div>
-      </div>
-      <div class="listen-moods">
-        <% [["Focus", "#6348d7", "#1f1946"], ["Energy", "#e24c76", "#58203e"], ["Chill", "#318c9b", "#153c52"], ["Discover", "#bf7f2c", "#3e255c"]].each do |name, first, second| %>
-          <button class="listen-mood" type="button" style="--first:<%= first %>;--second:<%= second %>"><span><%= name %></span><i aria-hidden="true">→</i></button>
-        <% end %>
-      </div>
-    </section>
-
-    <section class="listen-section" id="recently-played" aria-labelledby="recent-heading">
-      <div class="listen-section__heading">
-        <div><p class="listen-kicker">Keep listening</p><h2 id="recent-heading">Recently played</h2></div>
-        <button class="listen-text-button" type="button">See all</button>
-      </div>
-      <div class="listen-shelf">
-        <% [["After the rain", "Mild Minds", "#7a5af8", "#43d7c6"], ["New skin", "Kelela", "#ed5d87", "#753ba9"], ["In motion", "Rival Consoles", "#f5a34c", "#b93461"], ["Quiet hours", "Nils Frahm", "#326fb6", "#80d7c9"], ["Night drive", "Tycho", "#793ead", "#e6ad66"]].each do |title, artist, first, second| %>
-          <article class="listen-card">
-            <button class="listen-card__art" type="button" aria-label="Play <%= title %>" style="--first:<%= first %>;--second:<%= second %>"><span aria-hidden="true">▶</span></button>
-            <h3><%= title %></h3>
-            <p><%= artist %></p>
-          </article>
-        <% end %>
-      </div>
-    </section>
-
-    <section class="listen-section listen-section--bottom" aria-labelledby="for-you-heading">
-      <div class="listen-section__heading">
-        <div><p class="listen-kicker">Built around your library</p><h2 id="for-you-heading">For you</h2></div>
-      </div>
-      <div class="listen-for-you">
-        <div class="listen-for-you__art" aria-hidden="true"><%= image_tag "/brand/sonzra-mark.svg", alt: "" %></div>
-        <div><h3>Your library is ready when you are.</h3><p>Connect a server, then Sonzra will turn your music, podcasts, and audiobooks into a listening home.</p></div>
-        <%= link_to "Add a server", new_server_connection_path, class: "listen-outline-button" %>
-      </div>
-    </section>
+    <turbo-frame id="home_content" src="<%= home_content_path %>" loading="lazy">
+      <section class="listen-loading" aria-live="polite">
+        <%= image_tag "/brand/sonzra-mark.svg", alt: "", class: "listen-loading__mark" %>
+        <div><p class="listen-kicker">Connecting to your library</p><h1>Getting your music ready…</h1><p>Fetching your recent listening and discovery picks.</p></div>
+      </section>
+    </turbo-frame>
   </main>
-
-  <aside class="listen-player" aria-label="Now playing">
-    <div class="listen-player__track">
-      <div class="listen-player__art" aria-hidden="true"></div>
-      <div><strong>Stargazing</strong><span>Mild Minds · Dream State</span></div>
-      <button type="button" class="listen-icon-button" aria-label="Like Stargazing">♡</button>
-    </div>
-    <div class="listen-player__controls">
-      <button type="button" aria-label="Previous track">↶</button>
-      <button type="button" aria-label="Play" class="listen-player__play">▶</button>
-      <button type="button" aria-label="Next track">↷</button>
-    </div>
-    <div class="listen-player__progress"><span></span></div>
-    <div class="listen-player__utilities"><button type="button" aria-label="Open queue">☷</button><button type="button" aria-label="Volume">⌁</button></div>
-  </aside>
 </div>

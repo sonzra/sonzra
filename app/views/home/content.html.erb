@@ -1,0 +1,7 @@
+<turbo-frame id="home_content">
+  <% if @result.success? %>
+    <%= render "library_content", content: @result.content %>
+  <% else %>
+    <section class="listen-loading listen-loading--error" role="alert"><h1>We couldn’t load your library.</h1><p><%= @result.message %></p><%= link_to "Manage servers", server_connections_path, class: "listen-outline-button" %></section>
+  <% end %>
+</turbo-frame>
