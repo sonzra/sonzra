@@ -1,0 +1,12 @@
+<main class="settings-shell">
+  <header class="settings-header">
+    <%= link_to "← Servers", server_connections_path, class: "back-link" %>
+  </header>
+
+  <section class="form-page">
+    <span class="eyebrow">New server</span>
+    <h1>Connect your media.</h1>
+    <p>Add your Jellyfin server details. Your username and password are encrypted at rest.</p>
+    <%= render "form", server_connection: @server_connection %>
+  </section>
+</main>

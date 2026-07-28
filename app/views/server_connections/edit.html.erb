@@ -1,0 +1,12 @@
+<main class="settings-shell">
+  <header class="settings-header">
+    <%= link_to "← #{@server_connection.name}", @server_connection, class: "back-link" %>
+  </header>
+
+  <section class="form-page">
+    <span class="eyebrow">Edit server</span>
+    <h1>Update connection.</h1>
+    <p>Leave the password blank to keep the existing encrypted password.</p>
+    <%= render "form", server_connection: @server_connection %>
+  </section>
+</main>

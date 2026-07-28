@@ -1,0 +1,43 @@
+<%= form_with model: server_connection, class: "connection-form" do |form| %>
+  <% if server_connection.errors.any? %>
+    <div class="form-errors" role="alert">
+      <h2><%= pluralize(server_connection.errors.count, "error") %> prevented this server from being saved:</h2>
+      <ul>
+        <% server_connection.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="field">
+    <%= form.label :name, "Name" %>
+    <%= form.text_field :name, autofocus: true, placeholder: "Home Jellyfin", required: true %>
+  </div>
+
+  <div class="field">
+    <%= form.label :provider, "Server type" %>
+    <%= form.select :provider, ServerConnection::PROVIDERS.keys.map { |provider| [provider.capitalize, provider] } %>
+  </div>
+
+  <div class="field">
+    <%= form.label :base_url, "Server address" %>
+    <%= form.url_field :base_url, placeholder: "https://jellyfin.example.com", required: true %>
+    <p class="form-hint">Include the protocol. A path is supported, such as <code>https://example.com/jellyfin</code>.</p>
+  </div>
+
+  <div class="field">
+    <%= form.label :username, "Username" %>
+    <%= form.text_field :username, autocomplete: "username", required: true %>
+  </div>
+
+  <div class="field">
+    <%= form.label :password, "Password" %>
+    <%= form.password_field :password, autocomplete: "current-password", required: server_connection.new_record?, placeholder: server_connection.persisted? ? "Leave blank to keep the current password" : nil %>
+  </div>
+
+  <div class="form-actions">
+    <%= link_to "Cancel", server_connection.persisted? ? server_connection : server_connections_path, class: "secondary-button" %>
+    <%= form.submit server_connection.persisted? ? "Save changes" : "Save server", class: "primary-button" %>
+  </div>
+<% end %>

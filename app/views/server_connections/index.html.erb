@@ -1,0 +1,37 @@
+<main class="settings-shell">
+  <header class="settings-header">
+    <%= link_to root_path, class: "brand", aria: { label: "Sonzra home" } do %>
+      <%= image_tag "/brand/sonzra-mark.svg", class: "brand__mark", alt: "" %>
+      <span>sonzra</span>
+    <% end %>
+    <%= link_to "Add server", new_server_connection_path, class: "primary-button" %>
+  </header>
+
+  <section class="settings-intro">
+    <span class="eyebrow">Servers</span>
+    <h1>Your media, wherever it lives.</h1>
+    <p>Add a server to bring its music, podcasts, and audiobooks into Sonzra.</p>
+  </section>
+
+  <% if @server_connections.any? %>
+    <section class="connection-list" aria-label="Server connections">
+      <% @server_connections.each do |server_connection| %>
+        <article class="connection-card">
+          <div>
+            <p class="connection-card__provider"><%= server_connection.provider.capitalize %></p>
+            <h2><%= server_connection.name %></h2>
+            <p><%= server_connection.base_url %></p>
+          </div>
+          <%= link_to "Manage", server_connection, class: "secondary-button" %>
+        </article>
+      <% end %>
+    </section>
+  <% else %>
+    <section class="empty-state">
+      <%= image_tag "/brand/sonzra-mark.svg", alt: "", class: "empty-state__mark" %>
+      <h2>No servers yet</h2>
+      <p>Connect your first media server to start building your library.</p>
+      <%= link_to "Add a server", new_server_connection_path, class: "primary-button" %>
+    </section>
+  <% end %>
+</main>
