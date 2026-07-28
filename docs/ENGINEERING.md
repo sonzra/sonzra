@@ -58,6 +58,22 @@ jobs, and rendering; application behaviour is organised around the domain.
 - Run `bundle exec rubocop` before submitting changes. The project uses
   `rubocop-rails-omakase`; its configuration is in `.rubocop.yml`.
 
+## Responsive and Native UX
+
+Sonzra is browser-first but will also be delivered through Hotwire Native.
+Every user-facing change must work at narrow mobile widths as well as desktop.
+
+- Build mobile-first layouts. Use responsive CSS to enhance larger screens;
+  do not make mobile navigation or primary playback actions unreachable.
+- Test important screens at a narrow phone viewport (at least 375px wide) and
+  at a desktop viewport. Avoid horizontal page scrolling, clipped controls,
+  and content hidden behind the persistent player.
+- Keep touch targets comfortably tappable (roughly 44px for primary controls)
+  and ensure keyboard focus remains visible on the web.
+- Preserve Hotwire Native compatibility: favour standard HTML controls,
+  Turbo navigation, and small Stimulus controllers over browser-only or
+  desktop-only interaction patterns.
+
 ## Testing
 
 Every meaningful feature and bug fix must include automated tests. Tests are
