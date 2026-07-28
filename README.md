@@ -94,4 +94,7 @@ Keep screens server-rendered and navigation URL-driven. Add native-specific beha
 6. Offline downloads and media session integration
 
 ## License
-Choose an open-source license before publishing. AGPL-3.0 is worth considering for a networked self-hosted application; MIT is simpler and more permissive.
+
+Sonzra is licensed under the [GNU Affero General Public License v3.0 or later](LICENSE)
+(`AGPL-3.0-or-later`). The Sonzra name and visual identity are covered by the
+[trademark policy](TRADEMARKS.md), not by the software license.
