@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "bundler/setup"
+
+abort unless system("bundle exec rubocop")
+abort unless system("bin/rails db:prepare")
+abort unless system("bin/rails test")

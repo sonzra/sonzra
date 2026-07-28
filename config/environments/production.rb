@@ -4,7 +4,7 @@ Rails.application.configure do
   config.consider_all_requests_local = false
   config.assume_ssl = ENV["RAILS_ASSUME_SSL"] == "true"
   config.force_ssl = ENV["RAILS_FORCE_SSL"] == "true"
-  config.log_tags = [:request_id]
+  config.log_tags = [ :request_id ]
   config.logger = ActiveSupport::TaggedLogging.logger($stdout)
   config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "info")
   config.cache_store = :solid_cache_store

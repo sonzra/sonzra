@@ -21,6 +21,13 @@ bin/dev
 
 Open `http://localhost:3000`.
 
+Before creating a server connection, configure Active Record Encryption. Run
+`bin/rails db:encryption:init`, store the three generated values in your
+environment (or encrypted Rails credentials), and use `.env.example` as the
+variable reference. For credentials, nest the generated values under
+`active_record_encryption` using the keys `primary_key`, `deterministic_key`,
+and `key_derivation_salt`. Do not commit these keys.
+
 ## Docker
 
 ```bash
@@ -29,6 +36,15 @@ docker compose up --build
 
 ## Brand assets
 See [`docs/BRAND.md`](docs/BRAND.md). The starter page includes a Stimulus controller demonstrating live logo states.
+
+## Engineering
+The project's architecture, object-design, Rails, and testing conventions live
+in [`docs/ENGINEERING.md`](docs/ENGINEERING.md). Run the full local quality
+check with:
+
+```bash
+bin/quality
+```
 
 ## Hotwire Native notes
 Keep screens server-rendered and navigation URL-driven. Add native-specific behavior through path configuration and bridge components rather than replacing the web UI. Action Cable is already configured for live Turbo Stream updates.
