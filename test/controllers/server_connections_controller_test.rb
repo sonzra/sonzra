@@ -16,7 +16,10 @@ class ServerConnectionsControllerTest < ActionDispatch::IntegrationTest
     get server_connections_url
 
     assert_response :success
+    assert_select "h1", "Server"
     assert_select "h2", "Home server"
+    assert_select "a.connection-card__edit[href='#{edit_server_connection_path(@server_connection)}']"
+    assert_select "a[href='#{new_server_connection_path}']", count: 0
   end
 
   test "shows a server connection" do
@@ -24,6 +27,13 @@ class ServerConnectionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h1", "Home server"
+  end
+
+  test "renders an edit cancel link back to the servers list" do
+    get edit_server_connection_url(@server_connection)
+
+    assert_response :success
+    assert_select "a.secondary-button[href='#{server_connections_path}']", "Cancel"
   end
 
   test "creates a server connection" do

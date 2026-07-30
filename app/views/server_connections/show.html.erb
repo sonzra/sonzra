@@ -1,6 +1,6 @@
 <main class="settings-shell">
   <header class="settings-header">
-    <%= link_to "← Servers", server_connections_path, class: "back-link" %>
+    <%= link_to server_connections_path, class: "back-link back-link--compact", aria: { label: "Back to servers" }, title: "Back to servers" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %>
     <div class="settings-header__actions">
       <%= link_to "Edit", edit_server_connection_path(@server_connection), class: "secondary-button" %>
       <%= button_to "Remove", @server_connection, method: :delete, class: "text-button text-button--danger", form: { data: { turbo_confirm: "Remove this server connection?" } } %>
@@ -9,8 +9,7 @@
 
   <%= render "shared/flash" %>
 
-  <section class="connection-detail">
-    <span class="eyebrow"><%= @server_connection.provider.capitalize %> server</span>
+  <section class="connection-detail connection-detail--compact">
     <h1><%= @server_connection.name %></h1>
     <p><%= @server_connection.base_url %></p>
 
@@ -20,6 +19,5 @@
     </div>
 
     <%= button_to "Test connection", test_connection_server_connection_path(@server_connection), class: "primary-button" %>
-    <p class="form-hint">This verifies the saved credentials without storing a session token.</p>
   </section>
 </main>

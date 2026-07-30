@@ -1,17 +1,10 @@
 <main class="settings-shell">
-  <header class="settings-header">
-    <%= link_to root_path, class: "brand", aria: { label: "Sonzra home" } do %>
-      <%= image_tag "/brand/sonzra-mark.svg", class: "brand__mark", alt: "" %>
-      <span>sonzra</span>
-    <% end %>
-    <%= link_to "Add server", new_server_connection_path, class: "primary-button" %>
+  <header class="settings-header settings-header--page">
+    <div class="page-title">
+      <%= link_to root_path, class: "back-link back-link--compact", aria: { label: "Back to home" }, title: "Back to home" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %>
+      <h1>Server</h1>
+    </div>
   </header>
-
-  <section class="settings-intro">
-    <span class="eyebrow">Servers</span>
-    <h1>Your media, wherever it lives.</h1>
-    <p>Add a server to bring its music, podcasts, and audiobooks into Sonzra.</p>
-  </section>
 
   <% if @server_connections.any? %>
     <section class="connection-list" aria-label="Server connections">
@@ -22,7 +15,7 @@
             <h2><%= server_connection.name %></h2>
             <p><%= server_connection.base_url %></p>
           </div>
-          <%= link_to "Manage", server_connection, class: "secondary-button" %>
+          <%= link_to edit_server_connection_path(server_connection), class: "connection-card__edit", aria: { label: "Edit #{server_connection.name}" }, title: "Edit #{server_connection.name}" do %><%= lucide_icon "pencil", aria: { hidden: true } %><% end %>
         </article>
       <% end %>
     </section>
@@ -30,8 +23,7 @@
     <section class="empty-state">
       <%= image_tag "/brand/sonzra-mark.svg", alt: "", class: "empty-state__mark" %>
       <h2>No servers yet</h2>
-      <p>Connect your first media server to start building your library.</p>
-      <%= link_to "Add a server", new_server_connection_path, class: "primary-button" %>
+      <p>Add a server to start listening.</p>
     </section>
   <% end %>
 </main>

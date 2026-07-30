@@ -1,12 +1,6 @@
 <main class="settings-shell">
-  <header class="settings-header">
-    <%= link_to "← Servers", server_connections_path, class: "back-link" %>
-  </header>
-
-  <section class="form-page">
-    <span class="eyebrow">New server</span>
-    <h1>Connect your media.</h1>
-    <p>Add your Jellyfin server details. Your username and password are encrypted at rest.</p>
+  <section class="form-page form-page--compact">
+    <div class="page-title"><%= link_to server_connections_path, class: "back-link back-link--compact", aria: { label: "Back to servers" }, title: "Back to servers" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1>Add server</h1></div>
     <%= render "form", server_connection: @server_connection %>
   </section>
 </main>

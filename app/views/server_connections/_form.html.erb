@@ -37,7 +37,7 @@
   </div>
 
   <div class="form-actions">
-    <%= link_to "Cancel", server_connection.persisted? ? server_connection : server_connections_path, class: "secondary-button" %>
+    <%= link_to "Cancel", server_connections_path, class: "secondary-button" %>
     <%= form.submit server_connection.persisted? ? "Save changes" : "Save server", class: "primary-button" %>
   </div>
 <% end %>

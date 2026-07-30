@@ -1,24 +1,17 @@
 <main class="settings-shell">
-  <header class="settings-header">
-    <%= link_to "← Home", root_path, class: "back-link" %>
-  </header>
-
-  <section class="form-page">
-    <p class="eyebrow">Administration</p>
-    <h1>Registration settings</h1>
-    <p>Control whether new people can create a Sonzra account. Existing users can always sign in.</p>
+  <section class="form-page form-page--compact">
+    <div class="page-title"><%= link_to root_path, class: "back-link back-link--compact", aria: { label: "Back to home" }, title: "Back to home" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1>Registration</h1></div>
     <%= render "shared/flash" %>
-    <p class="settings-status">New sign-ups are currently <strong><%= @application_setting.registrations_enabled? ? "enabled" : "disabled" %></strong>.</p>
 
     <%= form_with model: @application_setting, url: admin_registration_settings_path, method: :patch, class: "connection-form" do |form| %>
       <label class="settings-toggle">
         <%= form.check_box :registrations_enabled %>
         <span>
           <strong>Allow new sign-ups</strong>
-          <small>When disabled, the account creation page is unavailable.</small>
+          <small>Turn this off to prevent new accounts from being created.</small>
         </span>
       </label>
-      <div class="form-actions"><%= form.submit "Save settings", class: "primary-button" %></div>
+      <div class="form-actions form-actions--centered"><%= form.submit "Save settings", class: "primary-button settings-save-button" %></div>
     <% end %>
   </section>
 </main>
