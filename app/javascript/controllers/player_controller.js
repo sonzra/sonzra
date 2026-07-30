@@ -1,7 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-  static targets = ["audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "volume", "queuePanel", "queueList", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration"]
+  static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration"]
 
   connect() {
     // The player is Turbo-permanent. During a deploy or a Turbo restoration it
@@ -12,29 +12,43 @@ export default class extends Controller {
     this.relocateLegacyQueue()
     this.restoreVolume()
     this.restoreQueue()
-    this.audioTarget.addEventListener("timeupdate", this.updateTimeline)
-    this.audioTarget.addEventListener("loadedmetadata", this.updateTimeline)
-    this.audioTarget.addEventListener("durationchange", this.updateTimeline)
-    this.audioTarget.addEventListener("play", this.handlePlay)
-    this.audioTarget.addEventListener("pause", this.handlePause)
-    this.audioTarget.addEventListener("seeked", this.reportProgress)
-    this.audioTarget.addEventListener("ended", this.playNext)
-    this.audioTarget.addEventListener("error", this.showPlaybackError)
-    window.addEventListener("pagehide", this.stopPlayback)
+    this.audioTarget.preload = "auto"
+    this.audioTarget.playsInline = true
+    this.bindEventHandlers()
+    this.audioTarget.addEventListener("timeupdate", this.boundUpdateTimeline)
+    this.audioTarget.addEventListener("loadedmetadata", this.boundUpdateTimeline)
+    this.audioTarget.addEventListener("durationchange", this.boundUpdateTimeline)
+    this.audioTarget.addEventListener("canplay", this.boundUpdateTimeline)
+    this.audioTarget.addEventListener("play", this.boundHandlePlay)
+    this.audioTarget.addEventListener("pause", this.boundHandlePause)
+    this.audioTarget.addEventListener("seeked", this.boundReportProgress)
+    this.audioTarget.addEventListener("ended", this.boundPlayNext)
+    this.audioTarget.addEventListener("error", this.boundShowPlaybackError)
+    window.addEventListener("pagehide", this.boundStopPlayback)
+    window.addEventListener("pageshow", this.boundReconcilePlayback)
+    window.addEventListener("sonzra:native-media-command", this.boundHandleNativeMediaCommand)
+    document.addEventListener("visibilitychange", this.boundReconcilePlayback)
+    this.reconcilePlayback()
   }
 
   disconnect() {
     if (!this.hasAudioTarget) return
 
-    this.audioTarget.removeEventListener("timeupdate", this.updateTimeline)
-    this.audioTarget.removeEventListener("loadedmetadata", this.updateTimeline)
-    this.audioTarget.removeEventListener("durationchange", this.updateTimeline)
-    this.audioTarget.removeEventListener("play", this.handlePlay)
-    this.audioTarget.removeEventListener("pause", this.handlePause)
-    this.audioTarget.removeEventListener("seeked", this.reportProgress)
-    this.audioTarget.removeEventListener("ended", this.playNext)
-    this.audioTarget.removeEventListener("error", this.showPlaybackError)
-    window.removeEventListener("pagehide", this.stopPlayback)
+    this.persistQueue()
+    this.audioTarget.removeEventListener("timeupdate", this.boundUpdateTimeline)
+    this.audioTarget.removeEventListener("loadedmetadata", this.boundUpdateTimeline)
+    this.audioTarget.removeEventListener("durationchange", this.boundUpdateTimeline)
+    this.audioTarget.removeEventListener("canplay", this.boundUpdateTimeline)
+    this.audioTarget.removeEventListener("play", this.boundHandlePlay)
+    this.audioTarget.removeEventListener("pause", this.boundHandlePause)
+    this.audioTarget.removeEventListener("seeked", this.boundReportProgress)
+    this.audioTarget.removeEventListener("ended", this.boundPlayNext)
+    this.audioTarget.removeEventListener("error", this.boundShowPlaybackError)
+    window.removeEventListener("pagehide", this.boundStopPlayback)
+    window.removeEventListener("pageshow", this.boundReconcilePlayback)
+    window.removeEventListener("sonzra:native-media-command", this.boundHandleNativeMediaCommand)
+    document.removeEventListener("visibilitychange", this.boundReconcilePlayback)
+    this.stopProgressWatch()
   }
 
   async replaceQueue(event) {
@@ -55,48 +69,35 @@ export default class extends Controller {
     this.queue.push(...tracks)
     this.persistQueue()
     this.renderQueue()
+    this.showQueueFeedback(tracks)
     if (!this.audioTarget.src) this.playCurrent()
   }
 
   toggle() {
     if (!this.audioTarget.src) return
 
-    this.audioTarget.paused ? this.audioTarget.play().catch(this.showPlaybackError) : this.audioTarget.pause()
+    if (this.audioTarget.paused) {
+      const playback = this.audioTarget.play()
+      this.monitorPlayback(playback)
+    } else {
+      this.audioTarget.pause()
+    }
   }
 
   seek(event) {
     this.audioTarget.currentTime = event.currentTarget.value
     this.updateProgress(Number(event.currentTarget.value), Number(event.currentTarget.max))
-  }
-
-  setVolume() {
-    if (!this.hasVolumeTarget) return
-
-    this.audioTarget.volume = this.volumeTarget.value
-    sessionStorage.setItem("sonzra:volume", this.volumeTarget.value)
+    this.syncNativeMedia()
   }
 
   toggleQueue() {
     this.relocateLegacyQueue()
-    const opening = this.queuePanelTarget.hidden
-    this.queuePanelTarget.hidden = !opening
+    if (!this.hasQueuePanelTarget) return
 
-    if (opening) {
-      const compactLayout = window.matchMedia("(max-width: 1120px)").matches
-      Object.assign(this.queuePanelTarget.style, {
-        position: "fixed",
-        zIndex: "9999",
-        inset: "0",
-        display: "grid",
-        gridTemplateColumns: compactLayout ? "1fr" : "minmax(320px, 1fr) minmax(340px, .9fr)",
-        gridTemplateRows: compactLayout ? "auto minmax(0, 1fr)" : "none",
-        gap: compactLayout ? "24px" : "clamp(34px, 6vw, 108px)",
-        alignItems: "center",
-        padding: compactLayout ? "64px 28px 24px" : "clamp(28px, 6vw, 88px)",
-        background: "radial-gradient(circle at 24% 20%, #7a5af82e, transparent 30%), linear-gradient(135deg, #0b0b14, #171526 58%, #101923)"
-      })
+    if (this.queuePanelTarget.hidden) {
+      this.openQueue()
     } else {
-      this.queuePanelTarget.style.display = "none"
+      this.closeQueue()
     }
   }
 
@@ -118,10 +119,15 @@ export default class extends Controller {
     this.playCurrent()
   }
 
-  updateTimeline = () => {
+  updateTimeline() {
     const duration = this.audioTarget.duration
     if (this.hasElapsedTarget) this.elapsedTarget.textContent = this.formatTime(this.audioTarget.currentTime)
     if (!Number.isFinite(duration)) return
+
+    if (this.pendingStartPosition > 0) {
+      this.audioTarget.currentTime = Math.min(this.pendingStartPosition, duration)
+      this.pendingStartPosition = 0
+    }
 
     this.timelineTargets.concat(this.expandedTimelineTargets).forEach((timeline) => {
       timeline.max = duration
@@ -134,53 +140,78 @@ export default class extends Controller {
     if (this.audioTarget.currentTime - (this.lastReportedPosition || 0) >= 15) this.reportProgress()
   }
 
-  updateToggle = () => {
-    const icon = this.audioTarget.paused ? "▶" : "⏸"
+  updateToggle() {
+    const icon = this.audioTarget.paused ? this.icon("play") : this.icon("pause")
     const label = this.audioTarget.paused ? "Play" : "Pause"
     this.toggleTargets.concat(this.expandedToggleTargets).forEach((button) => {
-      button.textContent = icon
+      button.innerHTML = icon
       button.setAttribute("aria-label", label)
     })
   }
 
-  handlePlay = () => {
+  handlePlay() {
     this.updateToggle()
+    this.syncNativeMedia()
+    this.startProgressWatch()
     this.reportPlayback(this.hasReportedStart ? "progress" : "started")
     this.hasReportedStart = true
   }
 
-  handlePause = () => {
+  handlePause() {
     this.updateToggle()
+    this.syncNativeMedia()
+    this.stopProgressWatch()
+    if (!this.hasReportedStart) return
+
+    this.reportPlayback("stopped")
+    this.hasReportedStart = false
+  }
+
+  reportProgress() {
     this.reportPlayback("progress")
   }
 
-  reportProgress = () => this.reportPlayback("progress")
+  playNext() {
+    if (this.advancingQueue) return
 
-  playNext = () => {
-    if (this.currentIndex >= this.queue.length - 1) return this.stopPlayback()
+    this.advancingQueue = true
+    if (this.currentIndex >= this.queue.length - 1) {
+      this.stopPlayback()
+      this.advancingQueue = false
+      return
+    }
 
     this.playQueueIndex(this.currentIndex + 1)
+    this.advancingQueue = false
   }
 
-  showPlaybackError = () => {
-    this.artistTarget.textContent = "This track could not be played. Check the server logs and try again."
+  showPlaybackError() {
+    if (this.hasArtistTarget) this.artistTarget.textContent = "This track could not be played. Check the server logs and try again."
   }
 
   async tracksFor(event) {
-    if (!event.params.queueUrl) return [ this.trackFrom(event.params) ]
+    const params = {
+      ...event.params,
+      resumable: event.params.resumable || Boolean(event.currentTarget?.closest(".detail-hero--longform"))
+    }
+    if (!params.queueUrl) return [ this.trackFrom(params) ]
 
-    const response = await fetch(event.params.queueUrl, { headers: { Accept: "application/json" } })
-    if (!response.ok) return []
+    try {
+      const response = await fetch(params.queueUrl, { headers: { Accept: "application/json" } })
+      if (!response.ok) return []
 
-    return (await response.json()).items.map((track) => ({
-      ...track,
-      itemId: track.item_id,
-      reportingUrl: track.reporting_url
-    }))
+      return (await response.json()).items.map((track) => ({
+        ...track,
+        itemId: track.item_id,
+        reportingUrl: track.reporting_url
+      }))
+    } catch (_) {
+      return []
+    }
   }
 
-  trackFrom({ source, title, artist, artwork, duration, itemId, reportingUrl }) {
-    return { source, title, artist, artwork, duration, itemId, reportingUrl }
+  trackFrom({ source, title, artist, artwork, duration, itemId, reportingUrl, startPosition, resumable }) {
+    return { source, title, artist, artwork, duration, itemId, reportingUrl, startPosition, resumable: resumable === true || resumable === "true" }
   }
 
   playCurrent() {
@@ -189,7 +220,8 @@ export default class extends Controller {
 
     if (this.currentTrack && this.currentTrack !== track) this.reportPlayback("stopped")
     this.loadTrack(track)
-    this.audioTarget.play().catch(this.showPlaybackError)
+    const playback = this.audioTarget.play()
+    this.monitorPlayback(playback)
   }
 
   restoreCurrentTrack() {
@@ -205,20 +237,28 @@ export default class extends Controller {
     this.hasReportedStart = false
     this.lastReportedPosition = 0
     this.audioTarget.src = track.source
+    this.pendingStartPosition = Number(track.startPosition) || 0
     this.titleTarget.textContent = track.title
     this.artistTarget.textContent = track.artist
     this.artworkTarget.src = track.artwork
+    this.showPlayer()
     if (this.hasExpandedTitleTarget) this.expandedTitleTarget.textContent = track.title
     if (this.hasExpandedArtistTarget) this.expandedArtistTarget.textContent = track.artist
     if (this.hasExpandedArtworkTarget) this.expandedArtworkTarget.src = track.artwork
     this.resetTimeline()
+    this.syncNativeMedia()
   }
 
   restoreQueue() {
     const savedQueue = sessionStorage.getItem("sonzra:queue")
     const savedIndex = sessionStorage.getItem("sonzra:queue-index")
-    this.queue = savedQueue ? JSON.parse(savedQueue) : []
-    this.currentIndex = savedIndex ? Number(savedIndex) : 0
+    try {
+      this.queue = savedQueue ? JSON.parse(savedQueue) : []
+      this.currentIndex = savedIndex ? Number(savedIndex) : 0
+    } catch (_) {
+      this.queue = []
+      this.currentIndex = 0
+    }
     this.renderQueue()
     this.restoreCurrentTrack()
   }
@@ -230,7 +270,10 @@ export default class extends Controller {
 
   renderQueue() {
     const firstVisibleIndex = Math.max(0, this.currentIndex - 3)
-    this.queueListTarget.replaceChildren(...this.queue.slice(firstVisibleIndex).map((track, index) => {
+    if (!this.hasQueueListTarget) return
+
+    this.queueListTarget.textContent = ""
+    this.queue.slice(firstVisibleIndex).forEach((track, index) => {
       const item = document.createElement("li")
       const queueIndex = firstVisibleIndex + index
       item.classList.toggle("is-current", queueIndex === this.currentIndex)
@@ -243,12 +286,15 @@ export default class extends Controller {
       duration.textContent = track.duration || "—"
       const playButton = document.createElement("button")
       playButton.type = "button"
+      const isCurrent = queueIndex === this.currentIndex
       playButton.ariaLabel = `Play ${track.title}`
-      playButton.textContent = "▶"
+      playButton.innerHTML = this.icon("play", "listen-queue__item-play-icon")
+      playButton.className = "listen-queue__item-play"
+      playButton.classList.toggle("is-current", isCurrent)
       playButton.addEventListener("click", () => this.playQueueIndex(queueIndex))
       item.append(artwork, details, duration, playButton)
-      return item
-    }))
+      this.queueListTarget.appendChild(item)
+    })
     if (this.queue.length === 0) this.queueListTarget.textContent = "Nothing queued"
   }
 
@@ -272,15 +318,22 @@ export default class extends Controller {
   updateProgress(position, duration) {
     const percentage = duration > 0 ? (position / duration) * 100 : 0
     this.timelineTargets.concat(this.expandedTimelineTargets).forEach((timeline) => timeline.style.setProperty("--progress", `${percentage}%`))
+    if (this.hasMiniProgressTarget) this.miniProgressTarget.style.width = `${percentage}%`
   }
 
-  stopPlayback = () => this.reportPlayback("stopped", { keepalive: true })
+  stopPlayback() {
+    this.reportPlayback("stopped", { keepalive: true })
+  }
 
   reportPlayback(event, { keepalive = false } = {}) {
-    if (!this.currentTrack?.itemId || !this.currentTrack?.reportingUrl || !this.hasAudioTarget) return
+    if (!this.currentTrack || !this.currentTrack.itemId || !this.currentTrack.reportingUrl || !this.hasAudioTarget) return
 
     const positionTicks = Math.round(this.audioTarget.currentTime * 10_000_000)
     this.lastReportedPosition = this.audioTarget.currentTime
+    if (this.currentTrack.resumable) {
+      this.currentTrack.startPosition = this.audioTarget.currentTime
+      this.persistQueue()
+    }
     try {
       fetch(this.currentTrack.reportingUrl, {
         method: "POST",
@@ -289,7 +342,7 @@ export default class extends Controller {
           "Content-Type": "application/json",
           "X-CSRF-Token": document.querySelector("meta[name='csrf-token']")?.content
         },
-        body: JSON.stringify({ event, item_id: this.currentTrack.itemId, position_ticks: positionTicks, paused: this.audioTarget.paused }),
+        body: JSON.stringify({ event, item_id: this.currentTrack.itemId, position_ticks: positionTicks, paused: this.audioTarget.paused, resumable: this.currentTrack.resumable && !this.audioTarget.ended }),
         keepalive
       }).catch(() => {})
     } catch (_) {
@@ -298,11 +351,14 @@ export default class extends Controller {
   }
 
   restoreVolume() {
-    if (!this.hasAudioTarget || !this.hasVolumeTarget) return
+    if (!this.hasAudioTarget) return
 
-    const volume = sessionStorage.getItem("sonzra:volume") || this.volumeTarget.value
-    this.volumeTarget.value = volume
+    const volume = sessionStorage.getItem("sonzra:volume") || "0.8"
     this.audioTarget.volume = volume
+  }
+
+  showPlayer() {
+    if (this.hasShellTarget) this.shellTarget.hidden = false
   }
 
   playQueueIndex(index) {
@@ -310,6 +366,53 @@ export default class extends Controller {
     this.persistQueue()
     this.renderQueue()
     this.playCurrent()
+  }
+
+  openQueue() {
+    window.clearTimeout(this.queueCloseTimeout)
+    window.cancelAnimationFrame(this.queueOpenFrame)
+    this.queuePanelTarget.hidden = false
+    this.queuePanelTarget.classList.remove("is-closing")
+    this.queueOpenFrame = window.requestAnimationFrame(() => this.queuePanelTarget.classList.add("is-open"))
+  }
+
+  closeQueue() {
+    window.cancelAnimationFrame(this.queueOpenFrame)
+    this.queuePanelTarget.classList.remove("is-open")
+    this.queuePanelTarget.classList.add("is-closing")
+    window.clearTimeout(this.queueCloseTimeout)
+    this.queueCloseTimeout = window.setTimeout(() => {
+      this.queuePanelTarget.hidden = true
+      this.queuePanelTarget.classList.remove("is-closing")
+    }, 180)
+  }
+
+  showQueueFeedback(tracks) {
+    if (!this.hasQueueFeedbackTarget) return
+
+    const message = tracks.length === 1 ? `Added “${tracks[0].title}” to queue` : `Added ${tracks.length} tracks to queue`
+    window.clearTimeout(this.queueFeedbackTimeout)
+    window.clearTimeout(this.queueFeedbackHideTimeout)
+    this.queueFeedbackTarget.textContent = message
+    this.queueFeedbackTarget.hidden = false
+    window.requestAnimationFrame(() => this.queueFeedbackTarget.classList.add("is-visible"))
+    this.queueFeedbackTimeout = window.setTimeout(() => {
+      this.queueFeedbackTarget.classList.remove("is-visible")
+      this.queueFeedbackHideTimeout = window.setTimeout(() => { this.queueFeedbackTarget.hidden = true }, 180)
+    }, 2400)
+  }
+
+  monitorPlayback(playback) {
+    if (!playback) return
+
+    playback.then(() => {
+      // A Turbo-permanent audio element can outlive its controller while a
+      // native WebView restores a page. The audio can then play before the
+      // replacement controller receives its `play` event. The resolved
+      // promise gives us a dependable second path to keep the player UI in
+      // sync without duplicating normal event-driven updates.
+      if (!this.progressWatch) this.handlePlay()
+    }).catch(this.boundShowPlaybackError)
   }
 
   relocateLegacyQueue() {
@@ -321,5 +424,79 @@ export default class extends Controller {
     } else {
       document.body.append(legacyQueue)
     }
+  }
+
+  bindEventHandlers() {
+    this.boundUpdateTimeline = this.updateTimeline.bind(this)
+    this.boundHandlePlay = this.handlePlay.bind(this)
+    this.boundHandlePause = this.handlePause.bind(this)
+    this.boundReportProgress = this.reportProgress.bind(this)
+    this.boundPlayNext = this.playNext.bind(this)
+    this.boundShowPlaybackError = this.showPlaybackError.bind(this)
+    this.boundStopPlayback = this.stopPlayback.bind(this)
+    this.boundReconcilePlayback = this.reconcilePlayback.bind(this)
+    this.boundHandleNativeMediaCommand = this.handleNativeMediaCommand.bind(this)
+  }
+
+  startProgressWatch() {
+    this.stopProgressWatch()
+    this.progressWatch = window.setInterval(this.boundReconcilePlayback, 1000)
+  }
+
+  stopProgressWatch() {
+    if (!this.progressWatch) return
+
+    window.clearInterval(this.progressWatch)
+    this.progressWatch = null
+  }
+
+  reconcilePlayback() {
+    if (!this.hasAudioTarget) return
+
+    this.updateTimeline()
+    const duration = this.audioTarget.duration
+    const finished = this.audioTarget.ended || (Number.isFinite(duration) && duration > 0 && this.audioTarget.currentTime >= duration - 0.05)
+    if (finished) this.playNext()
+  }
+
+  handleNativeMediaCommand(event) {
+    switch (event.detail?.command) {
+      case "play":
+      case "pause":
+        this.toggle()
+        break
+      case "next":
+        this.next()
+        break
+      case "previous":
+        this.previous()
+        break
+    }
+  }
+
+  syncNativeMedia() {
+    if (!this.currentTrack || !this.hasAudioTarget || !window.SonzraNativeMedia?.update) return
+
+    try {
+      const artwork = new URL(this.currentTrack.artwork || "/brand/sonzra-mark.svg", window.location.origin).href
+      window.SonzraNativeMedia.update(
+        this.currentTrack.title || "Sonzra",
+        this.currentTrack.artist || "",
+        artwork,
+        !this.audioTarget.paused,
+        Number(this.audioTarget.currentTime) || 0,
+        Number(this.audioTarget.duration) || 0
+      )
+    } catch (_) {
+      // The browser version has no native bridge, and playback must remain unaffected.
+    }
+  }
+
+  icon(name, className = "") {
+    const paths = {
+      play: '<polygon points="5 3 19 12 5 21 5 3"></polygon>',
+      pause: '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>'
+    }
+    return `<svg class="${className}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths[name]}</svg>`
   }
 }

@@ -1,16 +1,9 @@
-<aside id="player" class="listen-player" aria-label="Now playing" data-turbo-permanent>
-  <audio data-player-target="audio"></audio>
-  <div class="listen-player__left">
-    <div class="listen-player__track">
-      <img class="listen-player__art" data-player-target="artwork" src="/brand/sonzra-mark.svg" alt="">
-      <div><strong data-player-target="title">Choose something to play</strong><span data-player-target="artist">Your player will stay here</span></div>
-    </div>
-    <div class="listen-player__playback">
-      <time class="listen-player__time" data-player-target="elapsed">0:00</time>
-      <input class="listen-player__timeline" data-player-target="timeline" data-action="input->player#seek" type="range" min="0" max="0" value="0" step="0.1" aria-label="Playback position">
-      <time class="listen-player__time" data-player-target="duration">0:00</time>
-    </div>
-  </div>
-  <div class="listen-player__controls"><button type="button" aria-label="Previous track" class="listen-player__skip" data-action="player#previous">⏮</button><button type="button" aria-label="Play" class="listen-player__play" data-player-target="toggle" data-action="player#toggle">▶</button><button type="button" aria-label="Next track" class="listen-player__skip" data-action="player#next">⏭</button></div>
-  <div class="listen-player__right"><label class="listen-player__volume" aria-label="Volume"><span aria-hidden="true">◖</span><input data-player-target="volume" data-action="input->player#setVolume" type="range" min="0" max="1" value="0.8" step="0.01" aria-label="Volume"></label><button type="button" aria-label="Show queue" class="listen-player__queue-button" data-action="player#toggleQueue">☷</button></div>
+<aside id="player" class="listen-player" aria-label="Now playing" data-player-target="shell" data-turbo-permanent hidden>
+  <audio data-player-target="audio" preload="auto" playsinline></audio>
+  <button type="button" class="listen-player__track" aria-label="Open now playing" data-action="player#openQueue">
+    <img class="listen-player__art" data-player-target="artwork" src="/brand/sonzra-mark.svg" alt="">
+    <span class="listen-player__metadata"><strong data-player-target="title">Choose something to play</strong><span data-player-target="artist">Your player will stay here</span></span>
+  </button>
+  <div class="listen-player__controls"><button type="button" aria-label="Play" class="listen-player__play" data-player-target="toggle" data-action="player#toggle"><%= lucide_icon "play", aria: { hidden: true } %></button></div>
+  <div class="listen-player__progress" aria-hidden="true"><span data-player-target="miniProgress"></span></div>
 </aside>

@@ -1,9 +1,9 @@
-<section id="player-queue" class="listen-queue" data-player-target="queuePanel" hidden>
-  <button type="button" class="listen-queue__close" aria-label="Close queue" data-action="player#toggleQueue">×</button>
+<section id="player-queue" class="listen-queue" data-player-target="queuePanel" data-turbo-permanent hidden>
+  <button type="button" class="listen-queue__close" aria-label="Close queue" data-action="player#toggleQueue"><%= lucide_icon "x", aria: { hidden: true } %></button>
   <div class="listen-queue__now-playing">
     <img data-player-target="expandedArtwork" src="/brand/sonzra-mark.svg" alt="">
     <div><p data-player-target="expandedTitle">Choose something to play</p><span data-player-target="expandedArtist">Your player will stay here</span></div>
-    <div class="listen-queue__controls"><button type="button" aria-label="Previous track" data-action="player#previous">⏮</button><button type="button" class="listen-queue__play" aria-label="Play" data-player-target="expandedToggle" data-action="player#toggle">▶</button><button type="button" aria-label="Next track" data-action="player#next">⏭</button></div>
+    <div class="listen-queue__controls"><button type="button" aria-label="Previous track" data-action="player#previous"><%= lucide_icon "skip-back", aria: { hidden: true } %></button><button type="button" class="listen-queue__play" aria-label="Play" data-player-target="expandedToggle" data-action="player#toggle"><%= lucide_icon "play", aria: { hidden: true } %></button><button type="button" aria-label="Next track" data-action="player#next"><%= lucide_icon "skip-forward", aria: { hidden: true } %></button></div>
     <div class="listen-queue__progress"><time data-player-target="expandedElapsed">0:00</time><input data-player-target="expandedTimeline" data-action="input->player#seek" type="range" min="0" max="0" value="0" step="0.1" aria-label="Playback position"><time data-player-target="expandedDuration">0:00</time></div>
   </div>
   <div class="listen-queue__list"><p>Queue</p><ol data-player-target="queueList"></ol></div>
