@@ -86,6 +86,10 @@ not required to be written before implementation, but must accompany it.
   for important user journeys.
 - Add tests around external adapters using realistic, controlled responses.
   Never require a live Jellyfin server for the regular test suite.
+- Test meaningful Stimulus behaviour with Vitest and JSDOM. Keep controller
+  state small; extract non-DOM logic into focused JavaScript objects when it
+  grows beyond a simple interaction.
 - Keep tests deterministic, readable, and independent. Avoid arbitrary sleeps
   and shared mutable state.
-- Run `bin/rails test` and `bundle exec rubocop` before submitting changes.
+- Run `bin/quality` before submitting changes. It includes Ruby linting,
+  Rails tests, and JavaScript controller tests.

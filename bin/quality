@@ -6,3 +6,4 @@ require "bundler/setup"
 abort unless system("bundle exec rubocop")
 abort unless system("bin/rails db:prepare")
 abort unless system("bin/rails test")
+abort unless system("npm run test:javascript")
