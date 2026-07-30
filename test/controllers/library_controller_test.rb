@@ -14,4 +14,11 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h1", "Connect a server to browse your library."
   end
+
+  test "renders the genre directory" do
+    get library_genres_url
+
+    assert_response :success
+    assert_select "h1", "Connect a server to browse your library."
+  end
 end

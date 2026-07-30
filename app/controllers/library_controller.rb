@@ -15,10 +15,20 @@ class LibraryController < ApplicationController
     render_collection(:podcasts, "Podcasts")
   end
 
+  def genres
+    @title = "Genres"
+    @server_connection = current_user.server_connections.order(:created_at).first
+    return render :no_server unless @server_connection
+
+    @query = params[:q].presence
+    @result = ServerConnections::FetchLibraryCollection.new(@server_connection, :genres, page: 1, query: @query).call
+  end
+
   private
 
   def render_collection(collection, title)
     @title = title
+    @collection = collection
     @server_connection = current_user.server_connections.order(:created_at).first
     return render :no_server unless @server_connection
 

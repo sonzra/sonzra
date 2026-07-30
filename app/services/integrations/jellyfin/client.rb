@@ -25,17 +25,31 @@ module Integrations
         token = session.fetch("AccessToken")
         podcast_library = podcast_library(user_id, token)
         podcast_album_ids = podcast_library ? podcast_album_ids(user_id, token, podcast_library) : []
+        recently_played = items(user_id, token, SortBy: "DatePlayed", IncludeItemTypes: "Audio")
+        recently_played_podcast_ids = podcast_library ? podcast_items(user_id, token, podcast_library: podcast_library, Limit: 48, SortBy: "DatePlayed").fetch("Items", []).pluck("Id") : []
+        recently_played_music = recently_played.reject { |item| recently_played_podcast_ids.include?(item["Id"]) }
+        resumable_audiobooks = resume_items(user_id, token, IncludeItemTypes: "AudioBook")
+        resumable_podcasts = podcast_library ? resume_items(user_id, token, IncludeItemTypes: "Audio", ParentId: podcast_library.fetch("Id")) : []
+        recently_added_albums = music_albums_without_podcasts(items(user_id, token, SortBy: "DateCreated", IncludeItemTypes: "MusicAlbum"), podcast_library, podcast_album_ids)
+        recently_added_artists = get("Artists", token, UserId: user_id, Limit: 8).fetch("Items", [])
+        available_genres = get("MusicGenres", token, UserId: user_id, Limit: 8).fetch("Items", [])
+        most_played_songs = music_songs_without_podcasts(played_items(items(user_id, token, limit: 48, SortBy: "PlayCount", EnableUserData: true, IncludeItemTypes: "Audio", Fields: "Genres")), podcast_album_ids)
+        most_played_albums = music_albums_without_podcasts(played_items(items(user_id, token, limit: 48, SortBy: "PlayCount", EnableUserData: true, IncludeItemTypes: "MusicAlbum")), podcast_library, podcast_album_ids)
+        recently_added_audiobooks = items(user_id, token, SortBy: "DateCreated", IncludeItemTypes: "AudioBook")
+        recently_added_podcasts = podcast_library ? podcast_items(user_id, token, podcast_library: podcast_library, Limit: 8, SortBy: "DateCreated", SortOrder: "Descending").fetch("Items", []) : []
 
         content = {
           user_name: session.fetch("User").fetch("Name"),
-          recently_played: items(user_id, token, SortBy: "DatePlayed", IncludeItemTypes: "Audio"),
-          recently_added_albums: music_albums_without_podcasts(items(user_id, token, SortBy: "DateCreated", IncludeItemTypes: "MusicAlbum"), podcast_library, podcast_album_ids),
-          recently_added_artists: get("Artists", token, UserId: user_id, Limit: 8).fetch("Items", []),
-          genres: get("MusicGenres", token, UserId: user_id, Limit: 8).fetch("Items", []),
-          most_played_songs: played_items(items(user_id, token, limit: 48, SortBy: "PlayCount", EnableUserData: true, IncludeItemTypes: "Audio")),
-          most_played_albums: music_albums_without_podcasts(played_items(items(user_id, token, limit: 48, SortBy: "PlayCount", EnableUserData: true, IncludeItemTypes: "MusicAlbum")), podcast_library, podcast_album_ids),
-          recently_added_audiobooks: items(user_id, token, SortBy: "DateCreated", IncludeItemTypes: "AudioBook"),
-          recently_added_podcasts: podcast_library ? podcast_items(user_id, token, podcast_library: podcast_library, SortBy: "DateCreated", SortOrder: "Descending").fetch("Items", []) : []
+          recently_played: recently_played_music,
+          recently_added_albums: recently_added_albums,
+          recently_added_artists: recently_added_artists,
+          genres: personalized_genres(most_played_songs, recently_played_music).presence || available_genres,
+          most_played_songs: most_played_songs,
+          most_played_albums: most_played_albums,
+          continue_audiobooks: resumable_audiobooks,
+          continue_podcasts: resumable_podcasts,
+          recently_added_audiobooks: recently_added_audiobooks,
+          recently_added_podcasts: recently_added_podcasts
         }
 
         HomeContentResponseData.new(content: content, access_token: token)
@@ -49,7 +63,12 @@ module Integrations
         session = authentication
         user_id = session.fetch("User").fetch("Id")
         token = session.fetch("AccessToken")
-        item = get("Users/#{user_id}/Items/#{item_id}", token, Fields: "Overview,Genres,DateCreated,RunTimeTicks,AlbumArtists")
+        item = get("Users/#{user_id}/Items/#{item_id}", token, EnableUserData: true, Fields: "Overview,Genres,DateCreated,RunTimeTicks,AlbumArtists,People,ProductionYear,PremiereDate,Studios,SeriesName,IndexNumber")
+        item["UserData"] = get("UserItems/#{item_id}/UserData", token, UserId: user_id)
+        podcast_library = podcast_library(user_id, token)
+        kind = media_kind(item, user_id, token, podcast_library)
+        return non_music_item_details(item, token, kind) unless kind == :music
+
         artist = item["Type"] == "MusicArtist"
         album = item["Type"] == "Audio" && item["AlbumId"] ? get("Users/#{user_id}/Items/#{item["AlbumId"]}", token) : item
         tracks = album["Type"] == "MusicAlbum" ? all_items(user_id, token, ParentId: album["Id"], IncludeItemTypes: "Audio", SortBy: "ParentIndexNumber,IndexNumber", sort_order: "Ascending") : []
@@ -74,7 +93,8 @@ module Integrations
         when :artists then get("Artists", token, **parameters)
         when :albums then get("Users/#{user_id}/Items", token, **parameters.merge(Recursive: true, IncludeItemTypes: "MusicAlbum", SortBy: "SortName"))
         when :audiobooks then get("Users/#{user_id}/Items", token, **parameters.merge(Recursive: true, IncludeItemTypes: "AudioBook", SortBy: "SortName"))
-        when :podcasts then podcast_items(user_id, token, **parameters)
+        when :podcasts then podcast_shows(user_id, token, **parameters)
+        when :genres then get("MusicGenres", token, **parameters.merge(Limit: 1_000, StartIndex: 0, SortBy: "Name"))
         else raise ArgumentError, "Unsupported collection: #{collection}"
         end
 
@@ -135,6 +155,25 @@ module Integrations
         raise ConnectionError, "Could not establish a secure connection to the server."
       end
 
+      def update_playback_position(item_id:, position_ticks:, access_token: nil)
+        token = access_token || authentication.fetch("AccessToken")
+        uri = URI.parse("#{base_url}/UserItems/#{item_id}/UserData")
+        response = perform(
+          Net::HTTP::Post.new(uri, "X-Emby-Token" => token, "Content-Type" => "application/json").tap do |request|
+            request.body = { PlaybackPositionTicks: position_ticks, Played: false }.to_json
+          end
+        )
+
+        raise AuthenticationError if response.code == "401"
+
+        ensure_success!(response)
+        PlaybackReportResponseData.new(access_token: token)
+      rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED
+        raise ConnectionError, "Could not reach the server. Check the address and try again."
+      rescue OpenSSL::SSL::SSLError
+        raise ConnectionError, "Could not establish a secure connection to the server."
+      end
+
       private
 
       def authentication
@@ -154,6 +193,7 @@ module Integrations
       attr_reader :base_url, :username, :password, :http
 
       def items(user_id, token, limit: 8, sort_order: "Descending", **parameters)
+        requested_fields = parameters.delete(:Fields)
         get(
           "Users/#{user_id}/Items",
           token,
@@ -164,7 +204,7 @@ module Integrations
             EnableImages: true,
             EnableImageTypes: "Primary",
             ImageTypeLimit: 1,
-            Fields: "DateCreated,PrimaryImageAspectRatio,ParentId"
+            Fields: [ "DateCreated,PrimaryImageAspectRatio,ParentId", requested_fields ].compact.join(",")
           )
         ).fetch("Items", [])
       end
@@ -198,14 +238,66 @@ module Integrations
         get(
           "Users/#{user_id}/Items",
           token,
-          **parameters.merge(ParentId: podcast_library.fetch("Id"), Recursive: true, IncludeItemTypes: "Audio", SortBy: "DateCreated", SortOrder: "Descending")
+          **{ ParentId: podcast_library.fetch("Id"), Recursive: true, IncludeItemTypes: "Audio", SortBy: "DateCreated", SortOrder: "Descending" }.merge(parameters)
         )
+      end
+
+      def podcast_shows(user_id, token, **parameters)
+        podcast_library = podcast_library(user_id, token)
+        return { "Items" => [], "TotalRecordCount" => 0 } unless podcast_library
+
+        get(
+          "Users/#{user_id}/Items",
+          token,
+          **{ ParentId: podcast_library.fetch("Id"), Recursive: true, IncludeItemTypes: "MusicAlbum", SortBy: "SortName" }.merge(parameters)
+        )
+      end
+
+      def item_ancestors(item_id, token)
+        response = get("Items/#{item_id}/Ancestors", token)
+        response.is_a?(Array) ? response : response.fetch("Items", [])
+      end
+
+      def resume_items(user_id, token, **parameters)
+        get(
+          "Users/#{user_id}/Items/Resume",
+          token,
+          **parameters.merge(
+            Limit: 8,
+            EnableImages: true,
+            EnableImageTypes: "Primary",
+            ImageTypeLimit: 1,
+            Fields: "DateCreated,PrimaryImageAspectRatio,ParentId"
+          )
+        ).fetch("Items", [])
       end
 
       def podcast_library(user_id, token)
         get("Users/#{user_id}/Views", token).fetch("Items", []).find do |library|
           library.fetch("Name", "").match?(/podcast/i)
         end
+      end
+
+      def media_kind(item, user_id, token, podcast_library)
+        return :audiobook if item["Type"] == "AudioBook"
+        return :music unless item["Type"] == "Audio" && podcast_library
+
+        item_ancestors(item.fetch("Id"), token).pluck("Id").include?(podcast_library.fetch("Id")) ? :podcast : :music
+      end
+
+      def non_music_item_details(item, token, kind)
+        LibraryItemDetailsResponseData.new(
+          details: {
+            item: item,
+            album: item,
+            kind: kind,
+            chapters: kind == :audiobook ? optional_items { get("Items/#{item.fetch("Id")}/Chapters", token).fetch("Items", []) } : [],
+            tracks: [],
+            other_albums: [],
+            similar_albums: []
+          },
+          access_token: token
+        )
       end
 
       def podcast_album_ids(user_id, token, podcast_library)
@@ -224,6 +316,26 @@ module Integrations
         return albums unless podcast_library
 
         albums.reject { |album| album["ParentId"] == podcast_library["Id"] || podcast_album_ids.include?(album["Id"]) }
+      end
+
+      def music_songs_without_podcasts(songs, podcast_album_ids)
+        songs.reject { |song| podcast_album_ids.include?(song["AlbumId"]) }
+      end
+
+      def personalized_genres(most_played_songs, recently_played_songs)
+        genre_scores = Hash.new(0)
+        most_played_songs.each do |song|
+          add_genre_scores(genre_scores, song, [ song.dig("UserData", "PlayCount").to_i, 1 ].max)
+        end
+        recently_played_songs.each { |song| add_genre_scores(genre_scores, song, 1) }
+
+        genre_scores.sort_by { |genre, score| [ -score, genre ] }.first(4).map { |genre, _| { "Name" => genre } }
+      end
+
+      def add_genre_scores(genre_scores, item, weight)
+        item.fetch("Genres", []).flat_map { |genre| genre.split(";") }.map(&:strip).reject(&:blank?).each do |genre|
+          genre_scores[genre] += weight
+        end
       end
 
       def played_items(items)

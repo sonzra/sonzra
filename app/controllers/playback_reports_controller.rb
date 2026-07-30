@@ -8,11 +8,13 @@ class PlaybackReportsController < ApplicationController
       item_id: params.expect(:item_id),
       position_ticks: params.expect(:position_ticks).to_i,
       paused: ActiveModel::Type::Boolean.new.cast(params.expect(:paused)),
+      resumable: ActiveModel::Type::Boolean.new.cast(params[:resumable]),
       access_token: session.dig(:server_access_tokens, server_connection.id.to_s)
     ).call
     return render json: { error: result.message }, status: :bad_gateway unless result.success?
 
     session[:server_access_tokens] = session.fetch(:server_access_tokens, {}).merge(server_connection.id.to_s => result.access_token)
+    ServerConnections::FetchCachedHomeContent.invalidate(server_connection) if event == "stopped"
     head :no_content
   end
 

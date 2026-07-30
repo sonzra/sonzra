@@ -1,7 +1,11 @@
 module ServerConnections
   class FetchCachedHomeContent
     CACHE_TTL = 5.minutes
-    CACHE_VERSION = 4
+    CACHE_VERSION = 8
+
+    def self.invalidate(server_connection, cache: Rails.cache)
+      cache.delete([ "server_connection", server_connection.cache_key_with_version, "home_content", CACHE_VERSION ])
+    end
 
     def initialize(server_connection, access_token:, fetch_home_content: nil, cache: Rails.cache)
       @server_connection = server_connection

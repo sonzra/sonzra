@@ -16,4 +16,19 @@ module ApplicationHelper
     total_seconds = run_time_ticks.to_i / 10_000_000
     format("%d:%02d", total_seconds / 60, total_seconds % 60)
   end
+
+  def playback_position(item)
+    item.dig("UserData", "PlaybackPositionTicks").to_i / 10_000_000.0
+  end
+
+  def playback_progress(item)
+    duration = item["RunTimeTicks"].to_f
+    return 0 if duration.zero?
+
+    [ (item.dig("UserData", "PlaybackPositionTicks").to_f / duration * 100).round, 100 ].min
+  end
+
+  def people_with_role(item, role)
+    item.fetch("People", []).select { |person| person["Type"] == role }.pluck("Name").join(", ")
+  end
 end

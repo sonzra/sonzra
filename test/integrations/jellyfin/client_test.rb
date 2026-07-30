@@ -43,7 +43,7 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     authentication_response = Net::HTTPOK.new("1.1", "200", "OK")
     authentication_response.instance_variable_set(:@read, true)
     authentication_response.body = { AccessToken: "token", User: { Id: "user-id", Name: "Bruno" } }.to_json
-    collection_responses = Array.new(8) do
+    collection_responses = Array.new(11) do
       Net::HTTPOK.new("1.1", "200", "OK").tap do |response|
         response.instance_variable_set(:@read, true)
         response.body = { Items: [] }.to_json
@@ -66,6 +66,11 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
 
     assert_equal [ "Audio", "MusicAlbum" ], most_played_types
     assert_equal [ "true", "true" ], most_played_user_data
+    assert_includes URI.decode_www_form(URI.parse(most_played_requests.first.path).query).to_h["Fields"], "Genres"
+    podcast_request = item_requests.find do |request|
+      URI.decode_www_form(URI.parse(request.path).query).to_h["SortBy"] == "DateCreated"
+    end
+    assert_equal "8", URI.decode_www_form(URI.parse(podcast_request.path).query).to_h["Limit"]
   end
 
   test "keeps podcasts out of album shelves and exposes dedicated podcast and audiobook shelves" do
@@ -79,11 +84,14 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     responses = [
       response.call(Items: [ { Id: "podcast-library", Name: "Podcasts" } ]),
       response.call(Items: [ { Id: "podcast-series", Name: "Podcast series", ParentId: "podcast-library" } ]),
-      response.call(Items: []),
+      response.call(Items: [ { Id: "song-id", Name: "Played song", Type: "Audio", Genres: [ "Rock" ] }, { Id: "podcast-id", Name: "Podcast episode", Type: "Audio", Genres: [ "Talk" ] } ]),
+      response.call(Items: [ { Id: "podcast-id", Name: "Podcast episode", Type: "Audio" } ]),
+      response.call(Items: [ { Id: "audiobook-id", Name: "Audio book", Type: "AudioBook", UserData: { PlaybackPositionTicks: 120_000_000 } } ]),
+      response.call(Items: [ { Id: "podcast-id", Name: "Podcast episode", Type: "Audio", UserData: { PlaybackPositionTicks: 90_000_000 } } ]),
       response.call(Items: [ { Id: "podcast-series", Name: "Podcast series", ParentId: "podcast-library" }, { Id: "album-id", Name: "Music album", ParentId: "music-library" } ]),
       response.call(Items: []),
       response.call(Items: []),
-      response.call(Items: [ { Id: "song-id", Name: "Played song", UserData: { PlayCount: 3 } } ]),
+      response.call(Items: [ { Id: "song-id", Name: "Played song", AlbumId: "music-album", Genres: [ "Rock", "Pop" ], UserData: { PlayCount: 3 } }, { Id: "podcast-id", Name: "Podcast episode", AlbumId: "podcast-series", Genres: [ "Talk" ], UserData: { PlayCount: 5 } } ]),
       response.call(Items: [ { Id: "podcast-series", Name: "Podcast series", ParentId: "podcast-library", UserData: { PlayCount: 4 } }, { Id: "album-id", Name: "Music album", ParentId: "music-library", UserData: { PlayCount: 2 } } ]),
       response.call(Items: [ { Id: "audiobook-id", Name: "Audio book", Type: "AudioBook" } ]),
       response.call(Items: [ { Id: "podcast-id", Name: "Podcast episode", Type: "Audio" } ])
@@ -93,10 +101,18 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     content = Integrations::Jellyfin::Client.new(base_url: "https://example.com", username: "bruno", password: "secret", http: http).home_content.content
 
     assert_equal [ "Music album" ], content[:recently_added_albums].pluck("Name")
+    assert_equal [ "Played song" ], content[:recently_played].pluck("Name")
     assert_equal [ "Played song" ], content[:most_played_songs].pluck("Name")
+    assert_equal [ "Rock", "Pop" ], content[:genres].pluck("Name")
     assert_equal [ "Music album" ], content[:most_played_albums].pluck("Name")
+    assert_equal [ "Audio book" ], content[:continue_audiobooks].pluck("Name")
+    assert_equal [ "Podcast episode" ], content[:continue_podcasts].pluck("Name")
     assert_equal [ "Audio book" ], content[:recently_added_audiobooks].pluck("Name")
     assert_equal [ "Podcast episode" ], content[:recently_added_podcasts].pluck("Name")
+
+    resume_requests = http.requests.select { |request| URI.parse(request.path).path == "/Users/user-id/Items/Resume" }
+    assert_equal [ "AudioBook", "Audio" ], resume_requests.map { |request| URI.decode_www_form(URI.parse(request.path).query).to_h["IncludeItemTypes"] }
+    assert_equal "podcast-library", URI.decode_www_form(URI.parse(resume_requests.last.path).query).to_h["ParentId"]
   end
 
   test "raises an authentication error for rejected credentials" do
@@ -171,6 +187,21 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     assert_equal({ "ItemId" => "track-id", "PositionTicks" => 32_100_000, "CanSeek" => true, "IsPaused" => true, "PlayMethod" => "DirectPlay" }, JSON.parse(http.last_request.body))
   end
 
+  test "updates a resumable item's saved position" do
+    response = Net::HTTPOK.new("1.1", "200", "OK")
+    http = FakeHttp.new(response)
+
+    result = Integrations::Jellyfin::Client.new(base_url: "https://example.com", username: "bruno", password: "secret", http: http).update_playback_position(
+      item_id: "podcast-id",
+      position_ticks: 200_000_000,
+      access_token: "token"
+    )
+
+    assert_equal "token", result.access_token
+    assert_equal "/UserItems/podcast-id/UserData", http.last_request.path
+    assert_equal({ "PlaybackPositionTicks" => 200_000_000, "Played" => false }, JSON.parse(http.last_request.body))
+  end
+
   test "fetches only audiobook items for the audiobook collection" do
     authentication_response = Net::HTTPOK.new("1.1", "200", "OK")
     authentication_response.instance_variable_set(:@read, true)
@@ -204,7 +235,7 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     assert_equal "MusicAlbum", parameters["IncludeItemTypes"]
   end
 
-  test "fetches podcast audio from the podcast library" do
+  test "fetches podcast shows from the podcast library" do
     authentication_response = Net::HTTPOK.new("1.1", "200", "OK")
     authentication_response.instance_variable_set(:@read, true)
     authentication_response.body = { AccessToken: "token", User: { Id: "user-id" } }.to_json
@@ -221,7 +252,26 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     parameters = URI.decode_www_form(URI.parse(http.last_request.path).query).to_h
     assert_equal "/Users/user-id/Items", URI.parse(http.last_request.path).path
     assert_equal "podcast-library", parameters["ParentId"]
-    assert_equal "Audio", parameters["IncludeItemTypes"]
+    assert_equal "MusicAlbum", parameters["IncludeItemTypes"]
+    assert_equal "true", parameters["Recursive"]
+  end
+
+  test "fetches the complete music genre directory" do
+    authentication_response = Net::HTTPOK.new("1.1", "200", "OK")
+    authentication_response.instance_variable_set(:@read, true)
+    authentication_response.body = { AccessToken: "token", User: { Id: "user-id" } }.to_json
+    genres_response = Net::HTTPOK.new("1.1", "200", "OK")
+    genres_response.instance_variable_set(:@read, true)
+    genres_response.body = { Items: [], TotalRecordCount: 0 }.to_json
+    http = FakeHttp.new([ authentication_response, genres_response ])
+
+    Integrations::Jellyfin::Client.new(base_url: "https://example.com", username: "bruno", password: "secret", http: http).library_collection(:genres, page: 1, query: "Ambient")
+
+    request = http.last_request
+    parameters = URI.decode_www_form(URI.parse(request.path).query).to_h
+    assert_equal "/MusicGenres", URI.parse(request.path).path
+    assert_equal "1000", parameters["Limit"]
+    assert_equal "Ambient", parameters["SearchTerm"]
   end
 
   test "expands an album into tracks sorted by track number" do

@@ -1,0 +1,15 @@
+<main class="settings-shell">
+  <% if @result.success? %>
+    <% genres = music_genre_names(@result.items) %>
+    <section class="settings-intro library-page-intro">
+      <span class="eyebrow">Your library</span>
+      <div class="page-title"><%= link_to root_path, class: "back-link back-link--compact", aria: { label: "Back to home" }, title: "Back to home" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1>All genres</h1></div>
+      <%= form_with url: library_genres_path, method: :get, class: "library-search" do |form| %><%= form.search_field :q, value: @query, placeholder: "Search genres" %><%= form.submit "Search" %><% end %>
+    </section>
+    <section class="genre-directory" aria-label="All music genres">
+      <% genres.each_with_index do |genre_name, index| %><%= link_to library_albums_path(genre: genre_name), class: "genre-tile genre-tile--#{index % 6}" do %><span><%= genre_name %></span><%= lucide_icon "arrow-up-right", aria: { hidden: true } %><% end %><% end %>
+    </section>
+  <% else %>
+    <section class="listen-loading listen-loading--error"><h1>We couldn’t load your genres.</h1><p><%= @result.message %></p></section>
+  <% end %>
+</main>
