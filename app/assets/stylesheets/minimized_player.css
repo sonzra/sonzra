@@ -1,0 +1,126 @@
+.listen-player[hidden] {
+  display: none;
+}
+
+.listen-player {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 72px;
+  gap: 14px;
+  padding: 10px clamp(16px, 3vw, 40px);
+  background: #151521f2;
+}
+
+.listen-player > audio {
+  display: none;
+}
+
+.listen-player__track {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.listen-player__art {
+  width: 48px;
+  height: 48px;
+  border-radius: 9px;
+}
+
+.listen-player__metadata {
+  display: block;
+  min-width: 0;
+}
+
+.listen-player__track strong,
+.listen-player__track span {
+  max-width: none;
+}
+
+.listen-player__track strong {
+  font-size: 14px;
+}
+
+.listen-player__track span {
+  font-size: 12px;
+}
+
+.listen-player__controls {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: auto;
+}
+
+.listen-player__controls .listen-player__play {
+  display: grid !important;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+}
+
+.listen-player__progress {
+  top: 0;
+  bottom: auto;
+  height: 3px;
+}
+
+.listen-player__progress span {
+  width: 0;
+  transition: width 0.2s linear;
+}
+
+@media (max-width: 760px) {
+  .listen-app,
+  .settings-shell {
+    padding-bottom: 92px;
+  }
+
+  .listen-player {
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 70px;
+    gap: 10px;
+    padding: 10px 16px;
+  }
+
+  .listen-player__art {
+    width: 46px;
+    height: 46px;
+  }
+
+  .listen-player__track strong,
+  .listen-player__track span {
+    max-width: none;
+  }
+
+  .listen-player__controls {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: auto;
+    align-self: center;
+  }
+}
+
+@supports (padding: max(0px)) {
+  @media (max-width: 760px) {
+    .listen-player {
+      min-height: calc(70px + env(safe-area-inset-bottom));
+      padding-bottom: max(10px, env(safe-area-inset-bottom));
+    }
+
+    .listen-app,
+    .settings-shell {
+      padding-bottom: calc(92px + env(safe-area-inset-bottom));
+    }
+  }
+}

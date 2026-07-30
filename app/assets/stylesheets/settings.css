@@ -1,0 +1,164 @@
+.settings-intro--compact,
+.form-page--compact,
+.connection-detail--compact {
+  margin-top: 34px;
+  margin-bottom: 30px;
+}
+
+.settings-header--page {
+  justify-content: flex-start;
+}
+
+.settings-header--page .page-title {
+  min-width: 0;
+  margin-right: auto;
+}
+
+.settings-header--page h1 {
+  margin: 0;
+  font-size: clamp(30px, 5vw, 42px);
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+
+.settings-header--page + .connection-list,
+.settings-header--page + .empty-state {
+  margin-top: 28px;
+}
+
+.primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.connection-card {
+  position: relative;
+}
+
+.connection-card__edit {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid #ffffff1f;
+  border-radius: 50%;
+  background: #ffffff08;
+  color: var(--text);
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.connection-card__edit:hover,
+.connection-card__edit:focus-visible {
+  border-color: #a990ff;
+  background: #7a5af833;
+  outline: 0;
+}
+
+.connection-card__edit svg {
+  width: 17px;
+  height: 17px;
+}
+
+.settings-intro--compact {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+}
+
+.settings-intro--compact h1,
+.form-page--compact h1,
+.connection-detail--compact h1 {
+  margin: 0;
+  font-size: clamp(30px, 5vw, 42px);
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+
+.connection-detail--compact {
+  padding: 28px;
+}
+
+.connection-detail--compact > p {
+  margin: 7px 0 0;
+  font-size: 15px;
+}
+
+.connection-detail--compact .connection-detail__credentials {
+  margin: 24px 0;
+  padding: 14px 0;
+}
+
+.empty-state {
+  padding: 38px 28px;
+}
+
+.empty-state__mark {
+  width: 56px;
+}
+
+.empty-state h2 {
+  margin: 12px 0 4px;
+}
+
+.empty-state p {
+  margin: 0;
+}
+
+.form-page--compact .connection-form {
+  margin-top: 26px;
+}
+
+.form-page--compact .flash {
+  margin: 20px 0;
+}
+
+.form-page--compact .connection-form .settings-toggle {
+  margin-top: 0;
+}
+
+.form-actions--centered {
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.settings-save-button {
+  width: min(100%, 360px);
+  min-height: 50px;
+  padding: 14px 24px;
+  font-size: 16px;
+}
+
+@media (max-width: 800px) {
+  .settings-intro--compact,
+  .form-page--compact,
+  .connection-detail--compact {
+    margin-top: 24px;
+    margin-bottom: 24px;
+  }
+
+  .settings-shell > .settings-header {
+    min-height: 42px;
+  }
+
+  .settings-header--page {
+    align-items: center;
+  }
+
+  .settings-header--page + .connection-list,
+  .settings-header--page + .empty-state {
+    margin-top: 22px;
+  }
+
+  .connection-detail--compact {
+    padding: 22px;
+  }
+
+  .empty-state {
+    padding: 32px 22px;
+  }
+}

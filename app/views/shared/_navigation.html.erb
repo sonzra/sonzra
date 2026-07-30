@@ -1,7 +1,16 @@
-<header class="listen-topbar">
+<header class="listen-topbar" data-controller="navigation">
   <%= link_to root_path, class: "brand", aria: { label: "Sonzra home" } do %><%= image_tag "/brand/sonzra-mark.svg", class: "brand__mark", alt: "" %><span>sonzra</span><% end %>
-  <nav class="listen-topbar__nav" aria-label="Primary navigation">
-    <%= link_to "Home", root_path, class: "listen-topbar__link" %><%= link_to "Artists", library_artists_path, class: "listen-topbar__link" %><%= link_to "Albums", library_albums_path, class: "listen-topbar__link" %><%= link_to "Audiobooks", library_audiobooks_path, class: "listen-topbar__link" %><%= link_to "Podcasts", library_podcasts_path, class: "listen-topbar__link" %><%= link_to "Servers", server_connections_path, class: "listen-topbar__link" %>
-  </nav>
-  <div class="listen-topbar__account"><%= link_to server_connections_path, class: "listen-settings-link", aria: { label: "Manage server connections" } do %><span aria-hidden="true">⚙</span><span>Settings</span><% end %><%= link_to "Admin", admin_registration_settings_path, class: "listen-settings-link" if current_user.admin? %><%= button_to "Sign out", session_path, method: :delete, class: "text-button" %></div>
+  <button class="listen-topbar__menu-toggle" type="button" aria-label="Open navigation menu" aria-expanded="false" data-navigation-target="toggle" data-action="navigation#toggle"><%= lucide_icon "menu", aria: { hidden: true } %></button>
+  <div class="listen-topbar__menu" data-navigation-target="menu" data-action="click->navigation#closeOnNavigation">
+    <nav class="listen-topbar__nav" aria-label="Primary navigation">
+      <p class="listen-topbar__group-label">Library</p>
+      <% { "Home" => [ root_path, "house" ], "Artists" => [ library_artists_path, "mic-vocal" ], "Albums" => [ library_albums_path, "disc-3" ], "Audiobooks" => [ library_audiobooks_path, "book-open" ], "Podcasts" => [ library_podcasts_path, "podcast" ] }.each do |label, (path, icon)| %><%= link_to path, class: "listen-topbar__link" do %><%= lucide_icon icon, class: "listen-topbar__link-icon", aria: { hidden: true } %><span><%= label %></span><% end %><% end %>
+    </nav>
+    <div class="listen-topbar__account">
+      <p class="listen-topbar__group-label">Account</p>
+      <%= link_to server_connections_path, class: "listen-settings-link" do %><%= lucide_icon "server", aria: { hidden: true } %><span>Server connections</span><% end %>
+      <% if current_user.admin? %><%= link_to admin_registration_settings_path, class: "listen-settings-link" do %><%= lucide_icon "shield-check", aria: { hidden: true } %><span>Administration</span><% end %><% end %>
+      <%= button_to session_path, method: :delete, class: "text-button" do %><%= lucide_icon "log-out", aria: { hidden: true } %><span>Sign out</span><% end %>
+    </div>
+  </div>
 </header>

@@ -1,0 +1,9 @@
+@media (max-width: 760px) {
+  .listen-card__queue {
+    top: var(--shelf-cover-size, calc((100vw - 55px) / 2));
+    right: 0;
+    bottom: auto;
+    opacity: 1;
+    transform: translateY(-100%) scale(1);
+  }
+}

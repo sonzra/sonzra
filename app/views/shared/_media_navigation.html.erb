@@ -1,0 +1,5 @@
+<header class="media-topbar" data-media-header-target="bar">
+  <%= link_to @back_path, class: "media-topbar__back", aria: { label: "Back to #{@back_label}" } do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %>
+  <p class="media-topbar__title"><%= @media_detail_title %></p>
+  <span class="media-topbar__art" aria-hidden="true"><img data-media-header-target="thumbnail" alt=""></span>
+</header>

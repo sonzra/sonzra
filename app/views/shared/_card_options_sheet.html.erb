@@ -1,0 +1,8 @@
+<section id="card-options-sheet" class="listen-card-options-sheet" data-card-options-target="sheet" hidden>
+  <button class="listen-card-options-sheet__backdrop" type="button" aria-label="Close options" data-action="touchend->card-options#close click->card-options#close"></button>
+  <div class="listen-card-options-sheet__panel" role="dialog" aria-label="Item options" data-card-options-target="panel" data-action="touchstart->card-options#startSheetDrag touchmove->card-options#dragSheet touchend->card-options#finishSheetDrag touchcancel->card-options#finishSheetDrag">
+    <span class="listen-card-options-sheet__drag-handle" aria-hidden="true"></span>
+    <button type="button" data-card-options-target="queueAction" data-action="touchend->card-options#appendToQueue click->card-options#appendToQueue"><%= lucide_icon "list-plus", aria: { hidden: true } %> Add to queue</button>
+    <button type="button" data-card-options-target="resetAction" data-action="touchend->card-options#resetPlaybackPosition click->card-options#resetPlaybackPosition" hidden><%= lucide_icon "rotate-ccw", aria: { hidden: true } %> Start from the beginning</button>
+  </div>
+</section>
