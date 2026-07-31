@@ -1,8 +1,0 @@
-- Most player controls don't work on Safari, which is mandatory for a good PWA experience
-- Icons are defaulting to OS emojis on mobile apps. Let's use a proper icons library such as font-awesome or similar that allows for free usage on opensource projects
-- When on PWA mode on an iPhone, some elemnts are not clickable due to the dynamic island in the top, we need to fix it to avoid issues
-- The icon we are using for PWA has white background, so it shows with white borders on mobile deviecs
-- The album cards are not actually clickable so I need to actually click the Artist/Album name to see the details
-- We are missing visual feedback when a click/tap is don in an element. On the login buttons, save action, play/payse, back/forward... everywhere.
-- Albumns/Artists names have a underscored font, which looks like an hyperlink. Let's keep them as links, but let's format them better following our design rules, maybe make it bold or increasy it's typografy, whatever works better
-- I noticed the player progress bar stops at a certain point if the focus isn't in the screen. Consequently, the next song in the queue isn't played, however, the currently playing song finishes properly

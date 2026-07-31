@@ -11,6 +11,7 @@
 !.env.example
 .DS_Store
 node_modules/
+after-release-issues.md
 
 # Ignore key files for decrypting credentials and more.
 /config/*.key
