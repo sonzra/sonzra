@@ -42,6 +42,7 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     assert_select "header.media-topbar [data-media-header-target='thumbnail']"
     assert_select "header.listen-topbar", 0
     assert_select ".detail-hero__art[data-media-header-target='artwork']"
+    assert_select ".detail-hero__art img[src='/brand/sonzra-mark.svg']", 1
     assert_select "button.detail-hero__album-play[data-action='player#replaceQueue'][data-player-queue-url-param='#{playback_queue_server_connection_path(@server_connection, "album-id")}'][aria-label='Play Album name']"
   end
 
@@ -70,6 +71,7 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     assert_select "header.media-topbar[data-media-header-target='bar'] a[href='#{library_audiobooks_path}']", 1
     assert_select "header.listen-topbar", 0
     assert_select ".detail-hero__art[data-media-header-target='artwork']"
+    assert_select ".detail-hero__art img[src='/brand/sonzra-mark.svg']", 1
     assert_select ".detail-hero__kind", "Audiobook"
     assert_select "button[aria-label='Continue Book name from 0:12'][data-player-start-position-param='12.0']", 1
     assert_select "button[aria-label='Play Book name from the beginning'][data-player-start-position-param='0']", 1

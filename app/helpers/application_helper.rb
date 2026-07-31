@@ -8,6 +8,10 @@ module ApplicationHelper
     artwork_server_connection_path(server_connection, item_id, tag: image_tag)
   end
 
+  def media_artwork_path(server_connection, item)
+    library_artwork_path(server_connection, item) || "/brand/sonzra-mark.svg"
+  end
+
   def music_genre_names(genres)
     genres.flat_map { |genre| genre.fetch("Name", "").split(";") }.map(&:strip).reject(&:blank?).uniq
   end

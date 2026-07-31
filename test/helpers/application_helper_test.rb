@@ -13,6 +13,12 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_nil path
   end
 
+  test "uses the branded fallback artwork when image metadata is unavailable" do
+    path = media_artwork_path(server_connection, { "Id" => "album" })
+
+    assert_equal "/brand/sonzra-mark.svg", path
+  end
+
   test "splits and de-duplicates semicolon-delimited music genres" do
     genres = [ { "Name" => "Ambient; Electronic" }, { "Name" => "Electronic; Jazz" }, { "Name" => "" } ]
 
