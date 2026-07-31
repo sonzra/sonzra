@@ -1,5 +1,9 @@
 import { Controller } from "@hotwired/stimulus"
 
+const PLAYER_STATE_KEY = "sonzra:player-state"
+const LEGACY_QUEUE_KEY = "sonzra:queue"
+const LEGACY_QUEUE_INDEX_KEY = "sonzra:queue-index"
+
 export default class extends Controller {
   static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration"]
 
@@ -28,13 +32,15 @@ export default class extends Controller {
     window.addEventListener("pageshow", this.boundReconcilePlayback)
     window.addEventListener("sonzra:native-media-command", this.boundHandleNativeMediaCommand)
     document.addEventListener("visibilitychange", this.boundReconcilePlayback)
+    document.addEventListener("turbo:load", this.boundSyncPageTrackControls)
     this.reconcilePlayback()
+    this.syncPageTrackControls()
   }
 
   disconnect() {
     if (!this.hasAudioTarget) return
 
-    this.persistQueue()
+    this.persistQueue({ force: true })
     this.audioTarget.removeEventListener("timeupdate", this.boundUpdateTimeline)
     this.audioTarget.removeEventListener("loadedmetadata", this.boundUpdateTimeline)
     this.audioTarget.removeEventListener("durationchange", this.boundUpdateTimeline)
@@ -48,6 +54,7 @@ export default class extends Controller {
     window.removeEventListener("pageshow", this.boundReconcilePlayback)
     window.removeEventListener("sonzra:native-media-command", this.boundHandleNativeMediaCommand)
     document.removeEventListener("visibilitychange", this.boundReconcilePlayback)
+    document.removeEventListener("turbo:load", this.boundSyncPageTrackControls)
     this.stopProgressWatch()
   }
 
@@ -57,7 +64,7 @@ export default class extends Controller {
 
     this.queue = tracks
     this.currentIndex = 0
-    this.persistQueue()
+    this.persistQueue({ force: true })
     this.renderQueue()
     this.playCurrent()
   }
@@ -67,7 +74,7 @@ export default class extends Controller {
     if (tracks.length === 0) return
 
     this.queue.push(...tracks)
-    this.persistQueue()
+    this.persistQueue({ force: true })
     this.renderQueue()
     this.showQueueFeedback(tracks)
     if (!this.audioTarget.src) this.playCurrent()
@@ -105,7 +112,7 @@ export default class extends Controller {
     if (this.currentIndex === 0) return
 
     this.currentIndex -= 1
-    this.persistQueue()
+    this.persistQueue({ force: true })
     this.renderQueue()
     this.playCurrent()
   }
@@ -114,7 +121,7 @@ export default class extends Controller {
     if (this.currentIndex >= this.queue.length - 1) return
 
     this.currentIndex += 1
-    this.persistQueue()
+    this.persistQueue({ force: true })
     this.renderQueue()
     this.playCurrent()
   }
@@ -138,6 +145,7 @@ export default class extends Controller {
     if (this.hasExpandedElapsedTarget) this.expandedElapsedTarget.textContent = this.formatTime(this.audioTarget.currentTime)
     if (this.hasExpandedDurationTarget) this.expandedDurationTarget.textContent = this.formatTime(duration)
     if (this.audioTarget.currentTime - (this.lastReportedPosition || 0) >= 15) this.reportProgress()
+    this.persistQueue()
   }
 
   updateToggle() {
@@ -147,24 +155,29 @@ export default class extends Controller {
       button.innerHTML = icon
       button.setAttribute("aria-label", label)
     })
+    this.syncPageTrackControls()
   }
 
   handlePlay() {
     this.updateToggle()
     this.syncNativeMedia()
+    this.syncBrowserMedia()
     this.startProgressWatch()
     this.reportPlayback(this.hasReportedStart ? "progress" : "started")
     this.hasReportedStart = true
+    this.persistQueue({ force: true })
   }
 
   handlePause() {
     this.updateToggle()
     this.syncNativeMedia()
+    this.syncBrowserMedia()
     this.stopProgressWatch()
-    if (!this.hasReportedStart) return
-
-    this.reportPlayback("stopped")
-    this.hasReportedStart = false
+    if (this.hasReportedStart) {
+      this.reportPlayback("stopped")
+      this.hasReportedStart = false
+    }
+    this.persistQueue({ force: true })
   }
 
   reportProgress() {
@@ -226,46 +239,95 @@ export default class extends Controller {
 
   restoreCurrentTrack() {
     const track = this.queue[this.currentIndex]
-    if (!track || this.audioTarget.src) return
+    if (!track) return
 
-    this.loadTrack(track)
+    if (this.audioTarget.src) {
+      this.currentTrack = track
+      this.syncBrowserMedia()
+      this.syncPageTrackControls()
+      return
+    }
+
+    this.loadTrack(track, { startPosition: this.savedPosition })
     this.audioTarget.pause()
   }
 
-  loadTrack(track) {
+  loadTrack(track, { startPosition = track.startPosition } = {}) {
     this.currentTrack = track
     this.hasReportedStart = false
     this.lastReportedPosition = 0
     this.audioTarget.src = track.source
-    this.pendingStartPosition = Number(track.startPosition) || 0
+    this.pendingStartPosition = Number(startPosition) || 0
+    const artwork = track.artwork || "/brand/sonzra-mark.svg"
     this.titleTarget.textContent = track.title
     this.artistTarget.textContent = track.artist
-    this.artworkTarget.src = track.artwork
+    this.artworkTarget.src = artwork
     this.showPlayer()
     if (this.hasExpandedTitleTarget) this.expandedTitleTarget.textContent = track.title
     if (this.hasExpandedArtistTarget) this.expandedArtistTarget.textContent = track.artist
-    if (this.hasExpandedArtworkTarget) this.expandedArtworkTarget.src = track.artwork
+    if (this.hasExpandedArtworkTarget) this.expandedArtworkTarget.src = artwork
     this.resetTimeline()
     this.syncNativeMedia()
+    this.syncBrowserMedia()
+    this.syncPageTrackControls()
   }
 
   restoreQueue() {
-    const savedQueue = sessionStorage.getItem("sonzra:queue")
-    const savedIndex = sessionStorage.getItem("sonzra:queue-index")
+    const savedState = this.readPersistedState()
     try {
-      this.queue = savedQueue ? JSON.parse(savedQueue) : []
-      this.currentIndex = savedIndex ? Number(savedIndex) : 0
+      this.queue = Array.isArray(savedState.queue) ? savedState.queue : []
+      this.currentIndex = Math.min(Math.max(Number(savedState.currentIndex) || 0, 0), Math.max(this.queue.length - 1, 0))
+      this.savedPosition = Number(savedState.position) || 0
+      this.queueWasOpen = savedState.queueOpen === true
     } catch (_) {
       this.queue = []
       this.currentIndex = 0
+      this.savedPosition = 0
+      this.queueWasOpen = false
     }
     this.renderQueue()
     this.restoreCurrentTrack()
+    if (this.queueWasOpen && this.queue.length > 0 && this.hasQueuePanelTarget) {
+      this.queuePanelTarget.hidden = false
+      this.queuePanelTarget.classList.add("is-open")
+    }
   }
 
-  persistQueue() {
-    sessionStorage.setItem("sonzra:queue", JSON.stringify(this.queue))
-    sessionStorage.setItem("sonzra:queue-index", this.currentIndex)
+  readPersistedState() {
+    try {
+      const state = JSON.parse(window.localStorage.getItem(PLAYER_STATE_KEY) || "null")
+      if (state?.version === 1) return state
+
+      return {
+        queue: JSON.parse(sessionStorage.getItem(LEGACY_QUEUE_KEY) || "[]"),
+        currentIndex: Number(sessionStorage.getItem(LEGACY_QUEUE_INDEX_KEY)) || 0,
+        position: 0,
+        queueOpen: false
+      }
+    } catch (_) {
+      return { queue: [], currentIndex: 0, position: 0, queueOpen: false }
+    }
+  }
+
+  persistQueue({ force = false } = {}) {
+    if (!Array.isArray(this.queue)) return
+
+    const position = Number(this.audioTarget?.currentTime) || this.pendingStartPosition || 0
+    const second = Math.floor(position)
+    if (!force && this.lastPersistedSecond === second) return
+
+    this.lastPersistedSecond = second
+    try {
+      window.localStorage.setItem(PLAYER_STATE_KEY, JSON.stringify({
+        version: 1,
+        queue: this.queue,
+        currentIndex: this.currentIndex,
+        position,
+        queueOpen: this.hasQueuePanelTarget && !this.queuePanelTarget.hidden && !this.queuePanelTarget.classList.contains("is-closing")
+      }))
+    } catch (_) {
+      // Storage can be unavailable in private browsing. Playback still works.
+    }
   }
 
   renderQueue() {
@@ -322,6 +384,7 @@ export default class extends Controller {
   }
 
   stopPlayback() {
+    this.persistQueue({ force: true })
     this.reportPlayback("stopped", { keepalive: true })
   }
 
@@ -332,7 +395,7 @@ export default class extends Controller {
     this.lastReportedPosition = this.audioTarget.currentTime
     if (this.currentTrack.resumable) {
       this.currentTrack.startPosition = this.audioTarget.currentTime
-      this.persistQueue()
+      this.persistQueue({ force: true })
     }
     try {
       fetch(this.currentTrack.reportingUrl, {
@@ -363,7 +426,7 @@ export default class extends Controller {
 
   playQueueIndex(index) {
     this.currentIndex = index
-    this.persistQueue()
+    this.persistQueue({ force: true })
     this.renderQueue()
     this.playCurrent()
   }
@@ -374,6 +437,7 @@ export default class extends Controller {
     this.queuePanelTarget.hidden = false
     this.queuePanelTarget.classList.remove("is-closing")
     this.queueOpenFrame = window.requestAnimationFrame(() => this.queuePanelTarget.classList.add("is-open"))
+    this.persistQueue({ force: true })
   }
 
   closeQueue() {
@@ -385,6 +449,7 @@ export default class extends Controller {
       this.queuePanelTarget.hidden = true
       this.queuePanelTarget.classList.remove("is-closing")
     }, 180)
+    this.persistQueue({ force: true })
   }
 
   showQueueFeedback(tracks) {
@@ -436,6 +501,7 @@ export default class extends Controller {
     this.boundStopPlayback = this.stopPlayback.bind(this)
     this.boundReconcilePlayback = this.reconcilePlayback.bind(this)
     this.boundHandleNativeMediaCommand = this.handleNativeMediaCommand.bind(this)
+    this.boundSyncPageTrackControls = this.syncPageTrackControls.bind(this)
   }
 
   startProgressWatch() {
@@ -490,6 +556,47 @@ export default class extends Controller {
     } catch (_) {
       // The browser version has no native bridge, and playback must remain unaffected.
     }
+  }
+
+  syncBrowserMedia() {
+    if (!this.currentTrack) return
+
+    const title = this.currentTrack.title || "Sonzra"
+    const artist = this.currentTrack.artist || ""
+    document.title = artist ? `${title} · ${artist} | Sonzra` : `${title} | Sonzra`
+
+    const mediaSession = navigator.mediaSession
+    if (!mediaSession || typeof MediaMetadata === "undefined") return
+
+    try {
+      const artwork = new URL(this.currentTrack.artwork || "/brand/sonzra-mark.svg", window.location.origin).href
+      mediaSession.metadata = new MediaMetadata({ title, artist, artwork: [ { src: artwork } ] })
+      mediaSession.playbackState = this.audioTarget?.paused ? "paused" : "playing"
+      mediaSession.setActionHandler("play", () => this.toggle())
+      mediaSession.setActionHandler("pause", () => this.toggle())
+      mediaSession.setActionHandler("previoustrack", () => this.previous())
+      mediaSession.setActionHandler("nexttrack", () => this.next())
+    } catch (_) {
+      // Media Session support differs across browsers and must remain optional.
+    }
+  }
+
+  syncPageTrackControls() {
+    const currentItemId = this.currentTrack?.itemId
+    document.querySelectorAll(".track-list .listen-card__play[data-player-item-id-param]").forEach((button) => {
+      const isCurrent = currentItemId && button.dataset.playerItemIdParam === currentItemId
+      button.classList.toggle("is-current", Boolean(isCurrent))
+      if (isCurrent) {
+        const isPaused = this.audioTarget?.paused
+        button.dataset.action = "player#toggle"
+        button.setAttribute("aria-label", `${isPaused ? "Play" : "Pause"} ${this.currentTrack.title}`)
+        button.innerHTML = this.icon(isPaused ? "play" : "pause")
+      } else {
+        button.dataset.action = "player#replaceQueue"
+        button.setAttribute("aria-label", `Play ${button.dataset.playerTitleParam}`)
+        button.innerHTML = this.icon("play")
+      }
+    })
   }
 
   icon(name, className = "") {

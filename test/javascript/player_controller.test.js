@@ -5,9 +5,17 @@ import PlayerController from "../../app/javascript/controllers/player_controller
 describe("player controller", () => {
   let application
   let controller
+  let persistedStorage
 
   beforeEach(async () => {
     sessionStorage.clear()
+    const values = new Map()
+    persistedStorage = {
+      getItem: (key) => values.get(key) || null,
+      setItem: (key, value) => values.set(key, String(value)),
+      clear: () => values.clear()
+    }
+    vi.stubGlobal("localStorage", persistedStorage)
     vi.stubGlobal("requestAnimationFrame", (callback) => callback())
     document.body.innerHTML = `
       <div data-controller="player">
@@ -29,7 +37,7 @@ describe("player controller", () => {
   })
 
   afterEach(() => {
-    application.stop()
+    application?.stop()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -53,13 +61,50 @@ describe("player controller", () => {
     expect(document.querySelector("[data-player-target='miniProgress']").style.width).toBe("25%")
   })
 
-  it("persists the current queue for a restored player", () => {
+  it("persists the current queue and playback position for a restored player", () => {
     controller.queue = [ { source: "/audio/track.mp3", title: "A track", artist: "An artist" } ]
     controller.currentIndex = 0
+    controller.audioTarget.currentTime = 42
 
-    controller.persistQueue()
+    controller.persistQueue({ force: true })
 
-    expect(JSON.parse(sessionStorage.getItem("sonzra:queue"))).toEqual(controller.queue)
-    expect(sessionStorage.getItem("sonzra:queue-index")).toBe("0")
+    expect(JSON.parse(persistedStorage.getItem("sonzra:player-state"))).toMatchObject({
+      version: 1,
+      queue: controller.queue,
+      currentIndex: 0,
+      position: 42,
+      queueOpen: false
+    })
+  })
+
+  it("restores the saved track at its paused playback position", () => {
+    persistedStorage.setItem("sonzra:player-state", JSON.stringify({
+      version: 1,
+      queue: [ { source: "/audio/track.mp3", title: "A track", artist: "An artist" } ],
+      currentIndex: 0,
+      position: 42,
+      queueOpen: false
+    }))
+
+    controller.restoreQueue()
+
+    expect(controller.currentTrack.title).toBe("A track")
+    expect(controller.pendingStartPosition).toBe(42)
+    expect(controller.audioTarget.paused).toBe(true)
+  })
+
+  it("updates the page title and active album track control", () => {
+    document.body.insertAdjacentHTML("beforeend", `
+      <ol class="track-list"><li><button class="listen-card__play" data-player-item-id-param="track-1" data-player-title-param="A track" data-action="player#replaceQueue">Play</button></li></ol>
+    `)
+    controller.currentTrack = { itemId: "track-1", title: "A track", artist: "An artist" }
+
+    controller.syncBrowserMedia()
+    controller.syncPageTrackControls()
+
+    const button = document.querySelector(".listen-card__play")
+    expect(document.title).toBe("A track · An artist | Sonzra")
+    expect(button.dataset.action).toBe("player#toggle")
+    expect(button.getAttribute("aria-label")).toBe("Play A track")
   })
 })
