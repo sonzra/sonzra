@@ -254,6 +254,19 @@
   }
 }
 
+@supports (padding: max(0px)) {
+  @media (max-width: 760px) {
+    .media-topbar {
+      min-height: calc(65px + env(safe-area-inset-top));
+      padding-top: max(8px, env(safe-area-inset-top));
+    }
+
+    .media-detail-body {
+      padding-top: calc(65px + env(safe-area-inset-top));
+    }
+  }
+}
+
 .detail-hero__longform-actions {
   display: flex;
   flex-wrap: wrap;
