@@ -1,6 +1,6 @@
 <main class="settings-shell">
   <% if @result.success? %>
-    <section class="settings-intro library-page-intro"><span class="eyebrow">Your library</span><div class="page-title"><%= link_to root_path, class: "back-link back-link--compact", aria: { label: "Back to home" }, title: "Back to home" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1><%= @title %></h1></div><%= form_with url: request.path, method: :get, class: "library-search" do |form| %><%= form.hidden_field :genre, value: @genre if @genre %><%= form.search_field :q, value: @query, placeholder: "Search #{@title.downcase}" %><%= form.submit "Search" %><% end %></section>
+    <section class="settings-intro library-page-intro"><span class="eyebrow">Your library</span><div class="page-title"><%= link_to root_path, class: "back-link back-link--compact", aria: { label: "Back to home" }, title: "Back to home" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1><%= @title %></h1><%= render "shared/library_search", title: @title, path: request.path, query: @query, genre: @genre %></div></section>
     <div class="library-grid">
       <% @result.items.each do |item| %>
         <% artwork_path = library_artwork_path(@server_connection, item) %>

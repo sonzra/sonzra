@@ -1,0 +1,9 @@
+<div class="library-search" data-controller="library-search">
+  <button type="button" class="library-search__trigger" aria-label="Search <%= title.downcase %>" data-action="library-search#open"><%= lucide_icon "search", aria: { hidden: true } %><span>Search</span></button>
+  <dialog class="library-search__dialog" aria-label="Search <%= title.downcase %>" data-library-search-target="dialog" data-action="click->library-search#closeOnBackdrop">
+    <div class="library-search__panel">
+      <div class="library-search__heading"><h2>Search <%= title.downcase %></h2><button type="button" aria-label="Close search" data-action="library-search#close"><%= lucide_icon "x", aria: { hidden: true } %></button></div>
+      <%= form_with url: path, method: :get do |form| %><%= form.hidden_field :genre, value: genre if genre %><%= form.search_field :q, value: query, placeholder: "Search #{title.downcase}", autofocus: true, data: { library_search_target: "input" } %><%= form.submit "Search" %><% end %>
+    </div>
+  </dialog>
+</div>
