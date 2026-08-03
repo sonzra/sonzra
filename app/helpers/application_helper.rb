@@ -12,6 +12,11 @@ module ApplicationHelper
     library_artwork_path(server_connection, item) || "/brand/sonzra-mark.svg"
   end
 
+  def release_year(item)
+    value = item["PremiereDate"].presence || item["ProductionYear"].presence
+    value.to_s[/\A\d{4}/]
+  end
+
   def music_genre_names(genres)
     genres.flat_map { |genre| genre.fetch("Name", "").split(";") }.map(&:strip).reject(&:blank?).uniq
   end

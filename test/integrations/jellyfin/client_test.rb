@@ -115,6 +115,42 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     assert_equal "podcast-library", URI.decode_www_form(URI.parse(resume_requests.last.path).query).to_h["ParentId"]
   end
 
+  test "filters podcast albums and non-album results from music recommendations" do
+    client = Integrations::Jellyfin::Client.new(base_url: "https://example.com", username: "bruno", password: "secret")
+    recommendations = [
+      { "Id" => "music-album", "Type" => "MusicAlbum", "ParentId" => "music-library" },
+      { "Id" => "podcast-album", "Type" => "MusicAlbum", "ParentId" => "podcast-library" },
+      { "Id" => "podcast-episode", "Type" => "Audio" }
+    ]
+
+    music_albums = recommendations.select { |item| item["Type"] == "MusicAlbum" }
+    filtered = client.send(:music_albums_without_podcasts, music_albums, { "Id" => "podcast-library" }, [ "podcast-album" ])
+
+    assert_equal [ "music-album" ], filtered.pluck("Id")
+  end
+
+  test "sorts an artist's albums by release date with metadata fallbacks" do
+    response = Net::HTTPOK.new("1.1", "200", "OK")
+    response.instance_variable_set(:@read, true)
+    response.body = {
+      Items: [
+        { Id: "old", Name: "Old", ProductionYear: 1999 },
+        { Id: "new", Name: "New", PremiereDate: "2024-06-01T00:00:00.0000000Z" },
+        { Id: "middle", Name: "Middle", ProductionYear: 2010 }
+      ],
+      TotalRecordCount: 3
+    }.to_json
+    http = FakeHttp.new(response)
+    client = Integrations::Jellyfin::Client.new(base_url: "https://example.com", username: "bruno", password: "secret", http: http)
+
+    albums = client.send(:artist_albums, "user-id", "token", "artist-id")
+
+    parameters = URI.decode_www_form(URI.parse(http.last_request.path).query).to_h
+    assert_equal "PremiereDate", parameters["SortBy"]
+    assert_equal "Descending", parameters["SortOrder"]
+    assert_equal [ "new", "middle", "old" ], albums.pluck("Id")
+  end
+
   test "raises an authentication error for rejected credentials" do
     response = Net::HTTPUnauthorized.new("1.1", "401", "Unauthorized")
     http = FakeHttp.new(response)

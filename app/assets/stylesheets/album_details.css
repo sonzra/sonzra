@@ -420,6 +420,40 @@
   color: #f8f7ff;
 }
 
+.detail-hero__artist a {
+  color: #c9baff;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.detail-hero__artist a:hover,
+.detail-hero__artist a:focus-visible {
+  color: #fff;
+  text-decoration: underline;
+  outline: 0;
+}
+
+.detail-hero__release,
+.listen-card__year {
+  color: #9e99b2 !important;
+  font-size: 13px !important;
+  font-weight: 700;
+}
+
+.detail-hero__artist + .detail-hero__release {
+  margin-top: -8px;
+}
+
+.detail-albums__grid {
+  margin-top: 18px;
+}
+
+.track-list li.is-playing {
+  border-color: #43d7c688;
+  background: #43d7c614;
+  box-shadow: inset 3px 0 #43d7c6;
+}
+
 @media (max-width: 760px) {
   .track-list li.is-selected {
     padding-right: 0;

@@ -5,8 +5,7 @@ class LibraryItemsController < ApplicationController
     return unless @result.success?
 
     session[:server_access_tokens] = session.fetch(:server_access_tokens, {}).merge(@server_connection.id.to_s => @result.access_token)
-    default_back_path, @back_label = detail_back_destination(@result.details)
-    @back_path = referring_page_path || default_back_path
+    @back_path, @back_label = detail_back_destination(@result.details)
     @media_detail_header = playable_media_detail?(@result.details)
     @media_detail_title = media_detail_title(@result.details) if @media_detail_header
   end
@@ -33,17 +32,5 @@ class LibraryItemsController < ApplicationController
     return item.fetch("Name") if item["Type"] == "MusicArtist"
 
     details.fetch(:album).fetch("Name")
-  end
-
-  def referring_page_path
-    referer = request.referer
-    return if referer.blank?
-
-    uri = URI.parse(referer)
-    return unless uri.host == request.host && uri.port == request.port && uri.path != request.path
-
-    [ uri.path, uri.query.presence ].compact.join("?")
-  rescue URI::InvalidURIError
-    nil
   end
 end

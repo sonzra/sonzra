@@ -1,0 +1,15 @@
+<section class="detail-section detail-albums" aria-labelledby="detail-albums-title">
+  <h2 id="detail-albums-title"><%= title %></h2>
+  <div class="library-grid detail-albums__grid">
+    <% items.each do |item| %>
+      <% artwork_path = media_artwork_path(server_connection, item) %>
+      <article class="listen-card" data-controller="card-link" data-card-link-url-value="<%= library_item_server_connection_path(server_connection, item["Id"]) %>" data-action="touchstart->card-options#startPress touchend->card-options#cancelPress touchcancel->card-options#cancelPress touchmove->card-options#cancelPress contextmenu->card-options#preventContextMenu click->card-options#consumeClick click->card-link#visit">
+        <%= link_to library_item_server_connection_path(server_connection, item["Id"]), class: "listen-card__art", data: { turbo_frame: "_top" } do %><%= image_tag artwork_path, alt: "", loading: "lazy" %><% end %>
+        <button class="listen-card__play" type="button" aria-label="Play <%= item["Name"] %>" data-action="player#replaceQueue" data-player-queue-url-param="<%= playback_queue_server_connection_path(server_connection, item["Id"]) %>"><%= lucide_icon "play", aria: { hidden: true } %></button>
+        <%= render "shared/card_options", item: item, artwork_path: artwork_path, server_connection: server_connection %>
+        <h3><%= link_to item["Name"], library_item_server_connection_path(server_connection, item["Id"]), data: { turbo_frame: "_top" } %></h3>
+        <p class="listen-card__year"><%= release_year(item) || "Album" %></p>
+      </article>
+    <% end %>
+  </div>
+</section>

@@ -66,20 +66,23 @@ module Integrations
         item = get("Users/#{user_id}/Items/#{item_id}", token, EnableUserData: true, Fields: "Overview,Genres,DateCreated,RunTimeTicks,AlbumArtists,People,ProductionYear,PremiereDate,Studios,SeriesName,IndexNumber")
         item["UserData"] = get("UserItems/#{item_id}/UserData", token, UserId: user_id)
         podcast_library = podcast_library(user_id, token)
+        podcast_album_ids = podcast_library ? podcast_album_ids(user_id, token, podcast_library) : []
         kind = media_kind(item, user_id, token, podcast_library)
         return non_music_item_details(item, token, kind) unless kind == :music
 
         artist = item["Type"] == "MusicArtist"
-        album = item["Type"] == "Audio" && item["AlbumId"] ? get("Users/#{user_id}/Items/#{item["AlbumId"]}", token) : item
+        album = item["Type"] == "Audio" && item["AlbumId"] ? get("Users/#{user_id}/Items/#{item["AlbumId"]}", token, Fields: "AlbumArtists,Overview") : item
         tracks = album["Type"] == "MusicAlbum" ? all_items(user_id, token, ParentId: album["Id"], IncludeItemTypes: "Audio", SortBy: "ParentIndexNumber,IndexNumber", sort_order: "Ascending") : []
         artist_id = artist ? item["Id"] : album.dig("AlbumArtists", 0, "Id") || item.dig("AlbumArtists", 0, "Id")
+        other_albums = artist_id ? optional_items { artist_albums(user_id, token, artist_id) } : []
+        similar_albums = artist ? [] : optional_items { get("Items/#{album["Id"]}/Similar", token, UserId: user_id, Limit: 8).fetch("Items", []) }
 
         details = {
           item: item,
           album: album,
           tracks: tracks,
-          other_albums: artist_id ? optional_items { items(user_id, token, AlbumArtistIds: artist_id, IncludeItemTypes: "MusicAlbum") } : [],
-          similar_albums: artist ? [] : optional_items { get("Items/#{album["Id"]}/Similar", token, UserId: user_id, Limit: 8).fetch("Items", []) }
+          other_albums: music_albums_without_podcasts(other_albums, podcast_library, podcast_album_ids),
+          similar_albums: music_albums_without_podcasts(similar_albums.select { |similar| similar["Type"] == "MusicAlbum" }, podcast_library, podcast_album_ids)
         }
         LibraryItemDetailsResponseData.new(details: details, access_token: token)
       end
@@ -229,6 +232,33 @@ module Integrations
         all_items.sort_by do |item|
           [ item["ParentIndexNumber"] || 1, item["IndexNumber"] || Float::INFINITY, item["Name"] ]
         end
+      end
+
+      def artist_albums(user_id, token, artist_id)
+        albums = []
+        start_index = 0
+
+        loop do
+          response = get(
+            "Users/#{user_id}/Items",
+            token,
+            AlbumArtistIds: artist_id,
+            IncludeItemTypes: "MusicAlbum",
+            SortBy: "PremiereDate",
+            SortOrder: "Descending",
+            Recursive: true,
+            Limit: 100,
+            StartIndex: start_index,
+            Fields: "PremiereDate,ProductionYear,DateCreated"
+          )
+          page = response.fetch("Items", [])
+          albums.concat(page)
+          break if page.empty? || albums.size >= response.fetch("TotalRecordCount", 0)
+
+          start_index += page.size
+        end
+
+        albums.sort_by { |album| [ album["PremiereDate"].to_s, album["ProductionYear"].to_s, album["DateCreated"].to_s, album["Name"].to_s ] }.reverse
       end
 
       def podcast_items(user_id, token, podcast_library: nil, **parameters)

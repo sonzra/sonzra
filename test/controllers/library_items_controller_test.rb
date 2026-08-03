@@ -16,7 +16,7 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     result = ServerConnections::FetchLibraryItemDetailsResultData.new(
       details: {
         item: { "Id" => "song-id", "Name" => "Song name", "Type" => "Audio", "AlbumArtist" => "Artist" },
-        album: { "Id" => "album-id", "Name" => "Album name", "Type" => "MusicAlbum", "AlbumArtist" => "Artist" },
+        album: { "Id" => "album-id", "Name" => "Album name", "Type" => "MusicAlbum", "AlbumArtist" => "Artist", "AlbumArtists" => [ { "Id" => "artist-id" } ] },
         tracks: [],
         other_albums: [],
         similar_albums: []
@@ -44,6 +44,7 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".detail-hero__art[data-media-header-target='artwork']"
     assert_select ".detail-hero__art img[src='/brand/sonzra-mark.svg']", 1
     assert_select "button.detail-hero__album-play[data-action='player#replaceQueue'][data-player-queue-url-param='#{playback_queue_server_connection_path(@server_connection, "album-id")}'][aria-label='Play Album name']"
+    assert_select ".detail-hero__artist a[href='#{library_item_server_connection_path(@server_connection, "artist-id")}']", "Artist"
   end
 
   test "renders dedicated audiobook controls with its saved playback position" do
@@ -85,7 +86,7 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
         item: { "Id" => "artist-id", "Name" => "Artist name", "Type" => "MusicArtist" },
         album: { "Id" => "artist-id", "Name" => "Artist name", "Type" => "MusicArtist" },
         tracks: [],
-        other_albums: [],
+        other_albums: [ { "Id" => "album-id", "Name" => "Artist album", "Type" => "MusicAlbum", "PremiereDate" => "2024-01-01T00:00:00.0000000Z" } ],
         similar_albums: []
       },
       access_token: "token",
@@ -104,11 +105,15 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     assert_select "header.media-topbar .media-topbar__title", "Artist name"
     assert_select "header.listen-topbar", 0
     assert_select ".detail-back-link", count: 0
+    assert_select ".detail-albums h2", "Albums"
+    assert_select ".detail-albums__grid .listen-card h3", "Artist album"
+    assert_select ".detail-albums__grid .listen-card__year", "2024"
+    assert_select ".listen-section h2", { text: "More by this artist", count: 0 }
   ensure
     service_class.define_singleton_method(:new, original_new)
   end
 
-  test "returns a playable detail page to its same-origin referring page" do
+  test "uses the stable library fallback for a playable detail page" do
     result = ServerConnections::FetchLibraryItemDetailsResultData.new(
       details: {
         item: { "Id" => "book-id", "Name" => "Book name", "Type" => "AudioBook" },
@@ -130,7 +135,7 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     get library_item_server_connection_url(@server_connection, "book-id"), headers: { "Referer" => root_url }
 
     assert_response :success
-    assert_select "header.media-topbar a[href='#{root_path}']", 1
+    assert_select "header.media-topbar a[href='#{library_audiobooks_path}'][data-controller='history-back']", 1
   ensure
     service_class.define_singleton_method(:new, original_new)
   end

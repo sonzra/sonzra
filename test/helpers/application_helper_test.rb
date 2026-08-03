@@ -19,6 +19,11 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_equal "/brand/sonzra-mark.svg", path
   end
 
+  test "uses the premiere date and production year for a release year" do
+    assert_equal "2024", release_year({ "PremiereDate" => "2024-06-01T00:00:00.0000000Z", "ProductionYear" => 2023 })
+    assert_equal "1999", release_year({ "ProductionYear" => 1999 })
+  end
+
   test "splits and de-duplicates semicolon-delimited music genres" do
     genres = [ { "Name" => "Ambient; Electronic" }, { "Name" => "Electronic; Jazz" }, { "Name" => "" } ]
 

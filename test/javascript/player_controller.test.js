@@ -106,5 +106,6 @@ describe("player controller", () => {
     expect(document.title).toBe("A track · An artist | Sonzra")
     expect(button.dataset.action).toBe("player#toggle")
     expect(button.getAttribute("aria-label")).toBe("Play A track")
+    expect(button.closest("li").classList).toContain("is-playing")
   })
 })

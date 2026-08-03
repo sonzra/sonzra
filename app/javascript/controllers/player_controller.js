@@ -586,6 +586,7 @@ export default class extends Controller {
     document.querySelectorAll(".track-list .listen-card__play[data-player-item-id-param]").forEach((button) => {
       const isCurrent = currentItemId && button.dataset.playerItemIdParam === currentItemId
       button.classList.toggle("is-current", Boolean(isCurrent))
+      button.closest("li")?.classList.toggle("is-playing", Boolean(isCurrent))
       if (isCurrent) {
         const isPaused = this.audioTarget?.paused
         button.dataset.action = "player#toggle"
