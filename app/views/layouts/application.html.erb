@@ -27,7 +27,6 @@
     <%= stylesheet_link_tag "queue", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag "queue_overlay", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag "queue_details", "data-turbo-track": "reload" %>
-    <%= stylesheet_link_tag "queue_artwork", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag "queue_controls", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag "queue_history", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag "main_player_layout", "data-turbo-track": "reload" %>
@@ -40,6 +39,7 @@
     <%= stylesheet_link_tag "card_options", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag "settings", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag "minimized_player", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "mobile_queue_layout", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
   <% if authenticated? %><body class="authenticated-body <%= "media-detail-body" if @media_detail_header %>" data-controller="card-options media-header"><% else %><body><% end %>

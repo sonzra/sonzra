@@ -1,1 +1,54 @@
-.listen-queue__list li.is-current{margin:0;padding:12px 4px;border-color:#a990ff66;border-radius:11px;background:#7a5af826;box-shadow:inset 3px 0 var(--accent)}.listen-queue__list li.is-current>img{margin-left:7px}.listen-queue__list li.is-current>span{color:#fff;font-weight:800}.listen-player__controls .listen-player__skip{display:grid!important;place-items:center;width:34px;height:34px;border:1px solid #ffffff1f!important;border-radius:50%;background:#ffffff0d!important;font-size:15px!important;transition:background .18s ease,border-color .18s ease!important}.listen-player__controls .listen-player__skip:hover,.listen-player__controls .listen-player__skip:focus-visible{border-color:#a990ff!important;background:#7a5af842!important;outline:0}@media(max-width:760px){.listen-queue__list li.is-current{padding:11px 2px}.listen-queue__list li.is-current>img{margin-left:6px}.listen-player__controls .listen-player__skip{width:30px;height:30px;font-size:13px!important}}
+.listen-queue__list li.is-current{
+  position:relative;
+  margin:0;
+  padding:12px 6px 12px 10px;
+  border-radius:12px;
+  background:#7a5af826;
+}
+
+.listen-queue__list li.is-current::before{
+  content:"";
+  position:absolute;
+  top:8px;
+  bottom:8px;
+  left:0;
+  width:4px;
+  border-radius:999px;
+  background:var(--accent);
+}
+
+.listen-player__controls .listen-player__skip{
+  display:grid!important;
+  place-items:center;
+  width:34px;
+  height:34px;
+  border:1px solid #ffffff1f!important;
+  border-radius:50%;
+  background:#ffffff0d!important;
+  font-size:15px!important;
+  transition:background .18s ease,border-color .18s ease!important;
+}
+
+.listen-player__controls .listen-player__skip:hover,
+.listen-player__controls .listen-player__skip:focus-visible{
+  border-color:#a990ff!important;
+  background:#7a5af842!important;
+  outline:0;
+}
+
+@media(max-width:760px){
+  .listen-queue__list li.is-current{
+    padding:10px 4px 10px 8px;
+  }
+
+  .listen-queue__list li.is-current::before{
+    top:7px;
+    bottom:7px;
+  }
+
+  .listen-player__controls .listen-player__skip{
+    width:30px;
+    height:30px;
+    font-size:13px!important;
+  }
+}

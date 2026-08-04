@@ -1,0 +1,33 @@
+@media(max-width:760px){
+  .listen-queue,
+  #player-queue:not([hidden]){
+    gap:8px !important;
+    align-items:stretch !important;
+    justify-items:stretch !important;
+    padding:64px 0 0 !important;
+  }
+
+  .listen-queue__list{
+    justify-self:stretch;
+    width:100vw;
+    max-width:none;
+    margin:0;
+    padding:8px 0 0;
+    border:0;
+    border-radius:18px 18px 0 0;
+  }
+
+  .listen-queue__list-header{
+    padding-inline:4px;
+  }
+}
+
+@supports (padding:max(0px)){
+  @media(max-width:760px){
+    .listen-queue,
+    #player-queue:not([hidden]){
+      padding-top:max(64px,calc(env(safe-area-inset-top) + 24px)) !important;
+      padding-bottom:env(safe-area-inset-bottom) !important;
+    }
+  }
+}
