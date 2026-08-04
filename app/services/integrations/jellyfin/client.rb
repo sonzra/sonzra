@@ -21,6 +21,10 @@ module Integrations
         authentication.fetch("User").fetch("Name")
       end
 
+      def resolved_user_id
+        @resolved_user&.dig("Id")
+      end
+
       def home_content
         session = authentication
         user_id = session.fetch("User").fetch("Id")
@@ -67,6 +71,7 @@ module Integrations
         token = session.fetch("AccessToken")
         item = get("Users/#{user_id}/Items/#{item_id}", token, EnableUserData: true, Fields: "Overview,Genres,DateCreated,RunTimeTicks,AlbumArtists,People,ProductionYear,PremiereDate,Studios,SeriesName,IndexNumber")
         item["UserData"] = get("UserItems/#{item_id}/UserData", token, UserId: user_id)
+        return playlist_details(item, user_id, token) if item["Type"] == "Playlist"
         podcast_library = podcast_library(user_id, token)
         podcast_album_ids = podcast_library ? podcast_album_ids(user_id, token, podcast_library) : []
         kind = media_kind(item, user_id, token, podcast_library)
@@ -99,6 +104,7 @@ module Integrations
         when :albums then get("Users/#{user_id}/Items", token, **parameters.merge(Recursive: true, IncludeItemTypes: "MusicAlbum", SortBy: "SortName"))
         when :audiobooks then get("Users/#{user_id}/Items", token, **parameters.merge(Recursive: true, IncludeItemTypes: "AudioBook", SortBy: "SortName"))
         when :podcasts then podcast_shows(user_id, token, **parameters)
+        when :playlists then get("Users/#{user_id}/Items", token, **parameters.merge(Recursive: true, IncludeItemTypes: "Playlist", SortBy: "SortName"))
         when :genres then get("MusicGenres", token, **parameters.merge(Limit: 1_000, StartIndex: 0, SortBy: "Name"))
         else raise ArgumentError, "Unsupported collection: #{collection}"
         end
@@ -116,11 +122,76 @@ module Integrations
           all_items(user_id, token, ParentId: item["Id"], IncludeItemTypes: "Audio", SortBy: "ParentIndexNumber,IndexNumber", Fields: "AlbumPrimaryImageTag", EnableImages: true, sort_order: "Ascending")
         when "MusicArtist"
           items(user_id, token, limit: 20, ArtistIds: item["Id"], IncludeItemTypes: "Audio", SortBy: "Random")
+        when "Playlist"
+          playlist_items(item["Id"], user_id, token)
         else
           [ item ]
         end
 
         PlaybackQueueResponseData.new(items: items, access_token: token)
+      end
+
+      def instant_mix(item_id, limit: 12)
+        session = authentication
+        user_id = session.fetch("User").fetch("Id")
+        token = session.fetch("AccessToken")
+        items = get(
+          "Songs/#{item_id}/InstantMix",
+          token,
+          UserId: user_id,
+          Limit: limit,
+          EnableImages: true,
+          EnableUserData: true,
+          Fields: "AlbumArtists,RunTimeTicks,AlbumPrimaryImageTag"
+        ).fetch("Items", [])
+
+        PlaybackQueueResponseData.new(items: items.select { |item| item["Type"] == "Audio" }, access_token: token)
+      end
+
+      def update_favorite(item_id:, favorite:)
+        session = authentication
+        token = session.fetch("AccessToken")
+        request_class = favorite ? Net::HTTP::Post : Net::HTTP::Delete
+        request = request_class.new(URI.parse("#{base_url}/UserFavoriteItems/#{item_id}"), "X-Emby-Token" => token)
+        ensure_success!(perform(request))
+      rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED
+        raise ConnectionError, "Could not reach the server. Check the address and try again."
+      end
+
+      def playlists
+        session = authentication
+        get("Users/#{session.dig("User", "Id")}/Items", session.fetch("AccessToken"), Recursive: true, IncludeItemTypes: "Playlist", SortBy: "SortName", EnableImages: true).fetch("Items", [])
+      end
+
+      def create_playlist(name)
+        session = authentication
+        token = session.fetch("AccessToken")
+        uri = URI.parse("#{base_url}/Playlists")
+        request = Net::HTTP::Post.new(uri, "X-Emby-Token" => token, "Content-Type" => "application/json")
+        request.body = { Name: name, UserId: session.dig("User", "Id"), MediaType: "Audio" }.to_json
+        ensure_success!(response = perform(request))
+        JSON.parse(response.body).fetch("Id")
+      end
+
+      def add_to_playlist(playlist_id:, item_ids: nil, item_id: nil)
+        session = authentication
+        token = session.fetch("AccessToken")
+        uri = URI.parse("#{base_url}/Playlists/#{playlist_id}/Items")
+        uri.query = URI.encode_www_form(Ids: Array(item_ids || item_id).join(","), UserId: session.dig("User", "Id"))
+        ensure_success!(perform(Net::HTTP::Post.new(uri, "X-Emby-Token" => token)))
+      end
+
+      def delete_playlist(playlist_id:)
+        session = authentication
+        uri = URI.parse("#{base_url}/Items/#{playlist_id}")
+        ensure_success!(perform(Net::HTTP::Delete.new(uri, "X-Emby-Token" => session.fetch("AccessToken"))))
+      end
+
+      def remove_from_playlist(playlist_id:, entry_id:)
+        session = authentication
+        uri = URI.parse("#{base_url}/Playlists/#{playlist_id}/Items")
+        uri.query = URI.encode_www_form(EntryIds: entry_id)
+        ensure_success!(perform(Net::HTTP::Delete.new(uri, "X-Emby-Token" => session.fetch("AccessToken"))))
       end
 
       def stream_audio(item_id:, range:, access_token: nil)
@@ -241,6 +312,17 @@ module Integrations
         all_items.sort_by do |item|
           [ item["ParentIndexNumber"] || 1, item["IndexNumber"] || Float::INFINITY, item["Name"] ]
         end
+      end
+
+      def playlist_items(playlist_id, user_id, token)
+        get("Playlists/#{playlist_id}/Items", token, UserId: user_id, Limit: 1_000, EnableImages: true, EnableUserData: true, Fields: "AlbumArtists,RunTimeTicks,AlbumPrimaryImageTag").fetch("Items", [])
+      end
+
+      def playlist_details(item, user_id, token)
+        LibraryItemDetailsResponseData.new(
+          details: { item: item, album: item, tracks: playlist_items(item.fetch("Id"), user_id, token), other_albums: [], similar_albums: [], kind: :playlist },
+          access_token: token
+        )
       end
 
       def artist_albums(user_id, token, artist_id)

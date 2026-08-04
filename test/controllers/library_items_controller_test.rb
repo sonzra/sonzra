@@ -195,4 +195,36 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
   ensure
     service_class.define_singleton_method(:new, original_new)
   end
+
+  test "renders playlist details with playlist labels and track count" do
+    result = ServerConnections::FetchLibraryItemDetailsResultData.new(
+      details: {
+        item: { "Id" => "playlist-id", "Name" => "Focus mix", "Type" => "Playlist", "Overview" => "Good for deep work" },
+        album: { "Id" => "playlist-id", "Name" => "Focus mix", "Type" => "Playlist", "Overview" => "Good for deep work" },
+        kind: :playlist,
+        tracks: [ { "Id" => "track-1", "PlaylistItemId" => "entry-1", "Name" => "Intro", "RunTimeTicks" => 120_000_000 }, { "Id" => "track-2", "PlaylistItemId" => "entry-2", "Name" => "Loop", "RunTimeTicks" => 180_000_000 } ],
+        other_albums: [],
+        similar_albums: []
+      },
+      access_token: "token",
+      message: nil
+    )
+    service = Object.new
+    service.define_singleton_method(:call) { result }
+    service_class = ServerConnections::FetchLibraryItemDetails
+    original_new = service_class.method(:new)
+    service_class.define_singleton_method(:new) { |*_arguments| service }
+
+    get library_item_server_connection_url(@server_connection, "playlist-id")
+
+    assert_response :success
+    assert_select "header.media-topbar[data-media-header-target='bar'] a[href='#{library_playlists_path}']", 1
+    assert_select ".detail-hero__kind", "Playlist"
+    assert_select ".detail-hero__release", "2 tracks"
+    assert_select ".detail-hero h1", "Focus mix"
+    assert_select ".track-list--playlist li span", count: 0
+    assert_select ".track-list__remove[data-card-options-remove-playlist-track-url-param='#{playlist_item_server_connection_path(@server_connection, playlist_id: "playlist-id", entry_id: "entry-1")}']"
+  ensure
+    service_class.define_singleton_method(:new, original_new)
+  end
 end

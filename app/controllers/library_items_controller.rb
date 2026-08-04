@@ -17,13 +17,14 @@ class LibraryItemsController < ApplicationController
     kind = details.fetch(:kind, :music)
     return [ library_audiobooks_path, "Audiobooks" ] if kind == :audiobook
     return [ library_podcasts_path, "Podcasts" ] if kind == :podcast
+    return [ library_playlists_path, "Playlists" ] if kind == :playlist || item["Type"] == "Playlist"
     return [ library_artists_path, "Artists" ] if item["Type"] == "MusicArtist"
 
     [ library_albums_path, "Albums" ]
   end
 
   def playable_media_detail?(details)
-    details.fetch(:kind, :music).in?([ :audiobook, :podcast ]) || details.fetch(:item).fetch("Type").in?([ "Audio", "MusicAlbum", "MusicArtist" ])
+    details.fetch(:kind, :music).in?([ :audiobook, :podcast, :playlist ]) || details.fetch(:item).fetch("Type").in?([ "Audio", "MusicAlbum", "MusicArtist", "Playlist" ])
   end
 
   def media_detail_title(details)

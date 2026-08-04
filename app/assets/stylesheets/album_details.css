@@ -226,6 +226,10 @@
     gap: 8px;
   }
 
+  .track-list--playlist li {
+    grid-template-columns: minmax(0, 1fr) 40px 40px 40px !important;
+  }
+
   .track-list li.is-selected {
     padding-right: 0;
     padding-left: 0;
@@ -241,6 +245,21 @@
 
   .track-list__queue {
     grid-column: 3;
+    grid-row: 1;
+    width: 36px;
+    height: 36px;
+  }
+
+  .track-list--playlist .listen-card__play {
+    grid-column: 2;
+  }
+
+  .track-list--playlist .track-list__queue {
+    grid-column: 3;
+  }
+
+  .track-list__remove {
+    grid-column: 4;
     grid-row: 1;
     width: 36px;
     height: 36px;

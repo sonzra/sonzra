@@ -4,12 +4,12 @@
   <div class="listen-topbar__menu" data-navigation-target="menu" data-action="click->navigation#closeOnNavigation">
     <nav class="listen-topbar__nav" aria-label="Primary navigation">
       <p class="listen-topbar__group-label">Library</p>
-      <% { "Home" => [ root_path, "house" ], "Artists" => [ library_artists_path, "mic-vocal" ], "Albums" => [ library_albums_path, "disc-3" ], "Audiobooks" => [ library_audiobooks_path, "book-open" ], "Podcasts" => [ library_podcasts_path, "podcast" ] }.each do |label, (path, icon)| %><%= link_to path, class: "listen-topbar__link" do %><%= lucide_icon icon, class: "listen-topbar__link-icon", aria: { hidden: true } %><span><%= label %></span><% end %><% end %>
+      <% { "Home" => [ root_path, "house" ], "Artists" => [ library_artists_path, "mic-vocal" ], "Albums" => [ library_albums_path, "disc-3" ], "Playlists" => [ library_playlists_path, "list-music" ], "Audiobooks" => [ library_audiobooks_path, "book-open" ], "Podcasts" => [ library_podcasts_path, "podcast" ] }.each do |label, (path, icon)| %><%= link_to path, class: "listen-topbar__link" do %><%= lucide_icon icon, class: "listen-topbar__link-icon", aria: { hidden: true } %><span><%= label %></span><% end %><% end %>
     </nav>
     <div class="listen-topbar__account">
       <p class="listen-topbar__group-label">Account</p>
       <%= link_to server_connections_path, class: "listen-settings-link" do %><%= lucide_icon "server", aria: { hidden: true } %><span>Server connections</span><% end %>
-      <% if current_user.admin? %><%= link_to admin_registration_settings_path, class: "listen-settings-link" do %><%= lucide_icon "shield-check", aria: { hidden: true } %><span>Administration</span><% end %><% end %>
+      <% if current_user.admin? %><%= link_to admin_users_path, class: "listen-settings-link" do %><%= lucide_icon "users", aria: { hidden: true } %><span>Users</span><% end %><%= link_to admin_registration_settings_path, class: "listen-settings-link" do %><%= lucide_icon "shield-check", aria: { hidden: true } %><span>Administration</span><% end %><% end %>
       <%= button_to session_path, method: :delete, class: "text-button" do %><%= lucide_icon "log-out", aria: { hidden: true } %><span>Sign out</span><% end %>
     </div>
   </div>

@@ -15,6 +15,10 @@ class LibraryController < ApplicationController
     render_collection(:podcasts, "Podcasts")
   end
 
+  def playlists
+    render_collection(:playlists, "Playlists")
+  end
+
   def genres
     @title = "Genres"
     @server_connection = current_user.server_connections.order(:created_at).first

@@ -1,3 +1,3 @@
-<div class="listen-card__options">
+<div class="listen-card__options" <% if item["Type"].in?([ "Audio", "MusicAlbum" ]) %>data-card-options-playlists-url="<%= playlists_server_connection_path(server_connection) %>" data-card-options-item-id="<%= item["Id"] %>" data-card-options-item-type="<%= item["Type"] %>"<% end %> <% if item["Type"] == "Audio" %>data-card-options-favorite-url="<%= favorite_server_connection_path(server_connection, item_id: item["Id"]) %>" data-card-options-favorite="<%= item.dig("UserData", "IsFavorite") ? "true" : "false" %>"<% elsif item["Type"] == "Playlist" %>data-card-options-delete-playlist-url="<%= playlist_server_connection_path(server_connection, item["Id"]) %>"<% end %>>
   <button class="listen-card__options-toggle" type="button" aria-label="More options for <%= item["Name"] %>" aria-expanded="false" data-action="card-options#toggle"><%= lucide_icon "ellipsis", aria: { hidden: true } %></button>
 </div>

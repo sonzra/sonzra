@@ -39,6 +39,28 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     assert_equal({ "Username" => "bruno", "Pw" => "secret" }, JSON.parse(http.last_request.body))
   end
 
+  test "initiates and completes Quick Connect without a password" do
+    initiate_response = Net::HTTPOK.new("1.1", "200", "OK")
+    initiate_response.instance_variable_set(:@read, true)
+    initiate_response.body = { Secret: "secret", Code: "ABC123" }.to_json
+    state_response = Net::HTTPOK.new("1.1", "200", "OK")
+    state_response.instance_variable_set(:@read, true)
+    state_response.body = { Authenticated: true }.to_json
+    authentication_response = Net::HTTPOK.new("1.1", "200", "OK")
+    authentication_response.instance_variable_set(:@read, true)
+    authentication_response.body = { AccessToken: "access-token", User: { Name: "Bruno" } }.to_json
+    http = FakeHttp.new([ initiate_response, state_response, authentication_response ])
+    client = Integrations::Jellyfin::Client.new(base_url: "https://example.com", http: http)
+
+    assert_equal "ABC123", client.initiate_quick_connect.fetch("Code")
+    assert client.quick_connect_state("secret").fetch("Authenticated")
+    assert_equal "access-token", client.authenticate_with_quick_connect("secret").fetch("AccessToken")
+    assert_equal "/QuickConnect/Initiate", http.requests.first.path
+    assert_equal "/QuickConnect/Connect?secret=secret", http.requests.second.path
+    assert_equal "/Users/AuthenticateWithQuickConnect", http.requests.third.path
+    assert_equal({ "Secret" => "secret" }, JSON.parse(http.requests.third.body))
+  end
+
   test "fetches most-played songs and albums for the home screen" do
     authentication_response = Net::HTTPOK.new("1.1", "200", "OK")
     authentication_response.instance_variable_set(:@read, true)
@@ -151,6 +173,29 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     assert_equal [ "new", "middle", "old" ], albums.pluck("Id")
   end
 
+  test "fetches an instant mix for radio playback" do
+    authentication_response = Net::HTTPOK.new("1.1", "200", "OK")
+    authentication_response.instance_variable_set(:@read, true)
+    authentication_response.body = { AccessToken: "token", User: { Id: "user-id", Name: "Bruno" } }.to_json
+    mix_response = Net::HTTPOK.new("1.1", "200", "OK")
+    mix_response.instance_variable_set(:@read, true)
+    mix_response.body = { Items: [ { Id: "track-1", Type: "Audio" }, { Id: "album-1", Type: "MusicAlbum" } ] }.to_json
+    http = FakeHttp.new([ authentication_response, mix_response ])
+
+    response = Integrations::Jellyfin::Client.new(
+      base_url: "https://example.com",
+      username: "bruno",
+      password: "secret",
+      http: http
+    ).instant_mix("seed-track", limit: 10)
+
+    parameters = URI.decode_www_form(URI.parse(http.last_request.path).query).to_h
+    assert_equal "/Songs/seed-track/InstantMix", URI.parse(http.last_request.path).path
+    assert_equal "user-id", parameters["UserId"]
+    assert_equal "10", parameters["Limit"]
+    assert_equal [ "track-1" ], response.items.pluck("Id")
+  end
+
   test "raises an authentication error for rejected credentials" do
     response = Net::HTTPUnauthorized.new("1.1", "401", "Unauthorized")
     http = FakeHttp.new(response)
@@ -221,6 +266,87 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     assert_equal "/Sessions/Playing/Progress", http.last_request.path
     assert_equal "token", http.last_request["X-Emby-Token"]
     assert_equal({ "ItemId" => "track-id", "PositionTicks" => 32_100_000, "CanSeek" => true, "IsPaused" => true, "PlayMethod" => "DirectPlay" }, JSON.parse(http.last_request.body))
+  end
+
+  test "adds a track to a playlist for the authenticated user" do
+    authentication_response = Net::HTTPOK.new("1.1", "200", "OK")
+    authentication_response.instance_variable_set(:@read, true)
+    authentication_response.body = { AccessToken: "token", User: { Id: "user-id", Name: "Bruno" } }.to_json
+    response = Net::HTTPNoContent.new("1.1", "204", "No Content")
+    http = FakeHttp.new([ authentication_response, response ])
+
+    Integrations::Jellyfin::Client.new(base_url: "https://example.com", username: "bruno", password: "secret", http: http).add_to_playlist(
+      playlist_id: "playlist-1",
+      item_id: "track-1"
+    )
+
+    assert_equal "/Playlists/playlist-1/Items?Ids=track-1&UserId=user-id", http.last_request.path
+    assert_equal "token", http.last_request["X-Emby-Token"]
+  end
+
+  test "adds multiple tracks to a playlist for the authenticated user" do
+    authentication_response = Net::HTTPOK.new("1.1", "200", "OK")
+    authentication_response.instance_variable_set(:@read, true)
+    authentication_response.body = { AccessToken: "token", User: { Id: "user-id", Name: "Bruno" } }.to_json
+    response = Net::HTTPNoContent.new("1.1", "204", "No Content")
+    http = FakeHttp.new([ authentication_response, response ])
+
+    Integrations::Jellyfin::Client.new(base_url: "https://example.com", username: "bruno", password: "secret", http: http).add_to_playlist(
+      playlist_id: "playlist-1",
+      item_ids: [ "track-1", "track-2" ]
+    )
+
+    assert_equal "/Playlists/playlist-1/Items?Ids=track-1%2Ctrack-2&UserId=user-id", http.last_request.path
+    assert_equal "token", http.last_request["X-Emby-Token"]
+  end
+
+  test "deletes a playlist item by id" do
+    authentication_response = Net::HTTPOK.new("1.1", "200", "OK")
+    authentication_response.instance_variable_set(:@read, true)
+    authentication_response.body = { AccessToken: "token", User: { Id: "user-id", Name: "Bruno" } }.to_json
+    response = Net::HTTPNoContent.new("1.1", "204", "No Content")
+    http = FakeHttp.new([ authentication_response, response ])
+
+    Integrations::Jellyfin::Client.new(base_url: "https://example.com", username: "bruno", password: "secret", http: http).delete_playlist(
+      playlist_id: "playlist-7"
+    )
+
+    assert_equal "/Items/playlist-7", http.last_request.path
+    assert_equal "token", http.last_request["X-Emby-Token"]
+  end
+
+  test "removes a playlist entry by id" do
+    authentication_response = Net::HTTPOK.new("1.1", "200", "OK")
+    authentication_response.instance_variable_set(:@read, true)
+    authentication_response.body = { AccessToken: "token", User: { Id: "user-id", Name: "Bruno" } }.to_json
+    response = Net::HTTPNoContent.new("1.1", "204", "No Content")
+    http = FakeHttp.new([ authentication_response, response ])
+
+    Integrations::Jellyfin::Client.new(base_url: "https://example.com", username: "bruno", password: "secret", http: http).remove_from_playlist(
+      playlist_id: "playlist-1",
+      entry_id: "entry-7"
+    )
+
+    assert_equal "/Playlists/playlist-1/Items?EntryIds=entry-7", http.last_request.path
+    assert_equal "token", http.last_request["X-Emby-Token"]
+  end
+
+  test "reuses a cached remote user id with an access token" do
+    response = Net::HTTPNoContent.new("1.1", "204", "No Content")
+    http = FakeHttp.new(response)
+    client = Integrations::Jellyfin::Client.new(
+      base_url: "https://example.com",
+      username: "Bruno",
+      access_token: "token",
+      remote_user_id: "user-id",
+      http: http
+    )
+
+    client.delete_playlist(playlist_id: "playlist-7")
+
+    assert_equal 1, http.requests.size
+    assert_equal "/Items/playlist-7", http.last_request.path
+    assert_equal "user-id", client.resolved_user_id
   end
 
   test "updates a resumable item's saved position" do
