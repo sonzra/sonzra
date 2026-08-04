@@ -6,6 +6,11 @@ class ArtworkController < ApplicationController
 
     artwork = Integrations::Jellyfin::Client.new(**server_connection.client_options).artwork(item_id: params.expect(:item_id), tag: params[:tag], access_token: access_token)
 
+    if params[:tag].present?
+      expires_in 1.year, immutable: true
+    else
+      expires_in 5.minutes
+    end
     send_data artwork.body, type: artwork.content_type, disposition: "inline"
   rescue Integrations::Jellyfin::Client::ConnectionError
     head :bad_gateway
