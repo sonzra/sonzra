@@ -162,6 +162,18 @@ describe("card options controller", () => {
     expect(document.querySelector(".playlist-picker__choice").textContent).toContain("Road trip")
   })
 
+  it("opens the playlist modal for a queued track", async () => {
+    cardOptionsController.openPlaylistPickerForItem({
+      playlistsUrl: "/server_connections/1/playlists",
+      itemId: "queued-track-1"
+    })
+    await Promise.resolve()
+
+    expect(document.querySelector("[data-card-options-target='playlistDialog']").open).toBe(true)
+    expect(document.querySelector("[data-card-options-target='playlistAction']").dataset.cardOptionsItemId).toBe("queued-track-1")
+    expect(fetchMock).toHaveBeenCalledWith("/server_connections/1/playlists", { headers: { Accept: "application/json" } })
+  })
+
   it("adds a whole album to a playlist", async () => {
     document.querySelector("[data-card-options-target='playlistAction']").dataset.cardOptionsItemId = "album-1"
     document.querySelector("[data-card-options-target='playlistAction']").dataset.cardOptionsItemType = "MusicAlbum"

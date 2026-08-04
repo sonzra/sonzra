@@ -162,6 +162,17 @@ export default class extends Controller {
     this.renderPlaylists(this.playlistsCache)
   }
 
+  openPlaylistPickerForItem({ playlistsUrl, itemId, itemType = "Audio" }) {
+    if (!playlistsUrl || !itemId) return false
+
+    this.playlistActionTarget.dataset.cardOptionsPlaylistsUrl = playlistsUrl
+    this.playlistActionTarget.dataset.cardOptionsItemId = itemId
+    this.playlistActionTarget.dataset.cardOptionsItemType = itemType
+    this.playlistActionTarget.hidden = false
+    this.openPlaylistPicker()
+    return true
+  }
+
   closePlaylistPicker() {
     if (this.playlistDialogTarget.open) this.playlistDialogTarget.close()
   }

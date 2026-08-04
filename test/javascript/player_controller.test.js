@@ -107,6 +107,17 @@ describe("player controller", () => {
     expect(document.querySelector(".listen-queue__item-favorite").getAttribute("aria-label")).toBe("Add A track to favourites")
   })
 
+  it("renders an add-to-playlist control for each queued track", async () => {
+    document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", '<ol data-player-target="queueList"></ol>')
+    controller.queue = [ { source: "/server_connections/1/audio/track-1", itemId: "track-1", title: "A track", artist: "An artist" } ]
+    controller.currentIndex = 0
+    await Promise.resolve()
+
+    controller.renderQueue()
+
+    expect(document.querySelector(".listen-queue__item-playlist").getAttribute("aria-label")).toBe("Add A track to playlist")
+  })
+
   it("updates the queue favourite icon when favouriting from the player", async () => {
     document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", '<ol data-player-target="queueList"></ol>')
     controller.queue = [ { source: "/server_connections/1/audio/track.mp3", title: "A track", artist: "An artist", favorite: false } ]

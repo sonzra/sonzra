@@ -434,13 +434,19 @@ export default class extends Controller {
       favoriteButton.ariaLabel = track.favorite ? `Remove ${track.title} from favourites` : `Add ${track.title} to favourites`
       favoriteButton.innerHTML = this.icon(track.favorite ? "heart-filled" : "heart")
       favoriteButton.addEventListener("click", () => this.toggleQueuedFavorite(queueIndex))
+      const playlistButton = document.createElement("button")
+      playlistButton.type = "button"
+      playlistButton.className = "listen-queue__item-action listen-queue__item-playlist"
+      playlistButton.ariaLabel = `Add ${track.title} to playlist`
+      playlistButton.innerHTML = this.icon("list-plus")
+      playlistButton.addEventListener("click", () => this.addQueuedTrackToPlaylist(queueIndex))
       const removeButton = document.createElement("button")
       removeButton.type = "button"
       removeButton.className = "listen-queue__item-action listen-queue__item-remove"
       removeButton.ariaLabel = `Remove ${track.title} from queue`
       removeButton.innerHTML = this.icon("x")
       removeButton.addEventListener("click", () => this.removeQueuedTrack(queueIndex))
-      item.append(artwork, details, duration, favoriteButton, playButton, removeButton)
+      item.append(artwork, details, duration, favoriteButton, playlistButton, playButton, removeButton)
       this.queueListTarget.appendChild(item)
     })
     if (this.queue.length === 0) this.queueListTarget.textContent = "Nothing queued"
@@ -495,6 +501,23 @@ export default class extends Controller {
     if (index === this.currentIndex) this.updateFavoriteControls()
     this.persistQueue({ force: true })
     this.renderQueue()
+  }
+
+  addQueuedTrackToPlaylist(index) {
+    const track = this.queue[index]
+    const match = track?.source?.match(/^(\/server_connections\/[^/]+)\/audio\/[^/?]+/)
+    const cardOptions = this.application.getControllerForElementAndIdentifier(document.body, "card-options")
+
+    if (!track?.itemId || !match || !cardOptions?.openPlaylistPickerForItem) {
+      this.showFeedback("Couldn’t open playlists for this track")
+      return
+    }
+
+    cardOptions.openPlaylistPickerForItem({
+      playlistsUrl: `${match[1]}/playlists`,
+      itemId: track.itemId,
+      itemType: "Audio"
+    })
   }
 
   removeQueuedTrack(index) {
@@ -923,6 +946,7 @@ export default class extends Controller {
       , heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.9-8.6a5.5 5.5 0 0 0-.1-7.8Z"></path>',
       "heart-filled": '<path fill="currentColor" d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.9-8.6a5.5 5.5 0 0 0-.1-7.8Z"></path>',
       radio: '<path d="M4.9 8.9a10 10 0 0 1 14.2 0"></path><path d="M7.8 11.8a6 6 0 0 1 8.4 0"></path><path d="M10.7 14.7a2 2 0 0 1 2.6 0"></path><path d="M12 16v5"></path><circle cx="12" cy="18" r="1"></circle>'
+      , "list-plus": '<path d="M11 12H3"></path><path d="M16 6H3"></path><path d="M16 18H3"></path><path d="M18 9v6"></path><path d="M21 12h-6"></path>'
     }
     return `<svg class="${className}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths[name]}</svg>`
   }
