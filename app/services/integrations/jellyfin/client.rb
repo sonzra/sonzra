@@ -8,10 +8,12 @@ module Integrations
       class AuthenticationError < StandardError; end
       class ConnectionError < StandardError; end
 
-      def initialize(base_url:, username:, password:, http: Net::HTTP)
+      def initialize(base_url:, username: nil, password: nil, access_token: nil, remote_user_id: nil, http: Net::HTTP)
         @base_url = base_url
         @username = username
         @password = password
+        @access_token = access_token
+        @remote_user_id = remote_user_id
         @http = http
       end
 
@@ -180,11 +182,18 @@ module Integrations
       private
 
       def authentication
+        if access_token.present?
+          return { "User" => @resolved_user, "AccessToken" => access_token } if @resolved_user
+          return { "User" => @resolved_user = { "Id" => remote_user_id, "Name" => username }, "AccessToken" => access_token } if remote_user_id.present? && username.present?
+
+          return { "User" => @resolved_user = get("Users/Me", access_token), "AccessToken" => access_token }
+        end
+
         response = perform(request)
 
         raise AuthenticationError if response.code == "401"
         ensure_success!(response)
-        JSON.parse(response.body)
+        JSON.parse(response.body).tap { |session| @resolved_user = session["User"] }
       rescue JSON::ParserError, KeyError
         raise ConnectionError, "The server returned an unexpected response."
       rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED
@@ -193,7 +202,7 @@ module Integrations
         raise ConnectionError, "Could not establish a secure connection to the server."
       end
 
-      attr_reader :base_url, :username, :password, :http
+      attr_reader :base_url, :username, :password, :access_token, :remote_user_id, :http
 
       def items(user_id, token, limit: 8, sort_order: "Descending", **parameters)
         requested_fields = parameters.delete(:Fields)
@@ -375,7 +384,8 @@ module Integrations
       def get(path, token, **parameters)
         uri = URI.parse("#{base_url}/#{path}")
         uri.query = URI.encode_www_form(parameters)
-        response = perform(Net::HTTP::Get.new(uri, "X-Emby-Token" => token))
+        headers = token.present? ? { "X-Emby-Token" => token } : {}
+        response = perform(Net::HTTP::Get.new(uri, headers))
 
         ensure_success!(response)
         JSON.parse(response.body)
@@ -440,6 +450,31 @@ module Integrations
 
       def endpoint
         @endpoint ||= URI.parse("#{base_url}/Users/AuthenticateByName")
+      end
+
+      public
+
+      def initiate_quick_connect
+        response = perform(Net::HTTP::Post.new(URI.parse("#{base_url}/QuickConnect/Initiate"), "X-Emby-Authorization" => authorization_header))
+        ensure_success!(response)
+        JSON.parse(response.body)
+      rescue JSON::ParserError
+        raise ConnectionError, "The server returned an unexpected response."
+      end
+
+      def quick_connect_state(secret)
+        get("QuickConnect/Connect", nil, secret: secret)
+      end
+
+      def authenticate_with_quick_connect(secret)
+        request = Net::HTTP::Post.new(URI.parse("#{base_url}/Users/AuthenticateWithQuickConnect"), "Content-Type" => "application/json", "X-Emby-Authorization" => authorization_header)
+        request.body = { Secret: secret }.to_json
+        response = perform(request)
+        raise AuthenticationError if response.code == "401"
+        ensure_success!(response)
+        JSON.parse(response.body)
+      rescue JSON::ParserError
+        raise ConnectionError, "The server returned an unexpected response."
       end
 
       def request

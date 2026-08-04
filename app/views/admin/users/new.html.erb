@@ -1,0 +1,13 @@
+<main class="settings-shell">
+  <section class="form-page form-page--compact">
+    <div class="page-title"><%= link_to admin_users_path, class: "back-link back-link--compact", aria: { label: "Back to users" }, title: "Back to users" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1>Add user</h1></div>
+    <p class="form-hint">Choose an initial password and share it securely. The user can change it later.</p>
+    <%= render "shared/form_errors", record: @user %>
+    <%= form_with model: @user, url: admin_users_path, class: "connection-form" do |form| %>
+      <div class="field"><%= form.label :email_address, "Email address" %><%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "email" %></div>
+      <div class="field"><%= form.label :password, "Initial password" %><%= form.password_field :password, required: true, autocomplete: "new-password", maxlength: 72 %></div>
+      <div class="field"><%= form.label :password_confirmation, "Confirm initial password" %><%= form.password_field :password_confirmation, required: true, autocomplete: "new-password", maxlength: 72 %></div>
+      <div class="form-actions"><%= link_to "Cancel", admin_users_path, class: "secondary-button" %><%= form.submit "Create user", class: "primary-button" %></div>
+    <% end %>
+  </section>
+</main>

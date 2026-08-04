@@ -5,8 +5,9 @@ class User < ApplicationRecord
 
   normalizes :email_address, with: ->(e) { e.strip.downcase }
 
+  validates :email_address, presence: true
+
   before_create :assign_administrator_role, if: :first_user?
-  after_create_commit :claim_legacy_server_connections, if: :first_user?
 
   private
 
@@ -16,9 +17,5 @@ class User < ApplicationRecord
 
   def assign_administrator_role
     self.admin = true
-  end
-
-  def claim_legacy_server_connections
-    ServerConnection.where(user_id: nil).update_all(user_id: id, updated_at: Time.current)
   end
 end

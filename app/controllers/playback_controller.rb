@@ -20,11 +20,7 @@ class PlaybackController < ApplicationController
   private
 
   def client
-    @client ||= Integrations::Jellyfin::Client.new(
-      base_url: server_connection.base_url,
-      username: server_connection.username,
-      password: server_connection.password
-    )
+    @client ||= Integrations::Jellyfin::Client.new(**server_connection.client_options)
   end
 
   def server_connection

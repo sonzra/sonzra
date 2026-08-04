@@ -1,6 +1,6 @@
 <main class="settings-shell">
   <section class="form-page form-page--compact">
-    <div class="page-title"><%= link_to server_connections_path, class: "back-link back-link--compact", aria: { label: "Back to servers" }, title: "Back to servers" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1>Add server</h1></div>
+    <div class="page-title"><%= link_to server_connections_path, class: "back-link back-link--compact", aria: { label: "Back to server" }, title: "Back to server" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1><%= @media_server ? "Connect Jellyfin account" : "Set up server" %></h1></div>
     <%= render "form", server_connection: @server_connection %>
   </section>
 </main>

@@ -1,4 +1,4 @@
-<%= form_with model: server_connection, class: "connection-form" do |form| %>
+<%= form_with model: server_connection, url: server_connection.persisted? ? server_connection : start_quick_connect_server_connections_path, class: "connection-form" do |form| %>
   <% if server_connection.errors.any? %>
     <div class="form-errors" role="alert">
       <h2><%= pluralize(server_connection.errors.count, "error") %> prevented this server from being saved:</h2>
@@ -10,34 +10,37 @@
     </div>
   <% end %>
 
-  <div class="field">
-    <%= form.label :name, "Name" %>
-    <%= form.text_field :name, autofocus: true, placeholder: "Home Jellyfin", required: true %>
-  </div>
+  <% if server_connection.media_server.new_record? %>
+    <div class="field">
+      <%= form.label :name, "Server name" %>
+      <%= form.text_field :name, value: server_connection.media_server.name, autofocus: true, placeholder: "Home Jellyfin", required: true %>
+    </div>
 
-  <div class="field">
-    <%= form.label :provider, "Server type" %>
-    <%= form.select :provider, ServerConnection::PROVIDERS.keys.map { |provider| [provider.capitalize, provider] } %>
-  </div>
+    <div class="field">
+      <%= form.label :provider, "Server type" %>
+      <%= form.select :provider, MediaServer::PROVIDERS.keys.map { |provider| [provider.capitalize, provider] }, selected: server_connection.media_server.provider || :jellyfin %>
+    </div>
 
-  <div class="field">
-    <%= form.label :base_url, "Server address" %>
-    <%= form.url_field :base_url, placeholder: "https://jellyfin.example.com", required: true %>
-    <p class="form-hint">Include the protocol. A path is supported, such as <code>https://example.com/jellyfin</code>.</p>
-  </div>
-
-  <div class="field">
-    <%= form.label :username, "Username" %>
-    <%= form.text_field :username, autocomplete: "username", required: true %>
-  </div>
-
-  <div class="field">
-    <%= form.label :password, "Password" %>
-    <%= form.password_field :password, autocomplete: "current-password", required: server_connection.new_record?, placeholder: server_connection.persisted? ? "Leave blank to keep the current password" : nil %>
-  </div>
+    <div class="field">
+      <%= form.label :base_url, "Server address" %>
+      <%= form.url_field :base_url, value: server_connection.media_server.base_url, placeholder: "https://jellyfin.example.com", required: true %>
+      <p class="form-hint">Include the protocol. A path is supported, such as <code>https://example.com/jellyfin</code>.</p>
+    </div>
+  <% elsif current_user.admin? %>
+    <div class="field">
+      <%= form.label :name, "Server name" %>
+      <%= form.text_field :name, value: server_connection.media_server.name, required: true %>
+    </div>
+    <div class="field">
+      <%= form.label :base_url, "Server address" %>
+      <%= form.url_field :base_url, value: server_connection.media_server.base_url, required: true %>
+    </div>
+  <% else %>
+    <p class="form-hint">Connect your Jellyfin account to <strong><%= server_connection.media_server.name %></strong>.</p>
+  <% end %>
 
   <div class="form-actions">
     <%= link_to "Cancel", server_connections_path, class: "secondary-button" %>
-    <%= form.submit server_connection.persisted? ? "Save changes" : "Save server", class: "primary-button" %>
+    <%= form.submit server_connection.persisted? ? "Save server" : "Connect with Jellyfin", class: "primary-button" if !server_connection.persisted? || current_user.admin? %>
   </div>
 <% end %>

@@ -1,33 +1,25 @@
-require "uri"
-
 class ServerConnection < ApplicationRecord
-  PROVIDERS = { jellyfin: "jellyfin" }.freeze
-
-  encrypts :username, :password
+  encrypts :username, :password, :access_token
 
   belongs_to :user
+  belongs_to :media_server
 
-  enum :provider, PROVIDERS, validate: true
+  validates :username, presence: true
+  validates :access_token, presence: true, unless: :password?
+  validates :user_id, uniqueness: { scope: :media_server_id }
+  validates_associated :media_server
 
-  before_validation :normalize_base_url
-
-  validates :name, :provider, :base_url, :username, presence: true
-  validates :password, presence: true, on: :create
-  validates :name, uniqueness: { scope: :user_id }
-  validate :base_url_uses_http
-
-  private
-
-  def normalize_base_url
-    self.base_url = base_url.to_s.strip.chomp("/")
+  # Keeps the connection aggregate convenient to construct while persisting
+  # shared server settings exclusively on MediaServer.
+  %i[name provider base_url].each do |attribute|
+    define_method(attribute) { media_server&.public_send(attribute) }
+    define_method("#{attribute}=") do |value|
+      self.media_server ||= MediaServer.new
+      media_server.public_send("#{attribute}=", value)
+    end
   end
 
-  def base_url_uses_http
-    uri = URI.parse(base_url)
-    return if uri.is_a?(URI::HTTP) && uri.host.present?
-
-    errors.add(:base_url, "must be a complete HTTP or HTTPS URL")
-  rescue URI::InvalidURIError
-    errors.add(:base_url, "must be a complete HTTP or HTTPS URL")
+  def client_options(remote_user_id: nil)
+    { base_url: base_url, username: username, password: password, access_token: access_token.presence, remote_user_id: remote_user_id.presence }
   end
 end

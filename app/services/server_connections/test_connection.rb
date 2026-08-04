@@ -26,11 +26,7 @@ module ServerConnections
     def build_client
       case server_connection.provider
       when "jellyfin"
-        Integrations::Jellyfin::Client.new(
-          base_url: server_connection.base_url,
-          username: server_connection.username,
-          password: server_connection.password
-        )
+        Integrations::Jellyfin::Client.new(**server_connection.client_options)
       else
         raise ArgumentError, "Unsupported server provider: #{server_connection.provider}"
       end

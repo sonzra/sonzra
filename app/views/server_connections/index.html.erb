@@ -6,24 +6,23 @@
     </div>
   </header>
 
-  <% if @server_connections.any? %>
+  <% if @server_connection %>
     <section class="connection-list" aria-label="Server connections">
-      <% @server_connections.each do |server_connection| %>
-        <article class="connection-card">
-          <div>
-            <p class="connection-card__provider"><%= server_connection.provider.capitalize %></p>
-            <h2><%= server_connection.name %></h2>
-            <p><%= server_connection.base_url %></p>
-          </div>
-          <%= link_to edit_server_connection_path(server_connection), class: "connection-card__edit", aria: { label: "Edit #{server_connection.name}" }, title: "Edit #{server_connection.name}" do %><%= lucide_icon "pencil", aria: { hidden: true } %><% end %>
-        </article>
-      <% end %>
+      <article class="connection-card">
+        <div>
+          <p class="connection-card__provider"><%= @server_connection.provider.capitalize %></p>
+          <h2><%= @server_connection.name %></h2>
+          <p><%= @server_connection.base_url %></p>
+        </div>
+        <%= link_to edit_server_connection_path(@server_connection), class: "connection-card__edit", aria: { label: "Edit #{@server_connection.name}" }, title: "Edit #{@server_connection.name}" do %><%= lucide_icon "pencil", aria: { hidden: true } %><% end %>
+      </article>
     </section>
   <% else %>
     <section class="empty-state">
       <%= image_tag "/brand/sonzra-mark.svg", alt: "", class: "empty-state__mark" %>
-      <h2>No servers yet</h2>
-      <p>Add a server to start listening.</p>
+      <h2><%= @media_server ? "Connect your Jellyfin account" : "Set up your server" %></h2>
+      <p><%= @media_server ? "Use your personal Jellyfin user so your listening history stays private." : "An administrator needs to configure the shared media server." %></p>
+      <%= link_to @media_server ? "Connect account" : "Set up server", new_server_connection_path, class: "primary-button" if @media_server || current_user.admin? %>
     </section>
   <% end %>
 </main>

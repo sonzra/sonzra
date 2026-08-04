@@ -13,10 +13,7 @@
     <h1><%= @server_connection.name %></h1>
     <p><%= @server_connection.base_url %></p>
 
-    <div class="connection-detail__credentials">
-      <span>Signed in as</span>
-      <strong><%= @server_connection.username %></strong>
-    </div>
+    <div class="connection-detail__credentials"><span>Connected as</span><strong><%= @server_connection.username %></strong></div>
 
     <%= button_to "Test connection", test_connection_server_connection_path(@server_connection), class: "primary-button" %>
   </section>

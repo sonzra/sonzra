@@ -95,6 +95,33 @@ docker run -d --name sonzra --restart unless-stopped -p 3000:3000 \
 For a private GitHub Container Registry image, authenticate the host first with
 `docker login ghcr.io`.
 
+## First-run setup and accounts
+
+Open Sonzra at `http://your-server:3000` after the container is running.
+
+1. Create the first Sonzra account. It automatically becomes the installation
+   administrator.
+2. Enter the shared Jellyfin server name and address, then choose **Connect
+   with Jellyfin**. Sonzra displays a temporary code; approve it from an
+   already signed-in Jellyfin client under **Settings → Quick Connect**.
+3. Invite other people to create a Sonzra account. Each person approves their
+   own Quick Connect code against the same configured server.
+
+The Jellyfin address is configured once for the installation. New connections
+store only encrypted access tokens in Sonzra's database and are never shared
+between Sonzra users. Sonzra never receives or stores Jellyfin passwords for
+Quick Connect. This keeps Jellyfin favourites, play counts, and playback
+positions personalized for each person.
+
+Quick Connect must be enabled on the Jellyfin server (it is enabled by default).
+An existing password-based Sonzra connection remains usable after upgrading,
+but reconnecting it uses the safer Quick Connect flow.
+
+The first user is also the only role that can change the shared server address
+or manage whether new Sonzra accounts may sign up. To close registration after
+everyone has joined, open **Administration** from the Sonzra menu and turn off
+new account registration.
+
 ## Contributing and local development
 
 Install Ruby 4.0.6 with mise, asdf, rbenv, or your preferred manager, then:
