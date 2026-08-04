@@ -4,6 +4,6 @@
     <img class="listen-player__art" data-player-target="artwork" src="/brand/sonzra-mark.svg" alt="">
     <span class="listen-player__metadata"><strong data-player-target="title">Choose something to play</strong><span data-player-target="artist">Your player will stay here</span></span>
   </button>
-  <div class="listen-player__controls"><button type="button" aria-label="Play" class="listen-player__play" data-player-target="toggle" data-action="player#toggle"><%= lucide_icon "play", aria: { hidden: true } %></button></div>
+  <div class="listen-player__controls"><button type="button" aria-label="Add to favourites" data-player-target="favorite" data-action="player#toggleFavorite"><%= lucide_icon "heart", aria: { hidden: true } %></button><button type="button" aria-label="Play" class="listen-player__play" data-player-target="toggle" data-action="player#toggle"><%= lucide_icon "play", aria: { hidden: true } %></button></div>
   <div class="listen-player__progress" aria-hidden="true"><span data-player-target="miniProgress"></span></div>
 </aside>

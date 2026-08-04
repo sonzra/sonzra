@@ -1,5 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" data-controller="<%= "player" if authenticated? %>">
+<html lang="en"
+  <% if authenticated? %>
+    data-controller="player"
+    data-player-radio-enabled-value="<%= session.dig(:player_preferences, "radio_enabled") == true %>"
+    data-player-preferences-url-value="<%= player_preferences_path %>"
+  <% end %>>
   <head>
     <title><%= content_for(:title) || "Sonzra" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">

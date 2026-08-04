@@ -1,7 +1,11 @@
-class PlaybackQueuesController < ApplicationController
+class RadioTracksController < ApplicationController
   def show
     server_connection = current_user.server_connections.find(params.expect(:server_connection_id))
-    result = ServerConnections::FetchPlaybackQueue.new(server_connection, params.expect(:item_id)).call
+    result = ServerConnections::FetchRadioTracks.new(
+      server_connection,
+      params.expect(:item_id),
+      remote_user_id: session.dig(:server_remote_user_ids, server_connection.id.to_s)
+    ).call
     return render json: { error: result.message }, status: :bad_gateway unless result.success?
 
     session[:server_access_tokens] = session.fetch(:server_access_tokens, {}).merge(server_connection.id.to_s => result.access_token)

@@ -18,15 +18,17 @@ describe("player controller", () => {
     vi.stubGlobal("localStorage", persistedStorage)
     vi.stubGlobal("requestAnimationFrame", (callback) => callback())
     document.body.innerHTML = `
-      <div data-controller="player">
+      <div data-controller="player" data-player-radio-enabled-value="false" data-player-preferences-url-value="/player_preferences">
         <aside data-player-target="shell" hidden>
           <audio data-player-target="audio"></audio>
           <img data-player-target="artwork" src="/brand/sonzra-mark.svg" alt="">
           <strong data-player-target="title">Choose something to play</strong>
           <span data-player-target="artist">Your player will stay here</span>
           <button data-player-target="toggle"></button>
+          <button data-player-target="radio"></button>
           <span data-player-target="miniProgress"></span>
         </aside>
+        <dialog data-player-target="clearDialog"></dialog>
       </div>
     `
     vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {})
@@ -73,8 +75,98 @@ describe("player controller", () => {
       queue: controller.queue,
       currentIndex: 0,
       position: 42,
-      queueOpen: false
+      queueOpen: false,
+      repeatMode: "off"
     })
+  })
+
+  it("cycles repeat mode and restarts the current track in repeat-one mode", () => {
+    controller.queue = [ { source: "/audio/track.mp3", title: "A track", artist: "An artist" } ]
+    controller.currentIndex = 0
+    controller.repeatMode = "off"
+    controller.audioTarget.play = vi.fn(() => Promise.resolve())
+
+    controller.toggleRepeat()
+    expect(controller.repeatMode).toBe("all")
+    controller.toggleRepeat()
+    expect(controller.repeatMode).toBe("one")
+    controller.playNext()
+
+    expect(controller.audioTarget.currentTime).toBe(0)
+    expect(controller.audioTarget.play).toHaveBeenCalled()
+  })
+
+  it("renders a favourite control for each queued track", async () => {
+    document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", '<ol data-player-target="queueList"></ol>')
+    controller.queue = [ { source: "/server_connections/1/audio/track.mp3", title: "A track", artist: "An artist" } ]
+    controller.currentIndex = 0
+    await Promise.resolve()
+
+    controller.renderQueue()
+
+    expect(document.querySelector(".listen-queue__item-favorite").getAttribute("aria-label")).toBe("Add A track to favourites")
+  })
+
+  it("updates the queue favourite icon when favouriting from the player", async () => {
+    document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", '<ol data-player-target="queueList"></ol>')
+    controller.queue = [ { source: "/server_connections/1/audio/track.mp3", title: "A track", artist: "An artist", favorite: false } ]
+    controller.currentIndex = 0
+    controller.currentTrack = controller.queue[0]
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true }))
+    await Promise.resolve()
+
+    controller.renderQueue()
+    await controller.toggleFavorite()
+
+    expect(document.querySelector(".listen-queue__item-favorite").classList).toContain("is-active")
+    expect(document.querySelector(".listen-queue__item-favorite").getAttribute("aria-label")).toBe("Remove A track from favourites")
+  })
+
+  it("shows pause for the playing queue item and toggles it without restarting", async () => {
+    document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", '<ol data-player-target="queueList"></ol>')
+    controller.queue = [ { source: "/server_connections/1/audio/track.mp3", title: "A track", artist: "An artist" } ]
+    controller.currentIndex = 0
+    controller.audioTarget.src = "/server_connections/1/audio/track.mp3"
+    Object.defineProperty(controller.audioTarget, "paused", { configurable: true, value: false })
+    await Promise.resolve()
+
+    controller.renderQueue()
+
+    expect(document.querySelector(".listen-queue__item-play").getAttribute("aria-label")).toBe("Pause A track")
+  })
+
+  it("removes a non-current queued track", async () => {
+    document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", '<ol data-player-target="queueList"></ol>')
+    controller.queue = [
+      { source: "/server_connections/1/audio/track-1.mp3", title: "First", artist: "An artist" },
+      { source: "/server_connections/1/audio/track-2.mp3", title: "Second", artist: "An artist" }
+    ]
+    controller.currentIndex = 0
+    await Promise.resolve()
+
+    controller.removeQueuedTrack(1)
+
+    expect(controller.queue).toHaveLength(1)
+    expect(controller.queue[0].title).toBe("First")
+    expect(controller.currentIndex).toBe(0)
+  })
+
+  it("removes the current track and advances to the next one", async () => {
+    document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", '<ol data-player-target="queueList"></ol>')
+    controller.queue = [
+      { source: "/server_connections/1/audio/track-1.mp3", title: "First", artist: "An artist" },
+      { source: "/server_connections/1/audio/track-2.mp3", title: "Second", artist: "An artist" }
+    ]
+    controller.currentIndex = 0
+    controller.playCurrent = vi.fn()
+    await Promise.resolve()
+
+    controller.removeQueuedTrack(0)
+
+    expect(controller.queue).toHaveLength(1)
+    expect(controller.queue[0].title).toBe("Second")
+    expect(controller.currentIndex).toBe(0)
+    expect(controller.playCurrent).toHaveBeenCalled()
   })
 
   it("restores the saved track at its paused playback position", () => {
@@ -107,5 +199,147 @@ describe("player controller", () => {
     expect(button.dataset.action).toBe("player#toggle")
     expect(button.getAttribute("aria-label")).toBe("Play A track")
     expect(button.closest("li").classList).toContain("is-playing")
+  })
+
+  it("extends the queue from radio recommendations when the queue is about to end", async () => {
+    controller.queue = [
+      { source: "/server_connections/1/audio/track-1.mp3", title: "Seed", artist: "Artist", itemId: "track-1", radioUrl: "/server_connections/1/radio_tracks/track-1", radioEligible: true }
+    ]
+    controller.currentIndex = 0
+    controller.currentTrack = controller.queue[0]
+    controller.radioEnabled = true
+    global.fetch = vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        items: [
+          { item_id: "track-1", source: "/server_connections/1/audio/track-1.mp3", title: "Seed", artist: "Artist" },
+          { item_id: "track-2", source: "/server_connections/1/audio/track-2.mp3", title: "Second", artist: "Artist", radio_url: "/server_connections/1/radio_tracks/track-2", radio_eligible: true }
+        ]
+      })
+    }))
+
+    await controller.maybeExtendRadioQueue({ force: true })
+
+    expect(global.fetch).toHaveBeenCalledWith("/server_connections/1/radio_tracks/track-1?limit=8", expect.any(Object))
+    expect(controller.queue).toHaveLength(2)
+    expect(controller.queue[1].itemId).toBe("track-2")
+  })
+
+  it("toggles radio state and syncs the preference", async () => {
+    controller.currentTrack = { itemId: "track-1", title: "Seed", artist: "Artist", radioEligible: true, radioUrl: "/server_connections/1/radio_tracks/track-1" }
+    document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", '<p data-player-target="queueFeedback" hidden></p>')
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ items: [] }) }))
+
+    await controller.toggleRadio()
+
+    expect(controller.radioEnabled).toBe(true)
+    expect(global.fetch).toHaveBeenCalledWith("/player_preferences", expect.objectContaining({ method: "PATCH" }))
+    expect(document.querySelector("[data-player-target='radio']").getAttribute("aria-label")).toBe("Radio on")
+    expect(document.querySelector("[data-player-target='queueFeedback']").textContent).toBe("Radio on")
+  })
+
+  it("does not append more radio tracks when re-enabling with enough queue ahead", async () => {
+    controller.queue = [
+      { source: "/server_connections/1/audio/track-1.mp3", title: "Seed", artist: "Artist", itemId: "track-1", radioUrl: "/server_connections/1/radio_tracks/track-1", radioEligible: true },
+      { source: "/server_connections/1/audio/track-2.mp3", title: "Second", artist: "Artist", itemId: "track-2" },
+      { source: "/server_connections/1/audio/track-3.mp3", title: "Third", artist: "Artist", itemId: "track-3" },
+      { source: "/server_connections/1/audio/track-4.mp3", title: "Fourth", artist: "Artist", itemId: "track-4" }
+    ]
+    controller.currentIndex = 0
+    controller.currentTrack = controller.queue[0]
+    controller.radioEnabled = false
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ items: [] }) }))
+
+    await controller.toggleRadio()
+
+    expect(controller.radioEnabled).toBe(true)
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(controller.queue).toHaveLength(4)
+  })
+
+  it("turns radio off when replacing the queue with an album", async () => {
+    controller.radioEnabled = true
+    controller.updateRadioControls()
+    controller.playCurrent = vi.fn()
+    global.fetch = vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        items: [
+          { item_id: "track-2", source: "/server_connections/1/audio/track-2.mp3", title: "Second", artist: "Artist", radio_url: "/server_connections/1/radio_tracks/track-2", radio_eligible: true }
+        ]
+      })
+    }))
+
+    await controller.replaceQueue({ params: { queueUrl: "/server_connections/1/playback_queues/album-1" } })
+
+    expect(controller.radioEnabled).toBe(false)
+    expect(global.fetch).toHaveBeenCalledWith("/player_preferences", expect.objectContaining({ method: "PATCH" }))
+  })
+
+  it("turns radio off when the queue is cleared", () => {
+    controller.radioEnabled = true
+    controller.queue = [ { source: "/server_connections/1/audio/track-1.mp3", title: "Seed", artist: "Artist", itemId: "track-1" } ]
+    controller.currentIndex = 0
+    controller.currentTrack = controller.queue[0]
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ items: [] }) }))
+
+    controller.clearQueue()
+
+    expect(controller.radioEnabled).toBe(false)
+    expect(global.fetch).toHaveBeenCalledWith("/player_preferences", expect.objectContaining({ method: "PATCH" }))
+  })
+
+  it("clears the whole queue, stops playback, and hides the player", () => {
+    controller.queue = [ { source: "/server_connections/1/audio/track-1.mp3", title: "Seed", artist: "Artist", itemId: "track-1" } ]
+    controller.currentIndex = 0
+    controller.currentTrack = controller.queue[0]
+    controller.audioTarget.load = vi.fn()
+    Object.defineProperty(controller.audioTarget, "src", { configurable: true, value: "/server_connections/1/audio/track-1.mp3", writable: true })
+
+    controller.clearQueue()
+
+    expect(controller.queue).toEqual([])
+    expect(controller.currentTrack).toBeNull()
+    expect(controller.audioTarget.pause).toHaveBeenCalled()
+    expect(controller.audioTarget.load).toHaveBeenCalled()
+    expect(document.querySelector("[data-player-target='shell']").hidden).toBe(true)
+  })
+
+  it("opens and closes the custom clear confirmation", () => {
+    controller.clearDialogTarget.showModal = vi.fn(function () { this.setAttribute("open", "") })
+    controller.clearDialogTarget.close = vi.fn(function () { this.removeAttribute("open") })
+
+    controller.promptClearQueue()
+    expect(controller.clearDialogTarget.showModal).toHaveBeenCalled()
+    expect(controller.clearDialogTarget.hasAttribute("open")).toBe(true)
+
+    controller.closeClearQueuePrompt()
+    expect(controller.clearDialogTarget.close).toHaveBeenCalled()
+    expect(controller.clearDialogTarget.hasAttribute("open")).toBe(false)
+  })
+
+  it("does not clear the queue until the confirmation is accepted", () => {
+    controller.queue = [ { source: "/server_connections/1/audio/track-1.mp3", title: "Seed", artist: "Artist", itemId: "track-1" } ]
+    controller.currentIndex = 0
+    controller.currentTrack = controller.queue[0]
+
+    controller.promptClearQueue()
+
+    expect(controller.queue).toHaveLength(1)
+    expect(controller.currentTrack.itemId).toBe("track-1")
+  })
+
+  it("clears the queue after confirming", () => {
+    controller.queue = [ { source: "/server_connections/1/audio/track-1.mp3", title: "Seed", artist: "Artist", itemId: "track-1" } ]
+    controller.currentIndex = 0
+    controller.currentTrack = controller.queue[0]
+    controller.audioTarget.load = vi.fn()
+    controller.clearDialogTarget.close = vi.fn()
+
+    controller.confirmClearQueue()
+
+    expect(controller.clearDialogTarget.close).toHaveBeenCalled()
+    expect(controller.queue).toEqual([])
+    expect(controller.currentTrack).toBeNull()
   })
 })
