@@ -12,6 +12,19 @@ class ServerConnections::FetchLibraryCollectionTest < ActiveSupport::TestCase
     assert_equal [ { "Name" => "Artist" } ], result.items
   end
 
+  test "supports music shelf collections" do
+    response = Integrations::Jellyfin::LibraryCollectionResponseData.new(content: [ { "Name" => "Track" } ], total: 1, access_token: "token")
+    client = Object.new
+    requested_collection = nil
+    client.define_singleton_method(:library_collection) { |collection, **| requested_collection = collection; response }
+
+    result = ServerConnections::FetchLibraryCollection.new(server_connection, :recently_played, client: client).call
+
+    assert_predicate result, :success?
+    assert_equal :recently_played, requested_collection
+    assert_equal [ { "Name" => "Track" } ], result.items
+  end
+
   private
 
   def server_connection

@@ -13,6 +13,9 @@ Rails.application.routes.draw do
   get "library/audiobooks", to: "library#audiobooks", as: :library_audiobooks
   get "library/podcasts", to: "library#podcasts", as: :library_podcasts
   get "library/playlists", to: "library#playlists", as: :library_playlists
+  get "library/recently-played", to: "library#recently_played", as: :library_recently_played
+  get "library/most-played-songs", to: "library#most_played_songs", as: :library_most_played_songs
+  get "library/recently-added-albums", to: "library#recently_added_albums", as: :library_recently_added_albums
   get "library/genres", to: "library#genres", as: :library_genres
   get "server_connections/:server_connection_id/artwork/:item_id", to: "artwork#show", as: :artwork_server_connection
   get "server_connections/:server_connection_id/audio/:item_id", to: "playback#show", as: :audio_server_connection

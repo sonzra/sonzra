@@ -105,6 +105,9 @@ module Integrations
         when :audiobooks then get("Users/#{user_id}/Items", token, **parameters.merge(Recursive: true, IncludeItemTypes: "AudioBook", SortBy: "SortName"))
         when :podcasts then podcast_shows(user_id, token, **parameters)
         when :playlists then get("Users/#{user_id}/Items", token, **parameters.merge(Recursive: true, IncludeItemTypes: "Playlist", SortBy: "SortName"))
+        when :recently_played then recently_played_collection(user_id, token, page: page, query: query)
+        when :most_played_songs then music_collection_response(user_id, token, parameters, IncludeItemTypes: "Audio", SortBy: "PlayCount", SortOrder: "Descending", EnableUserData: true) { |items, podcast_ids| music_songs_without_podcasts(items, podcast_ids).select { |item| item.dig("UserData", "PlayCount").to_i.positive? } }
+        when :recently_added_albums then music_collection_response(user_id, token, parameters, IncludeItemTypes: "MusicAlbum", SortBy: "DateCreated", SortOrder: "Descending") { |items, podcast_ids, podcast_view| music_albums_without_podcasts(items, podcast_view, podcast_ids) }
         when :genres then get("MusicGenres", token, **parameters.merge(Limit: 1_000, StartIndex: 0, SortBy: "Name"))
         else raise ArgumentError, "Unsupported collection: #{collection}"
         end
@@ -441,6 +444,64 @@ module Integrations
 
       def music_songs_without_podcasts(songs, podcast_album_ids)
         songs.reject { |song| podcast_album_ids.include?(song["AlbumId"]) }
+      end
+
+      def music_collection_response(user_id, token, parameters, **collection_parameters)
+        podcast_view = podcast_library(user_id, token)
+        podcast_ids = podcast_view ? podcast_album_ids(user_id, token, podcast_view) : []
+        response = get("Users/#{user_id}/Items", token, **parameters.merge(Recursive: true, **collection_parameters))
+        response["Items"] = yield(response.fetch("Items", []), podcast_ids, podcast_view)
+        response["TotalRecordCount"] = response.fetch("TotalRecordCount", response["Items"].size)
+        response
+      end
+
+      def recently_played_collection(user_id, token, page:, query:)
+        podcast_view = podcast_library(user_id, token)
+        podcast_ids = podcast_view ? podcast_album_ids(user_id, token, podcast_view) : []
+        recent_items = []
+        start_index = 0
+
+        loop do
+          response = get(
+            "Users/#{user_id}/Items",
+            token,
+            UserId: user_id,
+            Recursive: true,
+            Limit: 100,
+            StartIndex: start_index,
+            SearchTerm: query,
+            IncludeItemTypes: "Audio",
+            SortBy: "DatePlayed",
+            SortOrder: "Descending",
+            EnableImages: true,
+            EnableUserData: true
+          ).compact
+          items = response.fetch("Items", [])
+          recent_items.concat(recently_played_music(items, podcast_ids))
+          oldest_played_at = items.filter_map { |item| playback_time(item) }.last
+
+          break if items.size < 100 || (oldest_played_at && oldest_played_at < 6.hours.ago)
+
+          start_index += items.size
+        end
+
+        start = (page - 1) * 48
+        { "Items" => recent_items.slice(start, 48) || [], "TotalRecordCount" => recent_items.size }
+      end
+
+      def recently_played_music(items, podcast_album_ids)
+        cutoff = 6.hours.ago
+        music_songs_without_podcasts(items, podcast_album_ids).select do |item|
+          played_at = playback_time(item)
+          played_at.nil? || played_at >= cutoff
+        end
+      end
+
+      def playback_time(item)
+        value = item&.dig("UserData", "LastPlayedDate") || item&.fetch("DatePlayed", nil)
+        Time.zone.parse(value.to_s) if value.present?
+      rescue ArgumentError
+        nil
       end
 
       def personalized_genres(most_played_songs, recently_played_songs)

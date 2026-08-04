@@ -24,5 +24,8 @@ class HomeLibraryContentTest < ActionView::TestCase
     assert_select ".genre-explorer__grid .genre-tile", 4
     assert_select ".genre-explorer__all-link", 0
     assert_equal [ "Recently played", "Most played songs", "Recently added albums", "Continue podcasts", "Continue audiobooks" ], css_select(".listen-section h2").map(&:text)
+    assert_select "a[href='#{library_recently_played_path}']", "See all"
+    assert_select "a[href='#{library_most_played_songs_path}']", "See all"
+    assert_select "a[href='#{library_recently_added_albums_path}']", "See all"
   end
 end

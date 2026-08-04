@@ -19,6 +19,18 @@ class LibraryController < ApplicationController
     render_collection(:playlists, "Playlists")
   end
 
+  def recently_played
+    render_collection(:recently_played, "Recently played")
+  end
+
+  def most_played_songs
+    render_collection(:most_played_songs, "Most played songs")
+  end
+
+  def recently_added_albums
+    render_collection(:recently_added_albums, "Recently added albums")
+  end
+
   def genres
     @title = "Genres"
     @server_connection = current_user.server_connections.order(:created_at).first

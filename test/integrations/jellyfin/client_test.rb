@@ -151,6 +151,23 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     assert_equal [ "music-album" ], filtered.pluck("Id")
   end
 
+  test "keeps the recently played music shelf within the last six hours" do
+    client = Integrations::Jellyfin::Client.new(base_url: "https://example.com", username: "bruno", password: "secret")
+    now = Time.zone.parse("2026-08-04 12:00:00")
+    items = [
+      { "Id" => "recent-song", "AlbumId" => "music-album", "UserData" => { "LastPlayedDate" => (now - 5.hours).iso8601 } },
+      { "Id" => "old-song", "AlbumId" => "music-album", "UserData" => { "LastPlayedDate" => (now - 7.hours).iso8601 } },
+      { "Id" => "timestamp-less-song", "AlbumId" => "music-album", "UserData" => {} },
+      { "Id" => "podcast", "AlbumId" => "podcast-album", "UserData" => { "LastPlayedDate" => (now - 1.hour).iso8601 } }
+    ]
+
+    travel_to(now) do
+      recent_items = client.send(:recently_played_music, items, [ "podcast-album" ])
+
+      assert_equal [ "recent-song", "timestamp-less-song" ], recent_items.pluck("Id")
+    end
+  end
+
   test "sorts an artist's albums by release date with metadata fallbacks" do
     response = Net::HTTPOK.new("1.1", "200", "OK")
     response.instance_variable_set(:@read, true)
@@ -379,6 +396,27 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     assert_equal "/Users/user-id/Items", URI.parse(http.last_request.path).path
     assert_equal "AudioBook", parameters["IncludeItemTypes"]
     assert_equal "SortName", parameters["SortBy"]
+  end
+
+  test "fetches recently played music in descending playback order" do
+    response = lambda do |body|
+      Net::HTTPOK.new("1.1", "200", "OK").tap do |http_response|
+        http_response.instance_variable_set(:@read, true)
+        http_response.body = body.to_json
+      end
+    end
+    http = FakeHttp.new([
+      response.call(AccessToken: "token", User: { Id: "user-id" }),
+      response.call(Items: []),
+      response.call(Items: [], TotalRecordCount: 0)
+    ])
+
+    Integrations::Jellyfin::Client.new(base_url: "https://example.com", username: "bruno", password: "secret", http: http).library_collection(:recently_played, page: 1, query: nil)
+
+    parameters = URI.decode_www_form(URI.parse(http.last_request.path).query).to_h
+    assert_equal "Audio", parameters["IncludeItemTypes"]
+    assert_equal "DatePlayed", parameters["SortBy"]
+    assert_equal "Descending", parameters["SortOrder"]
   end
 
   test "filters album collections by genre" do

@@ -1,7 +1,8 @@
 <% resumable = local_assigns.fetch(:resumable, false) %>
 <% eyebrow = local_assigns[:eyebrow] %>
+<% see_all_path = local_assigns[:see_all_path] %>
 <section class="listen-section">
-  <div class="listen-section__heading"><div><p class="listen-kicker"><%= eyebrow %></p if eyebrow.present? %><h2><%= title %></h2></div></div>
+  <div class="listen-section__heading"><div><p class="listen-kicker"><%= eyebrow %></p if eyebrow.present? %><h2><%= title %></h2></div><%= link_to "See all", see_all_path, class: "listen-text-button", data: { turbo_frame: "_top" } if see_all_path %></div>
   <div class="listen-shelf-wrap" data-controller="shelf">
     <button class="listen-shelf__button listen-shelf__button--left" type="button" data-action="shelf#scrollLeft" aria-label="Scroll <%= title.downcase %> left"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7" /></svg></button>
     <div class="listen-shelf" data-shelf-target="content">
