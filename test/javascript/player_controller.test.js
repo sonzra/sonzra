@@ -40,6 +40,7 @@ describe("player controller", () => {
 
   afterEach(() => {
     application?.stop()
+    vi.useRealTimers()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -194,6 +195,44 @@ describe("player controller", () => {
     expect(controller.currentTrack.title).toBe("A track")
     expect(controller.pendingStartPosition).toBe(42)
     expect(controller.audioTarget.paused).toBe(true)
+  })
+
+  it("reports a paused track as playback progress instead of stopped", () => {
+    controller.currentTrack = { itemId: "track-1", reportingUrl: "/playback_reports" }
+    controller.hasReportedStart = true
+    controller.reportPlayback = vi.fn()
+
+    controller.handlePause()
+
+    expect(controller.reportPlayback).toHaveBeenCalledWith("progress")
+    expect(controller.reportPlayback).not.toHaveBeenCalledWith("stopped")
+  })
+
+  it("keeps the playback session alive when the page is hidden", () => {
+    controller.reportPlayback = vi.fn()
+    controller.persistQueue = vi.fn()
+
+    controller.handlePageHide()
+
+    expect(controller.persistQueue).toHaveBeenCalledWith({ force: true })
+    expect(controller.reportPlayback).toHaveBeenCalledWith("progress", { keepalive: true })
+  })
+
+  it("retries a failed stream from its last playback position", () => {
+    vi.useFakeTimers()
+    controller.currentTrack = { source: "/audio/track.mp3", title: "A track", artist: "An artist" }
+    controller.playbackRequested = true
+    controller.audioTarget.currentTime = 42
+    controller.audioTarget.load = vi.fn()
+    controller.audioTarget.play = vi.fn(() => Promise.resolve())
+
+    controller.handlePlaybackError()
+    vi.runAllTimers()
+
+    expect(controller.audioTarget.load).toHaveBeenCalled()
+    expect(controller.audioTarget.play).toHaveBeenCalled()
+    expect(controller.pendingStartPosition).toBe(42)
+    expect(controller.playbackRecoveryAttempts).toBe(1)
   })
 
   it("updates the page title and active album track control", () => {

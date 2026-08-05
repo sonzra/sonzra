@@ -6,6 +6,8 @@ const LEGACY_QUEUE_INDEX_KEY = "sonzra:queue-index"
 const RADIO_TOP_UP_THRESHOLD = 2
 const RADIO_TARGET_AHEAD = 8
 const RADIO_MAX_QUEUE_SIZE = 24
+const PLAYBACK_RECOVERY_DELAY = 8_000
+const MAX_PLAYBACK_RECOVERY_ATTEMPTS = 2
 
 export default class extends Controller {
   static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "favorite", "radio", "clearDialog"]
@@ -23,20 +25,24 @@ export default class extends Controller {
     this.restoreQueue()
     this.audioTarget.preload = "auto"
     this.audioTarget.playsInline = true
+    this.configureAudioSession()
     this.bindEventHandlers()
     this.audioTarget.addEventListener("timeupdate", this.boundUpdateTimeline)
     this.audioTarget.addEventListener("loadedmetadata", this.boundUpdateTimeline)
     this.audioTarget.addEventListener("durationchange", this.boundUpdateTimeline)
     this.audioTarget.addEventListener("canplay", this.boundUpdateTimeline)
+    this.audioTarget.addEventListener("canplay", this.boundHandleCanPlay)
     this.audioTarget.addEventListener("play", this.boundHandlePlay)
     this.audioTarget.addEventListener("pause", this.boundHandlePause)
     this.audioTarget.addEventListener("seeked", this.boundReportProgress)
     this.audioTarget.addEventListener("ended", this.boundPlayNext)
-    this.audioTarget.addEventListener("error", this.boundShowPlaybackError)
-    window.addEventListener("pagehide", this.boundStopPlayback)
+    this.audioTarget.addEventListener("waiting", this.boundHandleBuffering)
+    this.audioTarget.addEventListener("stalled", this.boundHandleBuffering)
+    this.audioTarget.addEventListener("error", this.boundHandlePlaybackError)
+    window.addEventListener("pagehide", this.boundHandlePageHide)
     window.addEventListener("pageshow", this.boundReconcilePlayback)
     window.addEventListener("sonzra:native-media-command", this.boundHandleNativeMediaCommand)
-    document.addEventListener("visibilitychange", this.boundReconcilePlayback)
+    document.addEventListener("visibilitychange", this.boundHandleVisibilityChange)
     document.addEventListener("turbo:load", this.boundSyncPageTrackControls)
     this.reconcilePlayback()
     this.syncPageTrackControls()
@@ -50,17 +56,21 @@ export default class extends Controller {
     this.audioTarget.removeEventListener("loadedmetadata", this.boundUpdateTimeline)
     this.audioTarget.removeEventListener("durationchange", this.boundUpdateTimeline)
     this.audioTarget.removeEventListener("canplay", this.boundUpdateTimeline)
+    this.audioTarget.removeEventListener("canplay", this.boundHandleCanPlay)
     this.audioTarget.removeEventListener("play", this.boundHandlePlay)
     this.audioTarget.removeEventListener("pause", this.boundHandlePause)
     this.audioTarget.removeEventListener("seeked", this.boundReportProgress)
     this.audioTarget.removeEventListener("ended", this.boundPlayNext)
-    this.audioTarget.removeEventListener("error", this.boundShowPlaybackError)
-    window.removeEventListener("pagehide", this.boundStopPlayback)
+    this.audioTarget.removeEventListener("waiting", this.boundHandleBuffering)
+    this.audioTarget.removeEventListener("stalled", this.boundHandleBuffering)
+    this.audioTarget.removeEventListener("error", this.boundHandlePlaybackError)
+    window.removeEventListener("pagehide", this.boundHandlePageHide)
     window.removeEventListener("pageshow", this.boundReconcilePlayback)
     window.removeEventListener("sonzra:native-media-command", this.boundHandleNativeMediaCommand)
-    document.removeEventListener("visibilitychange", this.boundReconcilePlayback)
+    document.removeEventListener("visibilitychange", this.boundHandleVisibilityChange)
     document.removeEventListener("turbo:load", this.boundSyncPageTrackControls)
     this.stopProgressWatch()
+    this.clearPlaybackRecovery()
   }
 
   async replaceQueue(event) {
@@ -90,9 +100,12 @@ export default class extends Controller {
     if (!this.audioTarget.src) return
 
     if (this.audioTarget.paused) {
+      this.playbackRequested = true
       const playback = this.audioTarget.play()
       this.monitorPlayback(playback)
     } else {
+      this.playbackRequested = false
+      this.clearPlaybackRecovery()
       this.audioTarget.pause()
     }
   }
@@ -177,6 +190,10 @@ export default class extends Controller {
       timeline.value = this.audioTarget.currentTime
     })
     this.updateProgress(this.audioTarget.currentTime, duration)
+    this.syncBrowserMediaPosition()
+    if (this.playbackRecoveryAttempts > 0 && this.audioTarget.currentTime >= (this.playbackRecoveryPosition || 0) + 15) {
+      this.playbackRecoveryAttempts = 0
+    }
     if (this.hasDurationTarget) this.durationTarget.textContent = this.formatTime(duration)
     if (this.hasExpandedElapsedTarget) this.expandedElapsedTarget.textContent = this.formatTime(this.audioTarget.currentTime)
     if (this.hasExpandedDurationTarget) this.expandedDurationTarget.textContent = this.formatTime(duration)
@@ -210,10 +227,7 @@ export default class extends Controller {
     this.syncNativeMedia()
     this.syncBrowserMedia()
     this.stopProgressWatch()
-    if (this.hasReportedStart) {
-      this.reportPlayback("stopped")
-      this.hasReportedStart = false
-    }
+    if (this.hasReportedStart) this.reportPlayback("progress")
     this.persistQueue({ force: true })
   }
 
@@ -238,8 +252,53 @@ export default class extends Controller {
     this.advancingQueue = false
   }
 
-  showPlaybackError() {
+  handleBuffering() {
+    if (!this.playbackRequested || this.audioTarget.ended) return
+
+    this.schedulePlaybackRecovery(PLAYBACK_RECOVERY_DELAY)
+  }
+
+  handleCanPlay() {
+    this.clearPlaybackRecovery()
+  }
+
+  handlePlaybackError() {
+    if (this.schedulePlaybackRecovery(0)) return
+
     if (this.hasArtistTarget) this.artistTarget.textContent = "This track could not be played. Check the server logs and try again."
+  }
+
+  schedulePlaybackRecovery(delay) {
+    if (!this.playbackRequested || !this.currentTrack?.source || this.audioTarget.ended) return false
+    if (this.playbackRecoveryTimeout || this.recoveringPlayback) return true
+    if ((this.playbackRecoveryAttempts || 0) >= MAX_PLAYBACK_RECOVERY_ATTEMPTS) return false
+
+    const source = this.currentTrack.source
+    this.playbackRecoveryTimeout = window.setTimeout(() => {
+      this.playbackRecoveryTimeout = null
+      this.recoverPlayback(source)
+    }, delay)
+    return true
+  }
+
+  recoverPlayback(source) {
+    if (!this.playbackRequested || this.currentTrack?.source !== source || this.audioTarget.ended) return
+    if ((this.playbackRecoveryAttempts || 0) >= MAX_PLAYBACK_RECOVERY_ATTEMPTS) return
+
+    this.recoveringPlayback = true
+    this.playbackRecoveryAttempts = (this.playbackRecoveryAttempts || 0) + 1
+    this.pendingStartPosition = Number(this.audioTarget.currentTime) || this.pendingStartPosition || 0
+    this.playbackRecoveryPosition = this.pendingStartPosition
+    this.audioTarget.src = source
+    this.audioTarget.load()
+    this.monitorPlayback(this.audioTarget.play())
+    this.recoveringPlayback = false
+  }
+
+  clearPlaybackRecovery() {
+    window.clearTimeout(this.playbackRecoveryTimeout)
+    this.playbackRecoveryTimeout = null
+    this.recoveringPlayback = false
   }
 
   async tracksFor(event) {
@@ -287,6 +346,8 @@ export default class extends Controller {
     if (!track) return
 
     if (this.currentTrack && this.currentTrack !== track) this.reportPlayback("stopped")
+    this.clearPlaybackRecovery()
+    this.playbackRequested = true
     this.loadTrack(track)
     const playback = this.audioTarget.play()
     this.monitorPlayback(playback)
@@ -312,6 +373,8 @@ export default class extends Controller {
     this.currentTrack = track
     this.hasReportedStart = false
     this.lastReportedPosition = 0
+    this.playbackRecoveryAttempts = 0
+    this.playbackRecoveryPosition = 0
     this.audioTarget.src = track.source
     this.pendingStartPosition = Number(startPosition) || 0
     const artwork = track.artwork || "/brand/sonzra-mark.svg"
@@ -573,6 +636,8 @@ export default class extends Controller {
     this.pendingStartPosition = 0
     this.hasReportedStart = false
     this.lastReportedPosition = 0
+    this.playbackRequested = false
+    this.clearPlaybackRecovery()
     this.audioTarget.pause()
     this.audioTarget.removeAttribute("src")
     this.audioTarget.load()
@@ -627,6 +692,8 @@ export default class extends Controller {
   }
 
   stopPlayback() {
+    this.playbackRequested = false
+    this.clearPlaybackRecovery()
     this.persistQueue({ force: true })
     this.reportPlayback("stopped", { keepalive: true })
   }
@@ -812,7 +879,7 @@ export default class extends Controller {
       // promise gives us a dependable second path to keep the player UI in
       // sync without duplicating normal event-driven updates.
       if (!this.progressWatch) this.handlePlay()
-    }).catch(this.boundShowPlaybackError)
+    }).catch(this.boundHandlePlaybackError)
   }
 
   relocateLegacyQueue() {
@@ -832,9 +899,12 @@ export default class extends Controller {
     this.boundHandlePause = this.handlePause.bind(this)
     this.boundReportProgress = this.reportProgress.bind(this)
     this.boundPlayNext = this.playNext.bind(this)
-    this.boundShowPlaybackError = this.showPlaybackError.bind(this)
-    this.boundStopPlayback = this.stopPlayback.bind(this)
+    this.boundHandleBuffering = this.handleBuffering.bind(this)
+    this.boundHandleCanPlay = this.handleCanPlay.bind(this)
+    this.boundHandlePlaybackError = this.handlePlaybackError.bind(this)
+    this.boundHandlePageHide = this.handlePageHide.bind(this)
     this.boundReconcilePlayback = this.reconcilePlayback.bind(this)
+    this.boundHandleVisibilityChange = this.handleVisibilityChange.bind(this)
     this.boundHandleNativeMediaCommand = this.handleNativeMediaCommand.bind(this)
     this.boundSyncPageTrackControls = this.syncPageTrackControls.bind(this)
   }
@@ -859,6 +929,21 @@ export default class extends Controller {
     const duration = this.audioTarget.duration
     const finished = this.audioTarget.ended || (Number.isFinite(duration) && duration > 0 && this.audioTarget.currentTime >= duration - 0.05)
     if (finished) this.playNext()
+  }
+
+  handlePageHide() {
+    this.persistQueue({ force: true })
+    this.reportPlayback("progress", { keepalive: true })
+  }
+
+  handleVisibilityChange() {
+    if (document.visibilityState === "hidden") {
+      this.persistQueue({ force: true })
+      this.reportPlayback("progress", { keepalive: true })
+      return
+    }
+
+    this.reconcilePlayback()
   }
 
   handleNativeMediaCommand(event) {
@@ -912,8 +997,35 @@ export default class extends Controller {
       mediaSession.setActionHandler("pause", () => this.toggle())
       mediaSession.setActionHandler("previoustrack", () => this.previous())
       mediaSession.setActionHandler("nexttrack", () => this.next())
+      this.syncBrowserMediaPosition()
     } catch (_) {
       // Media Session support differs across browsers and must remain optional.
+    }
+  }
+
+  syncBrowserMediaPosition() {
+    const mediaSession = navigator.mediaSession
+    const duration = Number(this.audioTarget?.duration)
+    if (!mediaSession?.setPositionState || !Number.isFinite(duration) || duration <= 0) return
+
+    try {
+      mediaSession.setPositionState({
+        duration,
+        playbackRate: this.audioTarget.playbackRate || 1,
+        position: Math.min(Math.max(Number(this.audioTarget.currentTime) || 0, 0), duration)
+      })
+    } catch (_) {
+      // Browsers may reject incomplete or unsupported media-session state.
+    }
+  }
+
+  configureAudioSession() {
+    if (!navigator.audioSession) return
+
+    try {
+      navigator.audioSession.type = "playback"
+    } catch (_) {
+      // Audio Session is optional; unsupported browsers use HTML audio normally.
     }
   }
 
