@@ -29,8 +29,12 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "aside#player button.listen-player__track[data-action='player#openQueue']"
     assert_select "aside#player button[aria-label='Show queue']", count: 0
     assert_select "aside#player button.listen-player__play[data-action='player#toggle']"
-    assert_select "aside#player button[aria-label='Previous track']", count: 0
-    assert_select "aside#player button[aria-label='Next track']", count: 0
+    assert_select "aside#player button.listen-player__skip[aria-label='Previous track'][data-action='player#previous']", 1
+    assert_select "aside#player button.listen-player__skip[aria-label='Next track'][data-action='player#next']", 1
+    assert_select "aside#player .listen-player__controls > .listen-player__time:first-child", 1
+    assert_select "aside#player .listen-player__controls > button:nth-child(2).listen-player__favorite[data-action='player#toggleFavorite']", 1
+    assert_select "aside#player .listen-player__time [data-player-target='elapsed']", "0:00"
+    assert_select "aside#player .listen-player__time [data-player-target='duration']", "0:00"
     assert_select "aside#player [data-player-target='volume']", count: 0
     assert_select "[data-player-target='expandedTimeline']"
     assert_select "a[href='#{server_connections_path}']", minimum: 1
