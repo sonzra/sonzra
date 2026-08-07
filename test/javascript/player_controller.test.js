@@ -64,6 +64,68 @@ describe("player controller", () => {
     expect(document.querySelector("[data-player-target='miniProgress']").style.width).toBe("25%")
   })
 
+  it("loads and renders stored plain lyrics when the Lyrics view opens", async () => {
+    addLyricsTargets()
+    controller.currentTrack = { itemId: "track-1", source: "/server_connections/1/audio/track-1", title: "A track" }
+    global.fetch = vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ available: true, synchronized: false, lines: [ { text: "First line", start: null }, { text: "Second line", start: null } ] })
+    }))
+
+    await controller.showLyricsTab()
+
+    expect(global.fetch).toHaveBeenCalledWith("/server_connections/1/lyrics/track-1", expect.any(Object))
+    expect(document.querySelector("[data-player-target='lyricsView']").hidden).toBe(false)
+    expect(document.querySelector("[data-player-target='lyricsList']").textContent).toContain("First line")
+  })
+
+  it("highlights and seeks synchronized lyric lines", () => {
+    addLyricsTargets()
+    controller.currentLyrics = { available: true, synchronized: true, lines: [ { text: "First", start: 10 }, { text: "Second", start: 20 } ] }
+    controller.lyricsFollowing = false
+    controller.renderLyrics(controller.currentLyrics)
+    controller.audioTarget.currentTime = 21
+
+    controller.updateActiveLyric()
+    controller.seekLyricsLine(0)
+
+    expect(document.querySelectorAll("[data-player-target='lyricsList'] li")[1].classList).toContain("is-current-lyric")
+    expect(controller.audioTarget.currentTime).toBe(10)
+  })
+
+  it("keeps grouped lyric text under one synchronized highlight", () => {
+    addLyricsTargets()
+    controller.currentLyrics = { available: true, synchronized: true, lines: [ { text: "First line\nSecond line", start: 10 } ] }
+    controller.audioTarget.currentTime = 11
+
+    controller.renderLyrics(controller.currentLyrics)
+
+    const group = document.querySelector("[data-player-target='lyricsList'] li")
+    expect(group.classList).toContain("listen-queue__lyric-group")
+    expect(group.classList).toContain("is-current-lyric")
+    expect(group.querySelectorAll(".listen-queue__lyric-line")).toHaveLength(2)
+  })
+
+  it("shows an unavailable message when the server has no usable lyrics", () => {
+    addLyricsTargets()
+
+    controller.renderLyrics({ available: false, synchronized: false, lines: [] })
+
+    expect(document.querySelector("[data-player-target='lyricsStatus']").textContent).toBe("Lyrics aren’t available for this track.")
+  })
+
+  it("does not interrupt lyric following for its own automatic scroll", () => {
+    addLyricsTargets()
+    controller.currentLyrics = { available: true, synchronized: true, lines: [ { text: "A line", start: 10 } ] }
+    controller.lyricsFollowing = true
+    controller.followingLyricScroll = true
+
+    controller.pauseLyricsFollow()
+
+    expect(controller.lyricsFollowing).toBe(true)
+    expect(document.querySelector("[data-player-target='lyricsFollow']").hidden).toBe(true)
+  })
+
   it("persists the current queue and playback position for a restored player", () => {
     controller.queue = [ { source: "/audio/track.mp3", title: "A track", artist: "An artist" } ]
     controller.currentIndex = 0
@@ -392,4 +454,12 @@ describe("player controller", () => {
     expect(controller.queue).toEqual([])
     expect(controller.currentTrack).toBeNull()
   })
+
+  function addLyricsTargets() {
+    document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", `
+      <button data-player-target="queueTab"></button><button data-player-target="lyricsTab"></button>
+      <div data-player-target="queueView"></div><div data-player-target="lyricsView" hidden></div>
+      <p data-player-target="lyricsStatus"></p><ol data-player-target="lyricsList"></ol><button data-player-target="lyricsFollow" hidden></button>
+    `)
+  }
 })

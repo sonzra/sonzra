@@ -151,6 +151,26 @@ module Integrations
         PlaybackQueueResponseData.new(items: items.select { |item| item["Type"] == "Audio" }, access_token: token)
       end
 
+      def lyrics(item_id)
+        session = authentication
+        token = session.fetch("AccessToken")
+        uri = URI.parse("#{base_url}/Audio/#{item_id}/Lyrics")
+        response = perform(Net::HTTP::Get.new(uri, "X-Emby-Token" => token))
+
+        raise AuthenticationError if response.code == "401"
+        return LyricsResponseData.new(lines: [], access_token: token, available: false) if response.code == "404"
+
+        ensure_success!(response)
+        payload = JSON.parse(response.body)
+        LyricsResponseData.new(lines: payload.fetch("Lyrics", []), access_token: token, available: true)
+      rescue JSON::ParserError, KeyError
+        raise ConnectionError, "The server returned an unexpected response."
+      rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED
+        raise ConnectionError, "Could not reach the server. Check the address and try again."
+      rescue OpenSSL::SSL::SSLError
+        raise ConnectionError, "Could not establish a secure connection to the server."
+      end
+
       def update_favorite(item_id:, favorite:)
         session = authentication
         token = session.fetch("AccessToken")

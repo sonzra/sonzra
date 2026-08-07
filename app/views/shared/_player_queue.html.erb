@@ -7,11 +7,22 @@
     <div class="listen-queue__progress"><time data-player-target="expandedElapsed">0:00</time><input data-player-target="expandedTimeline" data-action="input->player#seek" type="range" min="0" max="0" value="0" step="0.1" aria-label="Playback position"><time data-player-target="expandedDuration">0:00</time></div>
   </div>
   <div class="listen-queue__list">
-    <div class="listen-queue__list-header">
-      <p>Queue</p>
-      <div class="listen-queue__utility-controls"><button type="button" aria-label="Radio off" title="Radio off" data-player-target="radio" data-action="player#toggleRadio"><%= lucide_icon "radio", aria: { hidden: true } %></button><button type="button" aria-label="Repeat off" title="Repeat off" data-player-target="repeat" data-action="player#toggleRepeat"><%= lucide_icon "repeat", aria: { hidden: true } %></button><button type="button" class="listen-queue__clear" aria-label="Clear queue" title="Clear queue" data-action="player#promptClearQueue"><%= lucide_icon "brush-cleaning", aria: { hidden: true } %></button></div>
+    <div class="listen-queue__tabs" role="tablist" aria-label="Player details">
+      <button type="button" class="is-active" role="tab" aria-selected="true" data-player-target="queueTab" data-action="player#showQueueTab"><%= lucide_icon "list-music", aria: { hidden: true } %><span>Up next</span></button>
+      <button type="button" role="tab" aria-selected="false" data-player-target="lyricsTab" data-action="player#showLyricsTab"><%= lucide_icon "scroll-text", aria: { hidden: true } %><span>Lyrics</span></button>
     </div>
-    <ol data-player-target="queueList"></ol>
+    <div data-player-target="queueView">
+      <div class="listen-queue__list-header">
+        <p>Queue</p>
+        <div class="listen-queue__utility-controls"><button type="button" aria-label="Radio off" title="Radio off" data-player-target="radio" data-action="player#toggleRadio"><%= lucide_icon "radio", aria: { hidden: true } %></button><button type="button" aria-label="Repeat off" title="Repeat off" data-player-target="repeat" data-action="player#toggleRepeat"><%= lucide_icon "repeat", aria: { hidden: true } %></button><button type="button" class="listen-queue__clear" aria-label="Clear queue" title="Clear queue" data-action="player#promptClearQueue"><%= lucide_icon "brush-cleaning", aria: { hidden: true } %></button></div>
+      </div>
+      <ol data-player-target="queueList"></ol>
+    </div>
+    <section class="listen-queue__lyrics" data-player-target="lyricsView" hidden>
+      <p class="listen-queue__lyrics-status" data-player-target="lyricsStatus">Open Lyrics to load the words for this track.</p>
+      <ol data-player-target="lyricsList" data-action="scroll->player#pauseLyricsFollow"></ol>
+      <button type="button" class="listen-queue__lyrics-follow" data-player-target="lyricsFollow" data-action="player#followLyrics" hidden>Follow current line</button>
+    </section>
   </div>
   <dialog class="listen-queue__confirm" data-player-target="clearDialog" data-action="click->player#closeClearQueueOnBackdrop">
     <div class="listen-queue__confirm-panel">

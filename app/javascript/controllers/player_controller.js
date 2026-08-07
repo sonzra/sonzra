@@ -10,7 +10,7 @@ const PLAYBACK_RECOVERY_DELAY = 8_000
 const MAX_PLAYBACK_RECOVERY_ATTEMPTS = 2
 
 export default class extends Controller {
-  static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "favorite", "radio", "clearDialog"]
+  static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "favorite", "radio", "clearDialog", "queueView", "lyricsView", "queueTab", "lyricsTab", "lyricsStatus", "lyricsList", "lyricsFollow"]
   static values = { radioEnabled: Boolean, preferencesUrl: String }
 
   connect() {
@@ -20,6 +20,8 @@ export default class extends Controller {
     if (!this.hasAudioTarget) return
 
     this.radioEnabled = this.radioEnabledValue === true
+    this.lyricsCache = new Map()
+    this.lyricsFollowing = true
     this.relocateLegacyQueue()
     this.restoreVolume()
     this.restoreQueue()
@@ -71,6 +73,8 @@ export default class extends Controller {
     document.removeEventListener("turbo:load", this.boundSyncPageTrackControls)
     this.stopProgressWatch()
     this.clearPlaybackRecovery()
+    this.lyricsRequest?.abort()
+    window.clearTimeout(this.lyricScrollTimeout)
   }
 
   async replaceQueue(event) {
@@ -197,6 +201,7 @@ export default class extends Controller {
     if (this.hasDurationTarget) this.durationTarget.textContent = this.formatTime(duration)
     if (this.hasExpandedElapsedTarget) this.expandedElapsedTarget.textContent = this.formatTime(this.audioTarget.currentTime)
     if (this.hasExpandedDurationTarget) this.expandedDurationTarget.textContent = this.formatTime(duration)
+    this.updateActiveLyric()
     if (this.audioTarget.currentTime - (this.lastReportedPosition || 0) >= 15) this.reportProgress()
     this.persistQueue()
   }
@@ -370,6 +375,10 @@ export default class extends Controller {
   }
 
   loadTrack(track, { startPosition = track.startPosition } = {}) {
+    this.lyricsRequest?.abort()
+    this.currentLyrics = null
+    this.activeLyricIndex = null
+    this.lyricsFollowing = true
     this.currentTrack = track
     this.hasReportedStart = false
     this.lastReportedPosition = 0
@@ -388,6 +397,7 @@ export default class extends Controller {
     this.resetTimeline()
     this.updateFavoriteControls()
     this.updateRadioControls()
+    this.resetLyricsView()
     this.syncNativeMedia()
     this.syncBrowserMedia()
     this.syncPageTrackControls()
@@ -741,11 +751,179 @@ export default class extends Controller {
     this.playCurrent()
   }
 
+  showQueueTab() {
+    this.setExpandedView("queue")
+  }
+
+  async showLyricsTab() {
+    this.setExpandedView("lyrics")
+    await this.loadLyrics()
+  }
+
+  setExpandedView(view) {
+    if (!this.hasQueueViewTarget || !this.hasLyricsViewTarget) return
+
+    const showLyrics = view === "lyrics"
+    this.queueViewTarget.hidden = showLyrics
+    this.lyricsViewTarget.hidden = !showLyrics
+    this.queueTabTarget.classList.toggle("is-active", !showLyrics)
+    this.queueTabTarget.setAttribute("aria-selected", String(!showLyrics))
+    this.lyricsTabTarget.classList.toggle("is-active", showLyrics)
+    this.lyricsTabTarget.setAttribute("aria-selected", String(showLyrics))
+  }
+
+  async loadLyrics() {
+    const track = this.currentTrack
+    const url = this.lyricsUrl(track)
+    if (!track?.itemId || !url || !this.hasLyricsStatusTarget) {
+      this.showLyricsUnavailable()
+      return
+    }
+
+    const cachedLyrics = this.lyricsCache.get(track.itemId)
+    if (cachedLyrics) {
+      this.currentLyrics = cachedLyrics
+      this.renderLyrics(cachedLyrics)
+      return
+    }
+
+    this.lyricsRequest?.abort()
+    this.lyricsRequest = new AbortController()
+    this.lyricsStatusTarget.hidden = false
+    this.lyricsStatusTarget.textContent = "Loading lyrics…"
+    this.lyricsListTarget.textContent = ""
+
+    try {
+      const response = await fetch(url, { headers: { Accept: "application/json" }, signal: this.lyricsRequest.signal })
+      if (!response.ok) throw new Error("Lyrics request failed")
+
+      const lyrics = await response.json()
+      if (this.currentTrack !== track) return
+
+      this.lyricsCache.set(track.itemId, lyrics)
+      this.currentLyrics = lyrics
+      this.renderLyrics(lyrics)
+    } catch (error) {
+      if (error.name === "AbortError" || this.currentTrack !== track) return
+
+      this.showLyricsUnavailable("Lyrics could not be loaded for this track.")
+    }
+  }
+
+  lyricsUrl(track) {
+    const match = track?.source?.match(/^(\/server_connections\/[^/]+)\/audio\/([^/?]+)/)
+    return match ? `${match[1]}/lyrics/${match[2]}` : null
+  }
+
+  resetLyricsView() {
+    if (!this.hasLyricsStatusTarget) return
+
+    this.lyricsStatusTarget.hidden = false
+    this.lyricsStatusTarget.textContent = "Open Lyrics to load the words for this track."
+    if (this.hasLyricsListTarget) this.lyricsListTarget.textContent = ""
+    if (this.hasLyricsFollowTarget) this.lyricsFollowTarget.hidden = true
+  }
+
+  showLyricsUnavailable(message = "Lyrics aren’t available for this track.") {
+    this.currentLyrics = null
+    if (this.hasLyricsStatusTarget) {
+      this.lyricsStatusTarget.hidden = false
+      this.lyricsStatusTarget.textContent = message
+    }
+    if (this.hasLyricsListTarget) this.lyricsListTarget.textContent = ""
+    if (this.hasLyricsFollowTarget) this.lyricsFollowTarget.hidden = true
+  }
+
+  renderLyrics(lyrics) {
+    const lines = Array.isArray(lyrics?.lines) ? lyrics.lines : []
+    if (!lyrics?.available || lines.length === 0) {
+      this.showLyricsUnavailable()
+      return
+    }
+
+    this.lyricsStatusTarget.hidden = true
+    this.lyricsListTarget.textContent = ""
+    lines.forEach((line, index) => {
+      const item = document.createElement("li")
+      item.className = "listen-queue__lyric-group"
+      line.text.split(/\r?\n/).filter(Boolean).forEach((textValue) => {
+        const text = document.createElement("span")
+        text.className = "listen-queue__lyric-line"
+        text.textContent = textValue
+        item.appendChild(text)
+      })
+      if (line.start !== null && line.start !== undefined && Number.isFinite(Number(line.start))) {
+        item.classList.add("is-timed")
+        item.tabIndex = 0
+        item.setAttribute("role", "button")
+        item.setAttribute("aria-label", `Play from ${this.formatTime(Number(line.start))}: ${line.text}`)
+        item.addEventListener("click", () => this.seekLyricsLine(index))
+        item.addEventListener("keydown", (event) => {
+          if ([ "Enter", " " ].includes(event.key)) {
+            event.preventDefault()
+            this.seekLyricsLine(index)
+          }
+        })
+      }
+      this.lyricsListTarget.appendChild(item)
+    })
+    this.updateActiveLyric()
+  }
+
+  seekLyricsLine(index) {
+    const line = this.currentLyrics?.lines?.[index]
+    if (line?.start === null || line?.start === undefined || !Number.isFinite(Number(line.start))) return
+
+    this.audioTarget.currentTime = Number(line.start)
+    this.lyricsFollowing = true
+    if (this.hasLyricsFollowTarget) this.lyricsFollowTarget.hidden = true
+    this.updateTimeline()
+  }
+
+  updateActiveLyric() {
+    const lines = this.currentLyrics?.lines
+    if (!this.currentLyrics?.synchronized || !Array.isArray(lines) || !this.hasLyricsListTarget) return
+
+    const position = Number(this.audioTarget.currentTime) || 0
+    const index = lines.reduce((activeIndex, line, currentIndex) => Number(line.start) <= position ? currentIndex : activeIndex, -1)
+    if (index === this.activeLyricIndex) return
+
+    this.activeLyricIndex = index
+    Array.from(this.lyricsListTarget.children).forEach((line, lineIndex) => {
+      line.classList.remove("is-current")
+      line.classList.toggle("is-current-lyric", lineIndex === index)
+    })
+    if (index < 0 || !this.lyricsFollowing || this.lyricsViewTarget.hidden) return
+
+    const activeLine = this.lyricsListTarget.children[index]
+    if (!activeLine) return
+
+    this.followingLyricScroll = true
+    activeLine.scrollIntoView({ block: "center", behavior: "smooth" })
+    window.clearTimeout(this.lyricScrollTimeout)
+    this.lyricScrollTimeout = window.setTimeout(() => { this.followingLyricScroll = false }, 700)
+  }
+
+  pauseLyricsFollow() {
+    if (this.followingLyricScroll || !this.currentLyrics?.synchronized) return
+
+    this.lyricsFollowing = false
+    if (this.hasLyricsFollowTarget) this.lyricsFollowTarget.hidden = false
+  }
+
+  followLyrics() {
+    this.lyricsFollowing = true
+    if (this.hasLyricsFollowTarget) this.lyricsFollowTarget.hidden = true
+    this.activeLyricIndex = null
+    this.updateActiveLyric()
+  }
+
   openQueue() {
     window.clearTimeout(this.queueCloseTimeout)
     window.cancelAnimationFrame(this.queueOpenFrame)
     this.queuePanelTarget.hidden = false
     this.queuePanelTarget.classList.remove("is-closing")
+    this.showQueueTab()
     this.queueOpenFrame = window.requestAnimationFrame(() => this.queuePanelTarget.classList.add("is-open"))
     this.persistQueue({ force: true })
   }

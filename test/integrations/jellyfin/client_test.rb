@@ -213,6 +213,27 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     assert_equal [ "track-1" ], response.items.pluck("Id")
   end
 
+  test "fetches stored lyrics and treats a missing lyric document as unavailable" do
+    authentication_response = Net::HTTPOK.new("1.1", "200", "OK")
+    authentication_response.instance_variable_set(:@read, true)
+    authentication_response.body = { AccessToken: "token", User: { Id: "user-id", Name: "Bruno" } }.to_json
+    lyrics_response = Net::HTTPOK.new("1.1", "200", "OK")
+    lyrics_response.instance_variable_set(:@read, true)
+    lyrics_response.body = { Lyrics: [ { Text: "A timed line", Start: 15_000_000 } ] }.to_json
+    missing_response = Net::HTTPNotFound.new("1.1", "404", "Not Found")
+    http = FakeHttp.new([ authentication_response, lyrics_response, authentication_response, missing_response ])
+    client = Integrations::Jellyfin::Client.new(base_url: "https://example.com", username: "bruno", password: "secret", http: http)
+
+    lyrics = client.lyrics("track-id")
+    missing = client.lyrics("missing-track")
+
+    assert_equal "/Audio/track-id/Lyrics", http.requests[1].path
+    assert_equal "A timed line", lyrics.lines.first.fetch("Text")
+    assert lyrics.available
+    assert_not missing.available
+    assert_empty missing.lines
+  end
+
   test "raises an authentication error for rejected credentials" do
     response = Net::HTTPUnauthorized.new("1.1", "401", "Unauthorized")
     http = FakeHttp.new(response)

@@ -176,6 +176,60 @@
   backdrop-filter:blur(20px);
 }
 
+.listen-queue__tabs{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-bottom:12px;
+  padding-bottom:10px;
+  border-bottom:1px solid #ffffff14;
+}
+
+.listen-queue__tabs button{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  min-height:35px;
+  padding:0 11px;
+  border:0;
+  border-radius:10px;
+  background:transparent;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.listen-queue__tabs button:hover,
+.listen-queue__tabs button:focus-visible{
+  background:#ffffff0c;
+  color:var(--text);
+  outline:0;
+}
+
+.listen-queue__tabs button.is-active{
+  background:#7a5af833;
+  color:#e4ddff;
+}
+
+.listen-queue__tabs svg{
+  width:16px;
+  height:16px;
+}
+
+.listen-queue__list [data-player-target='queueView'],
+.listen-queue__lyrics{
+  display:flex;
+  min-height:0;
+  flex:1;
+  flex-direction:column;
+}
+
+.listen-queue__list [data-player-target='queueView'][hidden],
+.listen-queue__lyrics[hidden]{
+  display:none;
+}
+
 .listen-queue__list-header{
   display:flex;
   align-items:center;
@@ -248,6 +302,27 @@
 
 .listen-queue__list li:last-child{
   border-bottom:0;
+}
+
+.listen-queue__lyrics-status{
+  margin:auto 0;
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.55;
+  text-align:center;
+}
+
+.listen-queue__lyrics-follow{
+  align-self:center;
+  margin-top:10px;
+  padding:8px 13px;
+  border:1px solid #a990ff66;
+  border-radius:99px;
+  background:#211b3a;
+  color:#dfd7ff;
+  font-size:12px;
+  font-weight:800;
+  cursor:pointer;
 }
 
 .listen-queue__confirm{
@@ -413,6 +488,15 @@
     border:0;
     border-radius:18px 18px 0 0;
     background:#ffffff06;
+  }
+
+  .listen-queue__tabs{
+    margin-bottom:8px;
+  }
+
+  .listen-queue__lyrics li{
+    padding:9px 8px;
+    font-size:16px;
   }
 
   .listen-queue__list-header{
