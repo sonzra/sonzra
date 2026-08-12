@@ -7,6 +7,8 @@ Rails.application.routes.draw do
   end
   resources :passwords, param: :token
   root "home#index"
+  get "offline_shell", to: "offline_shells#show", as: :offline_shell
+  resources :offline_downloads, only: :index
   get "home/content", to: "home#content", as: :home_content
   get "library/artists", to: "library#artists", as: :library_artists
   get "library/albums", to: "library#albums", as: :library_albums

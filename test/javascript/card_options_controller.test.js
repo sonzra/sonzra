@@ -1,6 +1,7 @@
 import { Application } from "@hotwired/stimulus"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import CardOptionsController from "../../app/javascript/controllers/card_options_controller.js"
+import { OfflineMediaStore } from "../../app/javascript/offline_media_store.js"
 import PlayerController from "../../app/javascript/controllers/player_controller.js"
 
 describe("card options controller", () => {
@@ -51,10 +52,13 @@ describe("card options controller", () => {
         <button data-card-options-target="queueAction"></button>
         <button data-card-options-target="resetAction"></button>
         <button data-card-options-target="favoriteAction"></button>
+        <button data-card-options-target="offlineAction"></button>
         <button data-card-options-target="deletePlaylistAction" data-card-options-delete-playlist-url="/server_connections/1/playlists/playlist-7"></button>
         <span data-card-options-target="favoriteLabel"></span>
+        <span data-card-options-target="offlineLabel"></span>
         <div data-card-options-target="loader" hidden></div>
         <p data-card-options-target="loaderMessage"></p>
+        <button data-card-options-target="loaderCancel" hidden></button>
         <dialog data-card-options-target="playlistDialog"></dialog>
         <ol data-card-options-target="playlistList"></ol>
         <input data-card-options-target="playlistName">
@@ -233,5 +237,84 @@ describe("card options controller", () => {
 
     expect(document.querySelector("[data-card-options-target='deletePlaylistAction']").hidden).toBe(true)
     expect(document.querySelector("[data-card-options-target='deletePlaylistAction']").dataset.cardOptionsDeletePlaylistUrl).toBe("")
+  })
+
+  it("downloads a playable item for offline use and confirms it", async () => {
+    const cache = { match: vi.fn(async () => undefined), put: vi.fn(async () => {}) }
+    const cacheStorage = { open: vi.fn(async () => cache) }
+    const values = new Map()
+    const storage = { getItem: (key) => values.get(key) || null, setItem: (key, value) => values.set(key, value), removeItem: (key) => values.delete(key) }
+    cardOptionsController.cachedOfflineStore = new OfflineMediaStore({ cacheStorage, storage, fetcher: fetchMock })
+    fetchMock.mockResolvedValueOnce({ ok: true, clone: () => ({ cached: true }) })
+    const playButton = document.createElement("button")
+    playButton.dataset.playerSourceParam = "/server_connections/1/audio/track-1"
+    playButton.dataset.playerTitleParam = "Offline track"
+
+    await cardOptionsController.configureOfflineAction(playButton)
+    await cardOptionsController.downloadForOffline({ type: "click", preventDefault() {}, stopPropagation() {} })
+    expect(cache.put).toHaveBeenCalledWith("/server_connections/1/audio/track-1", expect.any(Object))
+    expect(document.querySelector("[data-card-options-target='offlineLabel']").textContent).toBe("Available offline")
+    expect(document.querySelector("[data-player-target='queueFeedback']").textContent).toBe("Available offline")
+  })
+
+  it("downloads every item from an album or playlist queue", async () => {
+    const cache = { match: vi.fn(async () => undefined), put: vi.fn(async () => {}) }
+    const cacheStorage = { open: vi.fn(async () => cache) }
+    const values = new Map()
+    const storage = { getItem: (key) => values.get(key) || null, setItem: (key, value) => values.set(key, value), removeItem: (key) => values.delete(key) }
+    fetchMock.mockImplementation(async (url) => {
+      if (url === "/server_connections/1/playback_queues/album-1") return { ok: true, json: async () => ({ items: [ { source: "/server_connections/1/audio/one", title: "One", album_id: "album-1", album: "Saved album", album_artist: "Artist" }, { source: "/server_connections/1/audio/two", title: "Two", album_id: "album-1", album: "Saved album", album_artist: "Artist" } ] }) }
+      return { ok: true, clone: () => ({ cached: true }) }
+    })
+    cardOptionsController.cachedOfflineStore = new OfflineMediaStore({ cacheStorage, storage, fetcher: fetchMock })
+    const card = document.createElement("article")
+    card.className = "listen-card"
+    card.innerHTML = '<a class="listen-card__art"></a>'
+    const playButton = document.createElement("button")
+    playButton.className = "listen-card__play"
+    playButton.dataset.playerQueueUrlParam = "/server_connections/1/playback_queues/album-1"
+    card.append(playButton)
+    document.body.append(card)
+    cardOptionsController.activeCard = card
+
+    await cardOptionsController.configureOfflineAction(playButton)
+    await cardOptionsController.downloadForOffline({ type: "click", preventDefault() {}, stopPropagation() {} })
+
+    expect(cache.put).toHaveBeenCalledWith("/server_connections/1/audio/one", expect.any(Object))
+    expect(cache.put).toHaveBeenCalledWith("/server_connections/1/audio/two", expect.any(Object))
+    expect(cardOptionsController.cachedOfflineStore.collectionDownloaded("/server_connections/1/playback_queues/album-1")).toBe(true)
+    expect(card.querySelector(".listen-card__offline-indicator").title).toBe("Available offline")
+    expect(card.querySelector(".listen-card__offline-indicator svg")).not.toBeNull()
+    expect(cardOptionsController.cachedOfflineStore.catalog()[0]).toMatchObject({ albumId: "album-1", album: "Saved album" })
+    expect(document.querySelector("[data-player-target='queueFeedback']").textContent).toBe("2 items available offline")
+  })
+
+  it("shows a per-card download ring instead of blocking the library", () => {
+    const card = document.createElement("article")
+    card.innerHTML = '<a class="listen-card__art"></a>'
+
+    cardOptionsController.setDownloadProgress(card, 2, 4)
+
+    const ring = card.querySelector(".listen-card__download-progress")
+    expect(ring.style.getPropertyValue("--progress")).toBe("50%")
+    expect(ring.title).toBe("Downloading 2 of 4")
+  })
+
+  it("shows previously downloaded collections as available offline", async () => {
+    const card = document.createElement("article")
+    card.className = "listen-card"
+    card.innerHTML = '<a class="listen-card__art"></a><button class="listen-card__play" data-player-queue-url-param="/server_connections/1/playback_queues/album-1"></button>'
+    document.body.append(card)
+    cardOptionsController.cachedOfflineStore = { collectionDownloaded: vi.fn(() => true) }
+
+    await cardOptionsController.configureOfflineAction(card.querySelector(".listen-card__play"))
+
+    expect(document.querySelector("[data-card-options-target='offlineAction']").disabled).toBe(true)
+    expect(document.querySelector("[data-card-options-target='offlineLabel']").textContent).toBe("Available offline")
+    expect(card.querySelector(".listen-card__offline-indicator").title).toBe("Available offline")
+  })
+
+  it("reports an unexpected offline download error with useful detail", () => {
+    expect(cardOptionsController.offlineDownloadErrorMessage(new TypeError("downloadAll is not a function"))).toBe("Sonzra couldn’t download this item: downloadAll is not a function")
   })
 })

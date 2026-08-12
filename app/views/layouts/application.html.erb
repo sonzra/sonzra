@@ -3,6 +3,7 @@
   <% if authenticated? %>
     data-controller="player"
     data-player-radio-enabled-value="<%= session.dig(:player_preferences, "radio_enabled") == true %>"
+    data-player-offline-value="<%= @offline_shell == true %>"
     data-player-preferences-url-value="<%= player_preferences_path %>"
   <% end %>>
   <head>
@@ -30,6 +31,7 @@
     <%= stylesheet_link_tag "queue_controls", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag "queue_history", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag "lyrics", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "offline_downloads", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag "main_player_layout", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag "responsive", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag "interaction", "data-turbo-track": "reload" %>
@@ -45,8 +47,8 @@
     <%= stylesheet_link_tag "music_shelf_pages", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
-  <% if authenticated? %><body class="authenticated-body <%= "media-detail-body" if @media_detail_header %>" data-controller="card-options media-header"><% else %><body><% end %>
-    <% if authenticated? %><%= render(@media_detail_header ? "shared/media_navigation" : "shared/navigation") %><% end %>
+  <% if authenticated? %><body class="authenticated-body <%= "media-detail-body" if @media_detail_header %> <%= "offline-shell" if @offline_shell %>" data-controller="card-options media-header offline-media <%= "offline-connection" if @offline_shell %>" data-offline-media-scope-value="<%= current_user.id %>"><% else %><body><% end %>
+    <% if authenticated? %><%= @offline_shell ? render("shared/navigation", offline: true) : render(@media_detail_header ? "shared/media_navigation" : "shared/navigation") %><% end %>
     <%= yield %>
     <% if authenticated? %><%= render "shared/player" %><p id="player-feedback" class="listen-player__feedback" data-player-target="queueFeedback" data-turbo-permanent role="status" aria-live="polite" hidden></p><%= render "shared/player_queue" %><%= render "shared/card_options_sheet" %><% end %>
   </body>

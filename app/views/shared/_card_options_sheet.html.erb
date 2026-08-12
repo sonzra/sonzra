@@ -5,6 +5,7 @@
     <button type="button" data-card-options-target="queueAction" data-action="touchend->card-options#appendToQueue click->card-options#appendToQueue"><%= lucide_icon "list-music", aria: { hidden: true } %> Add to queue</button>
     <button type="button" data-card-options-target="favoriteAction" data-action="touchend->card-options#toggleFavorite click->card-options#toggleFavorite" hidden><%= lucide_icon "heart", aria: { hidden: true } %> <span data-card-options-target="favoriteLabel">Add to favourites</span></button>
     <button type="button" data-card-options-target="playlistAction" data-action="click->card-options#openPlaylistPicker" hidden><%= lucide_icon "list-plus", aria: { hidden: true } %> Add to playlist</button>
+    <button type="button" data-card-options-target="offlineAction" data-action="touchend->card-options#downloadForOffline click->card-options#downloadForOffline" hidden><%= lucide_icon "download", aria: { hidden: true } %> <span data-card-options-target="offlineLabel">Download for offline</span></button>
     <button type="button" data-card-options-target="deletePlaylistAction" data-action="touchend->card-options#deletePlaylist click->card-options#deletePlaylist" hidden><%= lucide_icon "trash-2", aria: { hidden: true } %> Delete playlist</button>
     <button type="button" data-card-options-target="resetAction" data-action="touchend->card-options#resetPlaybackPosition click->card-options#resetPlaybackPosition" hidden><%= lucide_icon "rotate-ccw", aria: { hidden: true } %> Start from the beginning</button>
   </div>
@@ -13,6 +14,7 @@
   <div class="listen-action-loader__panel" role="status" aria-live="polite">
     <%= image_tag "/brand/sonzra-mark.svg", alt: "", class: "listen-action-loader__mark" %>
     <p data-card-options-target="loaderMessage">Working…</p>
+    <button type="button" data-card-options-target="loaderCancel" data-action="card-options#cancelDownload" hidden>Cancel download</button>
   </div>
 </div>
 <dialog class="playlist-picker" data-card-options-target="playlistDialog"><div class="playlist-picker__panel"><div class="playlist-picker__heading"><div><p>Save this track</p><h2>Add to playlist</h2></div><button type="button" aria-label="Close playlist picker" data-action="card-options#closePlaylistPicker"><%= lucide_icon "x", aria: { hidden: true } %></button></div><ol class="playlist-picker__list" data-card-options-target="playlistList"></ol><form class="playlist-picker__create" data-action="submit->card-options#createPlaylist"><input data-card-options-target="playlistName" required placeholder="New playlist name"><button type="submit">Create</button></form><p class="playlist-picker__feedback" data-card-options-target="playlistFeedback" role="status" aria-live="polite"></p></div></dialog>

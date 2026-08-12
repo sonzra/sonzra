@@ -8,5 +8,8 @@
     "@hotwired/stimulus": "^3.2.2",
     "jsdom": "^29.1.1",
     "vitest": "^4.1.10"
+  },
+  "dependencies": {
+    "es-module-shims": "^2.8.4"
   }
 }

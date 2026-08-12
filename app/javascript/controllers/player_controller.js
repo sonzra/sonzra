@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { OfflineMediaStore } from "offline_media_store"
 
 const PLAYER_STATE_KEY = "sonzra:player-state"
 const LEGACY_QUEUE_KEY = "sonzra:queue"
@@ -11,7 +12,7 @@ const MAX_PLAYBACK_RECOVERY_ATTEMPTS = 2
 
 export default class extends Controller {
   static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "favorite", "radio", "clearDialog", "queueView", "lyricsView", "queueTab", "lyricsTab", "lyricsStatus", "lyricsList", "lyricsFollow"]
-  static values = { radioEnabled: Boolean, preferencesUrl: String }
+  static values = { radioEnabled: Boolean, preferencesUrl: String, offline: Boolean }
 
   connect() {
     // The player is Turbo-permanent. During a deploy or a Turbo restoration it
@@ -20,6 +21,7 @@ export default class extends Controller {
     if (!this.hasAudioTarget) return
 
     this.radioEnabled = this.radioEnabledValue === true
+    this.offlineMode = this.offlineValue === true
     this.lyricsCache = new Map()
     this.lyricsFollowing = true
     this.relocateLegacyQueue()
@@ -48,6 +50,10 @@ export default class extends Controller {
     document.addEventListener("turbo:load", this.boundSyncPageTrackControls)
     this.reconcilePlayback()
     this.syncPageTrackControls()
+  }
+
+  offlineValueChanged(value) {
+    this.offlineMode = value
   }
 
   disconnect() {
@@ -79,7 +85,10 @@ export default class extends Controller {
 
   async replaceQueue(event) {
     const tracks = (await this.tracksFor(event)).map((track) => this.normalizeTrack(track))
-    if (tracks.length === 0) return
+    if (tracks.length === 0) {
+      this.showFeedback("Sonzra couldn’t load playable tracks.")
+      return
+    }
 
     if (event.params.queueUrl && this.radioEnabled) this.setRadioEnabled(false)
     this.queue = tracks
@@ -91,7 +100,10 @@ export default class extends Controller {
 
   async appendQueue(event) {
     const tracks = (await this.tracksFor(event)).map((track) => this.normalizeTrack(track))
-    if (tracks.length === 0) return
+    if (tracks.length === 0) {
+      this.showFeedback("Sonzra couldn’t load playable tracks.")
+      return
+    }
 
     this.queue.push(...tracks)
     this.persistQueue({ force: true })
@@ -156,12 +168,14 @@ export default class extends Controller {
   }
 
   async toggleRadio() {
+    if (this.offlineMode) return
+
     this.setRadioEnabled(!this.radioEnabled, { feedback: this.radioEnabled ? "Radio off" : "Radio on" })
     if (this.radioEnabled) await this.maybeExtendRadioQueue()
   }
 
   async toggleFavorite() {
-    if (!this.currentTrack?.source) return
+    if (this.offlineMode || !this.currentTrack?.source) return
 
     const favorite = !this.currentTrack.favorite
     const favoriteUrl = this.currentTrack.source.replace(/\/audio\/([^/?]+).*$/, "/favorites/$1")
@@ -359,6 +373,29 @@ export default class extends Controller {
     this.maybeExtendRadioQueue()
   }
 
+  setOfflineQueue(tracks, { source = null, autoplay = false } = {}) {
+    const downloadedTracks = tracks.map((track) => this.normalizeTrack(track)).filter((track) => track.source)
+    if (downloadedTracks.length === 0) return
+
+    const persistedState = this.readPersistedState()
+    const rememberedSource = persistedState.queue?.[persistedState.currentIndex]?.source
+    const selectedSource = source || rememberedSource
+    const selectedIndex = downloadedTracks.findIndex((track) => track.source === selectedSource)
+    this.queue = downloadedTracks
+    this.currentIndex = selectedIndex >= 0 ? selectedIndex : 0
+    this.radioEnabled = false
+    this.repeatMode = [ "off", "all", "one" ].includes(persistedState.repeatMode) ? persistedState.repeatMode : "off"
+    this.loadTrack(this.queue[this.currentIndex], {
+      startPosition: selectedSource === rememberedSource ? Number(persistedState.position) || 0 : 0
+    })
+    this.audioTarget.pause()
+    this.persistQueue({ force: true })
+    this.renderQueue()
+    this.updateRepeatControls()
+    this.updateRadioControls()
+    if (autoplay) this.playCurrent()
+  }
+
   restoreCurrentTrack() {
     const track = this.queue[this.currentIndex]
     if (!track) return
@@ -500,26 +537,36 @@ export default class extends Controller {
       playButton.className = "listen-queue__item-action listen-queue__item-play"
       playButton.classList.toggle("is-current", isCurrent)
       playButton.addEventListener("click", () => isCurrent ? this.toggle() : this.playQueueIndex(queueIndex))
-      const favoriteButton = document.createElement("button")
-      favoriteButton.type = "button"
-      favoriteButton.className = "listen-queue__item-action listen-queue__item-favorite"
-      favoriteButton.classList.toggle("is-active", track.favorite === true)
-      favoriteButton.ariaLabel = track.favorite ? `Remove ${track.title} from favourites` : `Add ${track.title} to favourites`
-      favoriteButton.innerHTML = this.icon(track.favorite ? "heart-filled" : "heart")
-      favoriteButton.addEventListener("click", () => this.toggleQueuedFavorite(queueIndex))
-      const playlistButton = document.createElement("button")
-      playlistButton.type = "button"
-      playlistButton.className = "listen-queue__item-action listen-queue__item-playlist"
-      playlistButton.ariaLabel = `Add ${track.title} to playlist`
-      playlistButton.innerHTML = this.icon("list-plus")
-      playlistButton.addEventListener("click", () => this.addQueuedTrackToPlaylist(queueIndex))
+      const actions = []
+      if (!this.offlineMode) {
+        const favoriteButton = document.createElement("button")
+        favoriteButton.type = "button"
+        favoriteButton.className = "listen-queue__item-action listen-queue__item-favorite"
+        favoriteButton.classList.toggle("is-active", track.favorite === true)
+        favoriteButton.ariaLabel = track.favorite ? `Remove ${track.title} from favourites` : `Add ${track.title} to favourites`
+        favoriteButton.innerHTML = this.icon(track.favorite ? "heart-filled" : "heart")
+        favoriteButton.addEventListener("click", () => this.toggleQueuedFavorite(queueIndex))
+        const playlistButton = document.createElement("button")
+        playlistButton.type = "button"
+        playlistButton.className = "listen-queue__item-action listen-queue__item-playlist"
+        playlistButton.ariaLabel = `Add ${track.title} to playlist`
+        playlistButton.innerHTML = this.icon("list-plus")
+        playlistButton.addEventListener("click", () => this.addQueuedTrackToPlaylist(queueIndex))
+        const downloadButton = document.createElement("button")
+        downloadButton.type = "button"
+        downloadButton.className = "listen-queue__item-action listen-queue__item-download"
+        downloadButton.ariaLabel = `Download ${track.title} for offline playback`
+        downloadButton.innerHTML = this.icon("download")
+        downloadButton.addEventListener("click", () => this.downloadQueuedTrack(queueIndex, downloadButton))
+        actions.push(favoriteButton, playlistButton, downloadButton)
+      }
       const removeButton = document.createElement("button")
       removeButton.type = "button"
       removeButton.className = "listen-queue__item-action listen-queue__item-remove"
       removeButton.ariaLabel = `Remove ${track.title} from queue`
       removeButton.innerHTML = this.icon("x")
       removeButton.addEventListener("click", () => this.removeQueuedTrack(queueIndex))
-      item.append(artwork, details, duration, favoriteButton, playlistButton, playButton, removeButton)
+      item.append(artwork, details, duration, ...actions, playButton, removeButton)
       this.queueListTarget.appendChild(item)
     })
     if (this.queue.length === 0) this.queueListTarget.textContent = "Nothing queued"
@@ -538,6 +585,7 @@ export default class extends Controller {
   updateFavoriteControls() {
     const favorite = this.currentTrack?.favorite === true
     this.favoriteTargets.forEach((button) => {
+      button.hidden = this.offlineMode
       button.classList.toggle("is-active", favorite)
       button.setAttribute("aria-label", favorite ? "Remove from favourites" : "Add to favourites")
       button.innerHTML = this.icon(favorite ? "heart-filled" : "heart")
@@ -547,8 +595,8 @@ export default class extends Controller {
   updateRadioControls() {
     this.radioTargets.forEach((button) => {
       const eligible = this.currentTrack?.radioEligible === true
-      button.hidden = !eligible
-      button.disabled = !eligible
+      button.hidden = this.offlineMode || !eligible
+      button.disabled = this.offlineMode || !eligible
       button.classList.toggle("is-active", eligible && this.radioEnabled)
       const label = this.radioEnabled ? "Radio on" : "Radio off"
       button.setAttribute("aria-label", label)
@@ -558,6 +606,7 @@ export default class extends Controller {
   }
 
   async toggleQueuedFavorite(index) {
+    if (this.offlineMode) return
     const track = this.queue[index]
     if (!track?.source) return
 
@@ -577,6 +626,7 @@ export default class extends Controller {
   }
 
   addQueuedTrackToPlaylist(index) {
+    if (this.offlineMode) return
     const track = this.queue[index]
     const match = track?.source?.match(/^(\/server_connections\/[^/]+)\/audio\/[^/?]+/)
     const cardOptions = this.application.getControllerForElementAndIdentifier(document.body, "card-options")
@@ -591,6 +641,22 @@ export default class extends Controller {
       itemId: track.itemId,
       itemType: "Audio"
     })
+  }
+
+  async downloadQueuedTrack(index, button) {
+    const track = this.queue[index]
+    if (!track?.source) return
+
+    button.disabled = true
+    try {
+      const store = new OfflineMediaStore({ scope: document.body.dataset.offlineMediaScopeValue })
+      await store.download(track)
+      await store.warmOfflineShell()
+      this.showFeedback("Available offline")
+    } catch (error) {
+      this.showFeedback(error.message || "Sonzra couldn’t save this download.")
+      button.disabled = false
+    }
   }
 
   removeQueuedTrack(index) {
@@ -709,7 +775,7 @@ export default class extends Controller {
   }
 
   reportPlayback(event, { keepalive = false } = {}) {
-    if (!this.currentTrack || !this.currentTrack.itemId || !this.currentTrack.reportingUrl || !this.hasAudioTarget) return
+    if (this.offlineMode || !this.currentTrack || !this.currentTrack.itemId || !this.currentTrack.reportingUrl || !this.hasAudioTarget) return
 
     const positionTicks = Math.round(this.audioTarget.currentTime * 10_000_000)
     this.lastReportedPosition = this.audioTarget.currentTime
@@ -756,6 +822,8 @@ export default class extends Controller {
   }
 
   async showLyricsTab() {
+    if (this.offlineMode) return
+
     this.setExpandedView("lyrics")
     await this.loadLyrics()
   }
@@ -946,6 +1014,8 @@ export default class extends Controller {
   }
 
   async maybeExtendRadioQueue({ force = false } = {}) {
+    if (this.offlineMode) return
+
     if (!this.radioEnabled || !this.currentTrack?.radioEligible || !this.currentTrack?.radioUrl || this.loadingRadioQueue) return
 
     const remainingTracks = this.queue.length - this.currentIndex - 1
@@ -999,7 +1069,7 @@ export default class extends Controller {
   }
 
   async persistPreferences() {
-    if (!this.hasPreferencesUrlValue) return
+    if (this.offlineMode || !this.hasPreferencesUrlValue) return
 
     try {
       await fetch(this.preferencesUrlValue, {
@@ -1237,6 +1307,7 @@ export default class extends Controller {
       "heart-filled": '<path fill="currentColor" d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.9-8.6a5.5 5.5 0 0 0-.1-7.8Z"></path>',
       radio: '<path d="M4.9 8.9a10 10 0 0 1 14.2 0"></path><path d="M7.8 11.8a6 6 0 0 1 8.4 0"></path><path d="M10.7 14.7a2 2 0 0 1 2.6 0"></path><path d="M12 16v5"></path><circle cx="12" cy="18" r="1"></circle>'
       , "list-plus": '<path d="M11 12H3"></path><path d="M16 6H3"></path><path d="M16 18H3"></path><path d="M18 9v6"></path><path d="M21 12h-6"></path>'
+      , download: '<path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path>'
     }
     return `<svg class="${className}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths[name]}</svg>`
   }

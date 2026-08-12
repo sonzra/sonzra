@@ -58,6 +58,40 @@ describe("player controller", () => {
     expect(document.querySelector("[data-player-target='artist']").textContent).toBe("An artist")
   })
 
+  it("explains when a queue request returns no playable tracks", async () => {
+    const feedback = document.createElement("p")
+    feedback.dataset.playerTarget = "queueFeedback"
+    document.querySelector("[data-controller='player']").appendChild(feedback)
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false }))
+
+    await controller.replaceQueue({ params: { queueUrl: "/server_connections/1/playback_queues/album-1" } })
+
+    expect(feedback.textContent).toBe("Sonzra couldn’t load playable tracks.")
+    expect(feedback.hidden).toBe(false)
+  })
+
+  it("uses only downloaded tracks when the offline shell initializes the player", () => {
+    controller.setOfflineQueue([
+      { source: "/server_connections/1/audio/one", title: "One", artist: "Artist" },
+      { source: "/server_connections/1/audio/two", title: "Two", artist: "Artist" }
+    ], { source: "/server_connections/1/audio/two" })
+
+    expect(controller.queue).toHaveLength(2)
+    expect(controller.currentTrack.title).toBe("Two")
+    expect(controller.radioEnabled).toBe(false)
+    expect(document.querySelector("[data-player-target='shell']").hidden).toBe(false)
+  })
+
+  it("does not report playback while operating offline", () => {
+    controller.offlineMode = true
+    controller.currentTrack = { itemId: "track-1", reportingUrl: "/playback_reports" }
+    global.fetch = vi.fn()
+
+    controller.reportPlayback("progress")
+
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
+
   it("keeps the minimized progress indicator in sync with playback", () => {
     controller.updateProgress(30, 120)
 

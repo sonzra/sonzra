@@ -11,7 +11,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .listen-card h3 a{display:inline-block;max-width:100%;color:var(--text);font-size:1.06em;font-weight:850;letter-spacing:-.018em;text-decoration:none}
 .listen-card h3 a:hover{color:#d8ceff}
 .listen-card h3 a:focus-visible{border-radius:3px}
-.listen-card__play svg,.listen-card__queue svg,.track-list__queue svg{width:18px;height:18px}
+.listen-card__play svg,.listen-card__queue svg,.track-list__queue svg,.track-list__download svg{width:18px;height:18px}
 .listen-player svg,.listen-queue svg,.listen-settings-link svg,.back-link svg{width:20px;height:20px}
 .listen-player__play svg,.listen-queue__play svg{fill:currentColor;stroke-width:0}
 .listen-player__skip,.listen-player__queue-button,.listen-queue__controls>button,.listen-queue__close{display:grid;place-items:center}

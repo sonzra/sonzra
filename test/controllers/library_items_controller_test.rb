@@ -44,6 +44,7 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".detail-hero__art[data-media-header-target='artwork']"
     assert_select ".detail-hero__art img[src='/brand/sonzra-mark.svg']", 1
     assert_select "button.detail-hero__album-play[data-action='player#replaceQueue'][data-player-queue-url-param='#{playback_queue_server_connection_path(@server_connection, "album-id")}'][aria-label='Play Album name']"
+    assert_select "button.detail-hero__album-download[data-action='offline-media#download'][data-offline-media-queue-url='#{playback_queue_server_connection_path(@server_connection, "album-id")}'][aria-label='Download Album name for offline playback']"
     assert_select ".detail-hero__artist a[href='#{library_item_server_connection_path(@server_connection, "artist-id")}']", "Artist"
   end
 

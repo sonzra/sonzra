@@ -1,10 +1,14 @@
 import { Controller } from "@hotwired/stimulus"
+import { OfflineMediaStore, OfflineMediaStoreError } from "offline_media_store"
 
 export default class extends Controller {
-  static targets = ["sheet", "queueAction", "resetAction", "favoriteAction", "favoriteLabel", "playlistAction", "deletePlaylistAction", "playlistDialog", "playlistList", "playlistName", "playlistFeedback", "panel", "loader", "loaderMessage"]
+  static targets = ["sheet", "queueAction", "resetAction", "favoriteAction", "favoriteLabel", "playlistAction", "offlineAction", "offlineLabel", "deletePlaylistAction", "playlistDialog", "playlistList", "playlistName", "playlistFeedback", "panel", "loader", "loaderMessage", "loaderCancel"]
 
   connect() {
     this.boundCloseOnOutsideClick = this.closeOnOutsideClick.bind(this)
+    this.boundRefreshOfflineIndicators = this.refreshOfflineIndicators.bind(this)
+    document.addEventListener("turbo:load", this.boundRefreshOfflineIndicators)
+    this.refreshOfflineIndicators()
   }
 
   disconnect() {
@@ -14,6 +18,7 @@ export default class extends Controller {
     this.resetSheetDrag()
     window.cancelAnimationFrame(this.openFrame)
     this.stopListeningForOutsideClick()
+    document.removeEventListener("turbo:load", this.boundRefreshOfflineIndicators)
   }
 
   startPress(event) {
@@ -58,6 +63,7 @@ export default class extends Controller {
     if (!playButton) return
 
     this.configureQueueAction(playButton)
+    this.configureOfflineAction(playButton)
     this.activeCard = card
     window.clearTimeout(this.closeTimeout)
     window.cancelAnimationFrame(this.openFrame)
@@ -138,6 +144,79 @@ export default class extends Controller {
     this.deletePlaylistActionTarget.dataset.cardOptionsDeletePlaylistUrl = options?.dataset.cardOptionsDeletePlaylistUrl || ""
   }
 
+  async configureOfflineAction(playButton) {
+    const source = playButton.dataset.playerSourceParam
+    this.offlineActionTarget.hidden = !source
+    this.offlineActionTarget.disabled = false
+    this.offlineActionTarget.dataset.offlineSource = source || ""
+    this.offlineActionTarget.dataset.offlineQueueUrl = playButton.dataset.playerQueueUrlParam || ""
+    this.offlineActionTarget.dataset.offlineTitle = playButton.dataset.playerTitleParam || ""
+    this.offlineActionTarget.dataset.offlineArtist = playButton.dataset.playerArtistParam || ""
+    this.offlineActionTarget.dataset.offlineArtwork = playButton.dataset.playerArtworkParam || ""
+
+    if (!source) {
+      const queueUrl = this.offlineActionTarget.dataset.offlineQueueUrl
+      const downloaded = this.offlineStore().collectionDownloaded(queueUrl)
+      this.offlineActionTarget.hidden = !queueUrl
+      this.offlineActionTarget.disabled = downloaded
+      this.offlineLabelTarget.textContent = downloaded ? "Available offline" : "Download for offline"
+      this.setOfflineIndicator(playButton.closest(".listen-card"), downloaded)
+      return
+    }
+
+    try {
+      const downloaded = await this.offlineStore().downloaded(source)
+      if (this.offlineActionTarget.dataset.offlineSource !== source) return
+
+      this.offlineActionTarget.disabled = downloaded
+      this.offlineLabelTarget.textContent = downloaded ? "Available offline" : "Download for offline"
+    } catch (_) {
+      this.offlineLabelTarget.textContent = "Download for offline"
+    }
+  }
+
+  async downloadForOffline(event) {
+    if (event.type === "touchend") this.ignoreNextSheetClick()
+    if (event.type === "click" && this.shouldIgnoreSheetClick) return
+
+    event.preventDefault()
+    event.stopPropagation()
+    const download = { ...this.offlineActionTarget.dataset }
+    const card = this.activeCard
+    this.close(event)
+    this.setDownloadProgress(card)
+
+    try {
+      const tracks = await this.offlineTracks(download)
+      if (tracks.length === 0) throw new OfflineMediaStoreError("Sonzra couldn’t find playable items to download.")
+
+      const downloadedCount = await this.offlineStore().downloadAll(tracks, (completed, total) => {
+        this.setDownloadProgress(card, completed, total)
+      })
+      const singleItem = Boolean(download.offlineSource)
+      if (!singleItem) {
+        this.offlineStore().saveCollection(download.offlineQueueUrl, tracks, {
+          title: download.offlineTitle,
+          artist: download.offlineArtist,
+          artwork: download.offlineArtwork
+        })
+      }
+      if (this.offlineActionTarget.dataset.offlineSource === download.offlineSource && this.offlineActionTarget.dataset.offlineQueueUrl === download.offlineQueueUrl) {
+        this.offlineActionTarget.disabled = true
+        this.offlineLabelTarget.textContent = "Available offline"
+      }
+      this.setOfflineIndicator(card, true)
+      this.offlineStore().warmOfflineShell()
+      const message = downloadedCount === 0 ? "Already available offline" : downloadedCount === 1 ? "Available offline" : `${downloadedCount} items available offline`
+      this.playerController()?.showFeedback(message)
+    } catch (error) {
+      console.error("Sonzra offline download failed", error)
+      this.playerController()?.showFeedback(error instanceof OfflineMediaStoreError ? error.message : this.offlineDownloadErrorMessage(error))
+    } finally {
+      this.clearDownloadProgress(card)
+    }
+  }
+
   async openPlaylistPicker() {
     this.playlistListTarget.textContent = ""
     this.playlistFeedbackTarget.textContent = ""
@@ -214,6 +293,91 @@ export default class extends Controller {
     return [document.documentElement, document.body, this.element]
       .map((element) => this.application.getControllerForElementAndIdentifier(element, "player"))
       .find(Boolean)
+  }
+
+  offlineStore() {
+    return this.cachedOfflineStore ||= new OfflineMediaStore({ scope: document.body.dataset.offlineMediaScopeValue })
+  }
+
+  refreshOfflineIndicators() {
+    document.querySelectorAll(".listen-card .listen-card__play[data-player-queue-url-param]").forEach((playButton) => {
+      this.setOfflineIndicator(playButton.closest(".listen-card"), this.offlineStore().collectionDownloaded(playButton.dataset.playerQueueUrlParam))
+    })
+  }
+
+  setOfflineIndicator(card, downloaded) {
+    const artwork = card?.querySelector(".listen-card__art")
+    if (!artwork) return
+
+    const indicator = artwork.querySelector(".listen-card__offline-indicator")
+    if (!downloaded) {
+      indicator?.remove()
+      return
+    }
+    if (indicator) return
+
+    const badge = document.createElement("span")
+    badge.className = "listen-card__offline-indicator"
+    badge.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .8-7.9A6 6 0 0 0 6.2 9.1 4.5 4.5 0 0 0 7 18Z"/><path d="m12 10-2 2h1.5v3h1v-3H14l-2-2Z"/></svg>'
+    badge.setAttribute("aria-label", "Available offline")
+    badge.title = "Available offline"
+    artwork.append(badge)
+  }
+
+  setDownloadProgress(card, completed = 0, total = 0) {
+    const artwork = card?.querySelector(".listen-card__art")
+    if (!artwork) return
+
+    let indicator = artwork.querySelector(".listen-card__download-progress")
+    if (!indicator) {
+      indicator = document.createElement("span")
+      indicator.className = "listen-card__download-progress is-indeterminate"
+      indicator.setAttribute("role", "progressbar")
+      artwork.append(indicator)
+    }
+    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0
+    indicator.classList.toggle("is-indeterminate", total === 0)
+    indicator.style.setProperty("--progress", `${percentage}%`)
+    indicator.setAttribute("aria-label", total > 0 ? `Downloading: ${completed} of ${total}` : "Preparing download")
+    indicator.title = total > 0 ? `Downloading ${completed} of ${total}` : "Preparing download"
+  }
+
+  clearDownloadProgress(card) {
+    card?.querySelector(".listen-card__download-progress")?.remove()
+  }
+
+  async offlineTracks(button) {
+    const download = button.dataset || button
+    if (download.offlineSource) {
+      return [ {
+        source: download.offlineSource,
+        title: download.offlineTitle,
+        artist: download.offlineArtist,
+        artwork: download.offlineArtwork
+      } ]
+    }
+
+    const response = await fetch(download.offlineQueueUrl, { headers: { Accept: "application/json" } })
+    if (!response.ok) throw new OfflineMediaStoreError("Sonzra couldn’t load the items to download.")
+
+    return (await response.json()).items.map((track) => ({
+      source: track.source,
+      title: track.title,
+      artist: track.artist,
+      artwork: track.artwork,
+      duration: track.duration,
+      itemId: track.item_id,
+      albumId: track.album_id,
+      album: track.album,
+      albumArtist: track.album_artist,
+      reportingUrl: track.reporting_url,
+      resumable: track.resumable === true
+    }))
+  }
+
+  offlineDownloadErrorMessage(error) {
+    const details = error?.message ? `: ${error.message}` : ""
+    return `Sonzra couldn’t download this item${details}`
   }
 
   normalizePlaylistId(playlistId) {
@@ -348,17 +512,19 @@ export default class extends Controller {
     })
   }
 
-  showLoader(message) {
+  showLoader(message, { cancellable = false } = {}) {
     if (!this.hasLoaderTarget) return
 
     this.loaderMessageTarget.textContent = message
     this.loaderTarget.hidden = false
+    if (this.hasLoaderCancelTarget) this.loaderCancelTarget.hidden = !(cancellable || this.downloadAbortController)
   }
 
   hideLoader() {
     if (!this.hasLoaderTarget) return
 
     this.loaderTarget.hidden = true
+    if (this.hasLoaderCancelTarget) this.loaderCancelTarget.hidden = true
   }
 
   async errorMessage(response) {
