@@ -74,6 +74,12 @@
   transform: scale(1);
 }
 
+@media (min-width: 761px) {
+  .media-detail-body {
+    padding-top: 0;
+  }
+}
+
 .detail-hero__title {
   display: flex;
   align-items: center;
@@ -126,7 +132,7 @@
   position: absolute;
   z-index: 2;
   bottom: 16px;
-  left: 16px;
+  right: 16px;
   display: grid;
   width: 48px;
   height: 48px;
@@ -146,6 +152,8 @@
   outline: 0;
   transform: scale(1.08);
 }
+
+.detail-hero__options{position:absolute;z-index:3;top:9px;right:9px}.detail-hero__options-menu{position:absolute;top:40px;right:0;min-width:166px;padding:6px;border:1px solid #ffffff22;border-radius:12px;background:#1c1b2bef;box-shadow:0 14px 30px #0009;backdrop-filter:blur(16px)}.detail-hero__options-menu button{display:flex;align-items:center;gap:8px;width:100%;padding:10px;border:0;border-radius:8px;background:transparent;color:var(--text);font:inherit;font-size:13px;font-weight:750;text-align:left;cursor:pointer}.detail-hero__options-menu button:hover,.detail-hero__options-menu button:focus-visible{background:#ffffff12;outline:0}.detail-hero__options-menu svg{width:16px;height:16px}
 
 @media (max-width: 760px) {
   .media-topbar {
@@ -250,12 +258,23 @@
     height: 36px;
   }
 
+  .track-list__download {
+    grid-column: 2;
+    grid-row: 1;
+    width: 36px;
+    height: 36px;
+  }
+
   .track-list--playlist .listen-card__play {
     grid-column: 2;
   }
 
   .track-list--playlist .track-list__queue {
     grid-column: 3;
+  }
+
+  .track-list--playlist .track-list__download {
+    grid-column: 2;
   }
 
   .track-list__remove {
@@ -267,10 +286,12 @@
 
   .detail-hero__album-play {
     bottom: 12px;
-    left: 12px;
+    right: 12px;
     width: 44px;
     height: 44px;
   }
+
+  .detail-hero__options{top:8px;right:8px}
 }
 
 @supports (padding: max(0px)) {
@@ -478,4 +499,86 @@
     padding-right: 0;
     padding-left: 0;
   }
+}
+
+/* Album tracks use one shared control rhythm, matching the offline detail view. */
+.detail-section .track-list:not(.track-list--playlist) li {
+  grid-template-columns: 32px minmax(0, 1fr) 70px repeat(3, 36px);
+  gap: 10px;
+}
+
+.detail-section .track-list--playlist li {
+  grid-template-columns: minmax(0, 1fr) 70px repeat(4, 36px);
+  gap: 10px;
+}
+
+.detail-section .track-list .listen-card__play,
+.detail-section .track-list__queue,
+.detail-section .track-list__download,
+.detail-section .track-list__remove {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #ffffff2b;
+  border-radius: 50%;
+  background: #ffffff09;
+  color: var(--text);
+  font-size: 0;
+}
+
+.detail-section .track-list .listen-card__play:hover,
+.detail-section .track-list .listen-card__play:focus-visible,
+.detail-section .track-list__queue:hover,
+.detail-section .track-list__queue:focus-visible,
+.detail-section .track-list__download:hover,
+.detail-section .track-list__download:focus-visible,
+.detail-section .track-list__remove:hover,
+.detail-section .track-list__remove:focus-visible {
+  border-color: #a990ff;
+  background: #7a5af833;
+  outline: 0;
+}
+
+.detail-section .track-list .listen-card__play svg,
+.detail-section .track-list__queue svg,
+.detail-section .track-list__download svg,
+.detail-section .track-list__remove svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 760px) {
+  .detail-section .track-list:not(.track-list--playlist) li {
+    grid-template-columns: 26px minmax(0, 1fr) repeat(3, 36px) !important;
+    gap: 8px;
+  }
+
+  .detail-section .track-list--playlist li {
+    grid-template-columns: minmax(0, 1fr) repeat(4, 36px) !important;
+    gap: 8px;
+  }
+
+  .detail-section .track-list time {
+    display: none;
+  }
+
+  .detail-section .track-list .listen-card__play,
+  .detail-section .track-list__queue,
+  .detail-section .track-list__download,
+  .detail-section .track-list__remove {
+    grid-column: auto;
+    grid-row: 1;
+  }
+
+  .detail-section .track-list:not(.track-list--playlist) .listen-card__play { grid-column: 3; }
+  .detail-section .track-list:not(.track-list--playlist) .track-list__queue { grid-column: 4; }
+  .detail-section .track-list:not(.track-list--playlist) .track-list__download { grid-column: 5; }
+  .detail-section .track-list--playlist .listen-card__play { grid-column: 2; }
+  .detail-section .track-list--playlist .track-list__queue { grid-column: 3; }
+  .detail-section .track-list--playlist .track-list__download { grid-column: 4; }
+  .detail-section .track-list--playlist .track-list__remove { grid-column: 5; }
 }

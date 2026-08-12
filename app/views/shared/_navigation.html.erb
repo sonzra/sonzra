@@ -1,16 +1,29 @@
+<% offline_navigation = local_assigns.fetch(:offline, false) %>
+<% navigation_data = offline_navigation ? { action: "click->offline-connection#preventNavigation click->navigation#closeOnNavigation", offline_connection_target: "navigationLink" } : {} %>
+<% disabled_aria = offline_navigation ? { disabled: true } : {} %>
+<% library_links = { "Home" => [ root_path, "house" ], "Artists" => [ library_artists_path, "mic-vocal" ], "Albums" => [ library_albums_path, "disc-3" ], "Playlists" => [ library_playlists_path, "list-music" ], "Audiobooks" => [ library_audiobooks_path, "book-open" ], "Podcasts" => [ library_podcasts_path, "podcast" ], "Downloads" => [ offline_downloads_path, "download" ] } %>
 <header class="listen-topbar" data-controller="navigation">
-  <%= link_to root_path, class: "brand", aria: { label: "Sonzra home" } do %><%= image_tag "/brand/sonzra-mark.svg", class: "brand__mark", alt: "" %><span>sonzra</span><% end %>
+  <%= link_to root_path, class: "brand", data: navigation_data, aria: { label: "Sonzra home" }.merge(disabled_aria) do %><%= image_tag "/brand/sonzra-mark.svg", class: "brand__mark", alt: "" %><span>sonzra</span><% end %>
   <button class="listen-topbar__menu-toggle" type="button" aria-label="Open navigation menu" aria-expanded="false" data-navigation-target="toggle" data-action="navigation#toggle"><%= lucide_icon "menu", aria: { hidden: true } %></button>
   <div class="listen-topbar__menu" data-navigation-target="menu" data-action="click->navigation#closeOnNavigation">
     <nav class="listen-topbar__nav" aria-label="Primary navigation">
       <p class="listen-topbar__group-label">Library</p>
-      <% { "Home" => [ root_path, "house" ], "Artists" => [ library_artists_path, "mic-vocal" ], "Albums" => [ library_albums_path, "disc-3" ], "Playlists" => [ library_playlists_path, "list-music" ], "Audiobooks" => [ library_audiobooks_path, "book-open" ], "Podcasts" => [ library_podcasts_path, "podcast" ] }.each do |label, (path, icon)| %><%= link_to path, class: "listen-topbar__link" do %><%= lucide_icon icon, class: "listen-topbar__link-icon", aria: { hidden: true } %><span><%= label %></span><% end %><% end %>
+      <% library_links.each do |label, (path, icon)| %><%= link_to path, class: "listen-topbar__link", data: navigation_data, aria: disabled_aria do %><%= lucide_icon icon, class: "listen-topbar__link-icon", aria: { hidden: true } %><span><%= label %></span><% end %><% end %>
     </nav>
     <div class="listen-topbar__account">
       <p class="listen-topbar__group-label">Account</p>
-      <%= link_to server_connections_path, class: "listen-settings-link" do %><%= lucide_icon "server", aria: { hidden: true } %><span>Server connections</span><% end %>
-      <% if current_user.admin? %><%= link_to admin_users_path, class: "listen-settings-link" do %><%= lucide_icon "users", aria: { hidden: true } %><span>Users</span><% end %><%= link_to admin_registration_settings_path, class: "listen-settings-link" do %><%= lucide_icon "shield-check", aria: { hidden: true } %><span>Administration</span><% end %><% end %>
-      <%= button_to session_path, method: :delete, class: "text-button" do %><%= lucide_icon "log-out", aria: { hidden: true } %><span>Sign out</span><% end %>
+      <%= link_to server_connections_path, class: "listen-settings-link", data: navigation_data, aria: disabled_aria do %><%= lucide_icon "server", aria: { hidden: true } %><span>Server connections</span><% end %>
+      <% if current_user.admin? %><%= link_to admin_users_path, class: "listen-settings-link", data: navigation_data, aria: disabled_aria do %><%= lucide_icon "users", aria: { hidden: true } %><span>Users</span><% end %><%= link_to admin_registration_settings_path, class: "listen-settings-link", data: navigation_data, aria: disabled_aria do %><%= lucide_icon "shield-check", aria: { hidden: true } %><span>Administration</span><% end %><% end %>
+      <% if offline_navigation %><button type="button" class="text-button" disabled><%= lucide_icon "log-out", aria: { hidden: true } %><span>Sign out</span></button><% else %><%= button_to session_path, method: :delete, class: "text-button", data: { action: "offline-media#signOut" } do %><%= lucide_icon "log-out", aria: { hidden: true } %><span>Sign out</span><% end %><% end %>
     </div>
   </div>
+  <div class="listen-topbar__profile" data-controller="profile-menu">
+    <button type="button" class="listen-topbar__profile-toggle" aria-label="Open profile menu" aria-expanded="false" data-profile-menu-target="toggle" data-action="profile-menu#toggle"><%= lucide_icon "circle-user-round", aria: { hidden: true } %><span><%= current_user.email_address.split("@").first %></span></button>
+    <div class="listen-topbar__profile-menu" data-profile-menu-target="menu" data-action="click->profile-menu#closeOnAction" hidden>
+      <%= link_to server_connections_path, class: "listen-settings-link", data: navigation_data, aria: disabled_aria do %><%= lucide_icon "server", aria: { hidden: true } %><span>Server connections</span><% end %>
+      <% if current_user.admin? %><%= link_to admin_users_path, class: "listen-settings-link", data: navigation_data, aria: disabled_aria do %><%= lucide_icon "users", aria: { hidden: true } %><span>Users</span><% end %><%= link_to admin_registration_settings_path, class: "listen-settings-link", data: navigation_data, aria: disabled_aria do %><%= lucide_icon "shield-check", aria: { hidden: true } %><span>Administration</span><% end %><% end %>
+      <% if offline_navigation %><button type="button" class="text-button" disabled><%= lucide_icon "log-out", aria: { hidden: true } %><span>Sign out</span></button><% else %><%= button_to session_path, method: :delete, class: "text-button", data: { action: "offline-media#signOut" } do %><%= lucide_icon "log-out", aria: { hidden: true } %><span>Sign out</span><% end %><% end %>
+    </div>
+  </div>
+  <% if offline_navigation %><div class="offline-connection" role="status"><span data-offline-connection-target="status" data-state="checking">Checking connection…</span><button type="button" data-offline-connection-target="retry" data-action="offline-connection#check">Check again</button></div><% end %>
 </header>
