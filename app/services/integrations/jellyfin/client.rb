@@ -134,6 +134,75 @@ module Integrations
         PlaybackQueueResponseData.new(items: items, access_token: token)
       end
 
+      def recommendation_tracks(strategy, period_date)
+        session = authentication
+        user_id = session.fetch("User").fetch("Id")
+        token = session.fetch("AccessToken")
+        fields = "Genres,AlbumArtists,AlbumPrimaryImageTag,RunTimeTicks"
+        podcast_view = podcast_library(user_id, token)
+        podcast_ids = podcast_view ? podcast_album_ids(user_id, token, podcast_view) : []
+        case strategy
+        when "friday_rediscovery"
+          unplayed = items(user_id, token, limit: 200, IncludeItemTypes: "Audio", IsPlayed: false, SortBy: "Random", EnableUserData: true, Fields: fields)
+          long_unheard = items(user_id, token, limit: 200, sort_order: "Ascending", IncludeItemTypes: "Audio", IsPlayed: true, SortBy: "DatePlayed", EnableUserData: true, Fields: fields)
+            .select { |item| (last_played_at = playback_time(item)) && last_played_at < period_date - 14.days }
+          music_songs_without_podcasts(unplayed + long_unheard, podcast_ids)
+        when "best_of_genre"
+          played = items(user_id, token, limit: 100, IncludeItemTypes: "Audio", SortBy: "PlayCount", SortOrder: "Descending", EnableUserData: true, Fields: fields)
+          genre = music_songs_without_podcasts(played, podcast_ids).flat_map { |item| item["Genres"] || [] }.tally.max_by { |_, count| count }&.first
+          genre ? music_songs_without_podcasts(items(user_id, token, limit: 200, IncludeItemTypes: "Audio", Genres: genre, SortBy: "PlayCount", SortOrder: "Descending", EnableUserData: true, Fields: fields), podcast_ids) : []
+        when "more_from_artist"
+          recent_tracks = music_songs_without_podcasts(
+            items(user_id, token, limit: 200, IncludeItemTypes: "Audio", IsPlayed: true, SortBy: "DatePlayed", EnableUserData: true, Fields: fields),
+            podcast_ids
+          ).select { |item| (last_played_at = playback_time(item)) && last_played_at >= period_date - 7.days }
+          artist = recent_tracks.group_by { |item| [ item.dig("AlbumArtists", 0, "Id"), item["AlbumArtist"] || item["Artists"]&.first ] }
+            .max_by { |_, tracks| tracks.size }&.first
+          artist&.first ? music_songs_without_podcasts(items(user_id, token, limit: 200, IncludeItemTypes: "Audio", ArtistIds: artist.first, SortBy: "Random", EnableUserData: true, Fields: fields), podcast_ids) : []
+        else
+          []
+        end
+      end
+
+      def recommendation_tracks_by_ids(item_ids)
+        return [] if item_ids.empty?
+
+        session = authentication
+        user_id = session.fetch("User").fetch("Id")
+        token = session.fetch("AccessToken")
+        podcast_view = podcast_library(user_id, token)
+        podcast_ids = podcast_view ? podcast_album_ids(user_id, token, podcast_view) : []
+        tracks = music_songs_without_podcasts(
+          items(user_id, token, limit: item_ids.size, IncludeItemTypes: "Audio", Ids: item_ids.join(","), EnableUserData: true, Fields: "Genres,AlbumArtists,AlbumPrimaryImageTag,RunTimeTicks"),
+          podcast_ids
+        )
+        tracks.sort_by { |track| item_ids.index(track["Id"]) || item_ids.size }
+      end
+
+      def monthly_top_tracks(period_date)
+        session = authentication
+        user_id = session.fetch("User").fetch("Id")
+        token = session.fetch("AccessToken")
+        start_time = period_date.beginning_of_month.beginning_of_day
+        end_time = period_date.end_of_day
+        plays = activity_entries(token).filter_map do |entry|
+          next unless entry["UserId"] == user_id && entry["Type"] == "AudioPlayback"
+
+          played_at = Time.zone.parse(entry["Date"].to_s)
+          next unless played_at.between?(start_time, end_time)
+
+          playback_descriptor(entry["Name"])
+        rescue ArgumentError
+          nil
+        end
+        ranked_tracks = plays.tally.sort_by { |descriptor, count| [ -count, descriptor ] }.map(&:first)
+        return [] if ranked_tracks.empty?
+
+        podcast_view = podcast_library(user_id, token)
+        podcast_ids = podcast_view ? podcast_album_ids(user_id, token, podcast_view) : []
+        ranked_tracks.filter_map { |descriptor| find_music_track(user_id, token, descriptor, podcast_ids) }.first(20)
+      end
+
       def instant_mix(item_id, limit: 12)
         session = authentication
         user_id = session.fetch("User").fetch("Id")
@@ -313,6 +382,41 @@ module Integrations
             Fields: [ "DateCreated,PrimaryImageAspectRatio,ParentId", requested_fields ].compact.join(",")
           )
         ).fetch("Items", [])
+      end
+
+      def activity_entries(token)
+        entries = []
+        start_index = 0
+
+        loop do
+          response = get("System/ActivityLog/Entries", token, StartIndex: start_index, Limit: 100)
+          page = response.fetch("Items", [])
+          entries.concat(page)
+          break if page.size < 100
+
+          start_index += page.size
+        end
+
+        entries
+      end
+
+      def playback_descriptor(name)
+        match = name.to_s.match(/\bis playing (.+?) on .+\z/)
+        artist, title = match&.captures&.first&.split(" - ", 2)
+        return unless artist.present? && title.present?
+
+        [ artist, title ]
+      end
+
+      def find_music_track(user_id, token, descriptor, podcast_ids)
+        artist, title = descriptor
+        candidates = music_songs_without_podcasts(
+          items(user_id, token, limit: 50, IncludeItemTypes: "Audio", SearchTerm: title, EnableUserData: true, Fields: "Genres,AlbumArtists,AlbumPrimaryImageTag,RunTimeTicks"),
+          podcast_ids
+        )
+        candidates.find do |track|
+          track["Name"].to_s.casecmp?(title) && [ track["AlbumArtist"], *track["Artists"] ].compact.any? { |name| name.casecmp?(artist) }
+        end
       end
 
       def all_items(user_id, token, sort_order:, **parameters)

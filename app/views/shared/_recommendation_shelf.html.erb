@@ -1,0 +1,17 @@
+<section class="listen-section" aria-labelledby="recommendations-title">
+  <div class="listen-section__heading"><div><h2 id="recommendations-title">Your mixes</h2></div></div>
+  <div class="listen-shelf-wrap" data-controller="shelf">
+    <button class="listen-shelf__button listen-shelf__button--left" type="button" data-action="shelf#scrollLeft" aria-label="Scroll your mixes left"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7" /></svg></button>
+    <div class="listen-shelf" data-shelf-target="content">
+      <% collections.each do |collection| %>
+        <% track = collection.recommendation_tracks.first %>
+        <article class="listen-card recommendation-card">
+          <%= link_to recommendation_collection_path(collection), class: "listen-card__art", style: "--first:#7a5af8;--second:#43d7c6", aria: { label: collection.title }, data: { turbo_frame: "_top" } do %><% if track&.artwork_item_id.present? %><%= image_tag artwork_server_connection_path(collection.server_connection, track.artwork_item_id), alt: "", loading: "lazy" %><% else %><%= image_tag "/brand/sonzra-mark.svg", class: "listen-card__fallback", alt: "" %><% end %><% end %>
+          <button type="button" class="listen-card__play" aria-label="Play <%= collection.title %>" data-action="player#replaceQueue" data-player-queue-url-param="<%= recommendation_collection_path(collection) %>" data-player-radio-enabled-param="true" data-player-recommendation-collection-id-param="<%= collection.id %>"><%= lucide_icon "play", aria: { hidden: true } %></button>
+          <h3><%= link_to collection.title, recommendation_collection_path(collection), data: { turbo_frame: "_top" } %></h3>
+        </article>
+      <% end %>
+    </div>
+    <button class="listen-shelf__button listen-shelf__button--right" type="button" data-action="shelf#scrollRight" aria-label="Scroll your mixes right"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7" /></svg></button>
+  </div>
+</section>

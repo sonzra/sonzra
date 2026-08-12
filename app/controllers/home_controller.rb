@@ -9,6 +9,7 @@ class HomeController < ApplicationController
       @server_connection,
       access_token: current_access_token
     ).call
+    @recommendation_collections = current_user.recommendation_collections.includes(:recommendation_tracks, :server_connection).order(generated_at: :desc).to_a.uniq(&:strategy) if @result.success?
     store_access_token if @result.success?
   end
 

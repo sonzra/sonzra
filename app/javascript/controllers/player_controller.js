@@ -90,12 +90,26 @@ export default class extends Controller {
       return
     }
 
-    if (event.params.queueUrl && this.radioEnabled) this.setRadioEnabled(false)
+    if (event.params.radioEnabled === "true") {
+      this.setRadioEnabled(true)
+    } else if (event.params.queueUrl && this.radioEnabled) {
+      this.setRadioEnabled(false)
+    }
     this.queue = tracks
     this.currentIndex = 0
+    this.recordRecommendationStart(event.params.recommendationCollectionId)
     this.persistQueue({ force: true })
     this.renderQueue()
     this.playCurrent()
+  }
+
+  recordRecommendationStart(collectionId) {
+    if (!collectionId) return
+
+    fetch(`/recommendation_collections/${collectionId}/events`, {
+      method: "POST",
+      headers: { "X-CSRF-Token": document.querySelector("meta[name='csrf-token']")?.content }
+    }).catch(() => {})
   }
 
   async appendQueue(event) {
@@ -537,36 +551,45 @@ export default class extends Controller {
       playButton.className = "listen-queue__item-action listen-queue__item-play"
       playButton.classList.toggle("is-current", isCurrent)
       playButton.addEventListener("click", () => isCurrent ? this.toggle() : this.playQueueIndex(queueIndex))
-      const actions = []
+      const moreMenu = document.createElement("details")
+      moreMenu.className = "listen-queue__item-menu"
+      const moreToggle = document.createElement("summary")
+      moreToggle.ariaLabel = `More actions for ${track.title}`
+      moreToggle.innerHTML = this.icon("ellipsis")
+      const moreActions = document.createElement("div")
+      moreActions.className = "listen-queue__item-menu-actions"
+      const closeMoreMenu = () => moreMenu.removeAttribute("open")
       if (!this.offlineMode) {
         const favoriteButton = document.createElement("button")
         favoriteButton.type = "button"
-        favoriteButton.className = "listen-queue__item-action listen-queue__item-favorite"
+        favoriteButton.className = "listen-queue__item-menu-action listen-queue__item-favorite"
         favoriteButton.classList.toggle("is-active", track.favorite === true)
         favoriteButton.ariaLabel = track.favorite ? `Remove ${track.title} from favourites` : `Add ${track.title} to favourites`
-        favoriteButton.innerHTML = this.icon(track.favorite ? "heart-filled" : "heart")
-        favoriteButton.addEventListener("click", () => this.toggleQueuedFavorite(queueIndex))
+        favoriteButton.innerHTML = `${this.icon(track.favorite ? "heart-filled" : "heart")}<span>${track.favorite ? "Remove from favourites" : "Add to favourites"}</span>`
+        favoriteButton.addEventListener("click", () => { closeMoreMenu(); this.toggleQueuedFavorite(queueIndex) })
         const playlistButton = document.createElement("button")
         playlistButton.type = "button"
-        playlistButton.className = "listen-queue__item-action listen-queue__item-playlist"
+        playlistButton.className = "listen-queue__item-menu-action listen-queue__item-playlist"
         playlistButton.ariaLabel = `Add ${track.title} to playlist`
-        playlistButton.innerHTML = this.icon("list-plus")
-        playlistButton.addEventListener("click", () => this.addQueuedTrackToPlaylist(queueIndex))
+        playlistButton.innerHTML = `${this.icon("list-plus")}<span>Add to playlist</span>`
+        playlistButton.addEventListener("click", () => { closeMoreMenu(); this.addQueuedTrackToPlaylist(queueIndex) })
         const downloadButton = document.createElement("button")
         downloadButton.type = "button"
-        downloadButton.className = "listen-queue__item-action listen-queue__item-download"
+        downloadButton.className = "listen-queue__item-menu-action listen-queue__item-download"
         downloadButton.ariaLabel = `Download ${track.title} for offline playback`
-        downloadButton.innerHTML = this.icon("download")
-        downloadButton.addEventListener("click", () => this.downloadQueuedTrack(queueIndex, downloadButton))
-        actions.push(favoriteButton, playlistButton, downloadButton)
+        downloadButton.innerHTML = `${this.icon("download")}<span>Download</span>`
+        downloadButton.addEventListener("click", () => { closeMoreMenu(); this.downloadQueuedTrack(queueIndex, downloadButton) })
+        moreActions.append(favoriteButton, playlistButton, downloadButton)
       }
       const removeButton = document.createElement("button")
       removeButton.type = "button"
-      removeButton.className = "listen-queue__item-action listen-queue__item-remove"
+      removeButton.className = "listen-queue__item-menu-action listen-queue__item-remove"
       removeButton.ariaLabel = `Remove ${track.title} from queue`
-      removeButton.innerHTML = this.icon("x")
-      removeButton.addEventListener("click", () => this.removeQueuedTrack(queueIndex))
-      item.append(artwork, details, duration, ...actions, playButton, removeButton)
+      removeButton.innerHTML = `${this.icon("x")}<span>Remove from queue</span>`
+      removeButton.addEventListener("click", () => { closeMoreMenu(); this.removeQueuedTrack(queueIndex) })
+      moreActions.append(removeButton)
+      moreMenu.append(moreToggle, moreActions)
+      item.append(artwork, details, duration, playButton, moreMenu)
       this.queueListTarget.appendChild(item)
     })
     if (this.queue.length === 0) this.queueListTarget.textContent = "Nothing queued"
@@ -1306,6 +1329,7 @@ export default class extends Controller {
       , heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.9-8.6a5.5 5.5 0 0 0-.1-7.8Z"></path>',
       "heart-filled": '<path fill="currentColor" d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.9-8.6a5.5 5.5 0 0 0-.1-7.8Z"></path>',
       radio: '<path d="M4.9 8.9a10 10 0 0 1 14.2 0"></path><path d="M7.8 11.8a6 6 0 0 1 8.4 0"></path><path d="M10.7 14.7a2 2 0 0 1 2.6 0"></path><path d="M12 16v5"></path><circle cx="12" cy="18" r="1"></circle>'
+      , ellipsis: '<circle cx="5" cy="12" r="1.5" fill="currentColor"></circle><circle cx="12" cy="12" r="1.5" fill="currentColor"></circle><circle cx="19" cy="12" r="1.5" fill="currentColor"></circle>'
       , "list-plus": '<path d="M11 12H3"></path><path d="M16 6H3"></path><path d="M16 18H3"></path><path d="M18 9v6"></path><path d="M21 12h-6"></path>'
       , download: '<path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path>'
     }

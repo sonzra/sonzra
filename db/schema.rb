@@ -10,11 +10,24 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_03_220500) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_12_202000) do
   create_table "application_settings", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.boolean "registrations_enabled", default: true, null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "listening_events", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "item_id", null: false
+    t.datetime "occurred_at", null: false
+    t.integer "server_connection_id", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["server_connection_id"], name: "index_listening_events_on_server_connection_id"
+    t.index ["user_id", "item_id", "occurred_at"], name: "index_listening_events_on_user_id_and_item_id_and_occurred_at"
+    t.index ["user_id", "occurred_at"], name: "index_listening_events_on_user_id_and_occurred_at"
+    t.index ["user_id"], name: "index_listening_events_on_user_id"
   end
 
   create_table "media_servers", force: :cascade do |t|
@@ -24,6 +37,64 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_03_220500) do
     t.string "provider", null: false
     t.datetime "updated_at", null: false
     t.index ["provider", "base_url"], name: "index_media_servers_on_provider_and_base_url", unique: true
+  end
+
+  create_table "recommendation_collection_events", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "event_type", null: false
+    t.datetime "occurred_at", null: false
+    t.integer "recommendation_collection_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["recommendation_collection_id", "event_type"], name: "index_recommendation_events_on_collection_and_type"
+    t.index ["recommendation_collection_id"], name: "idx_on_recommendation_collection_id_006bbe3fb8"
+  end
+
+  create_table "recommendation_collections", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "generated_at", null: false
+    t.date "period_date", null: false
+    t.integer "server_connection_id", null: false
+    t.string "strategy", null: false
+    t.string "subtitle", null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["server_connection_id"], name: "index_recommendation_collections_on_server_connection_id"
+    t.index ["user_id", "strategy", "period_date"], name: "index_recommendations_on_user_strategy_period", unique: true
+    t.index ["user_id"], name: "index_recommendation_collections_on_user_id"
+  end
+
+  create_table "recommendation_runs", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "error_message"
+    t.datetime "generated_at"
+    t.date "period_date", null: false
+    t.integer "recommendation_collection_id"
+    t.string "status", default: "pending", null: false
+    t.string "strategy", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["recommendation_collection_id"], name: "index_recommendation_runs_on_recommendation_collection_id"
+    t.index ["user_id", "strategy", "period_date"], name: "index_recommendation_runs_on_user_strategy_period", unique: true
+    t.index ["user_id"], name: "index_recommendation_runs_on_user_id"
+  end
+
+  create_table "recommendation_tracks", force: :cascade do |t|
+    t.string "album"
+    t.string "album_artist"
+    t.string "album_id"
+    t.string "artist"
+    t.string "artwork_item_id"
+    t.datetime "created_at", null: false
+    t.string "duration"
+    t.string "genre"
+    t.string "item_id", null: false
+    t.integer "position", null: false
+    t.integer "recommendation_collection_id", null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["recommendation_collection_id", "position"], name: "index_recommendation_tracks_on_collection_position", unique: true
+    t.index ["recommendation_collection_id"], name: "index_recommendation_tracks_on_recommendation_collection_id"
   end
 
   create_table "server_connections", force: :cascade do |t|
@@ -57,6 +128,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_03_220500) do
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
   end
 
+  add_foreign_key "listening_events", "server_connections"
+  add_foreign_key "listening_events", "users"
+  add_foreign_key "recommendation_collection_events", "recommendation_collections"
+  add_foreign_key "recommendation_collections", "server_connections"
+  add_foreign_key "recommendation_collections", "users"
+  add_foreign_key "recommendation_runs", "recommendation_collections"
+  add_foreign_key "recommendation_runs", "users"
+  add_foreign_key "recommendation_tracks", "recommendation_collections"
   add_foreign_key "server_connections", "media_servers"
   add_foreign_key "server_connections", "users"
   add_foreign_key "sessions", "users"

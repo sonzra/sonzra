@@ -92,6 +92,15 @@ describe("player controller", () => {
     expect(global.fetch).not.toHaveBeenCalled()
   })
 
+  it("enables radio for a recommendation session queue", async () => {
+    controller.tracksFor = vi.fn(async () => [ { source: "/audio/track-1", title: "Mix track" } ])
+    controller.setRadioEnabled = vi.fn()
+
+    await controller.replaceQueue({ params: { queueUrl: "/recommendation_collections/1", radioEnabled: "true" } })
+
+    expect(controller.setRadioEnabled).toHaveBeenCalledWith(true)
+  })
+
   it("keeps the minimized progress indicator in sync with playback", () => {
     controller.updateProgress(30, 120)
 
@@ -213,6 +222,9 @@ describe("player controller", () => {
     controller.renderQueue()
 
     expect(document.querySelector(".listen-queue__item-playlist").getAttribute("aria-label")).toBe("Add A track to playlist")
+    expect(document.querySelector(".listen-queue__item-menu")).not.toBeNull()
+    expect(document.querySelector(".listen-queue__item-menu summary svg")).not.toBeNull()
+    expect(document.querySelectorAll(".listen-queue__item-action")).toHaveLength(1)
   })
 
   it("updates the queue favourite icon when favouriting from the player", async () => {

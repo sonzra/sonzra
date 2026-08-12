@@ -8,7 +8,7 @@ class HomeLibraryContentTest < ActionView::TestCase
     render partial: "home/library_content", locals: {
       content: {
         user_name: "Bruno",
-        genres: [ { "Name" => "Ambient" }, { "Name" => "Jazz" }, { "Name" => "Rock" }, { "Name" => "Pop" } ],
+        genres: %w[Ambient Jazz Rock Pop Classical Blues Electronic Folk Funk Hip-hop].map { |name| { "Name" => name } },
         recently_played: [ item ],
         most_played_songs: [ item.merge("Type" => "Audio") ],
         recently_added_albums: [ item ],
@@ -21,7 +21,8 @@ class HomeLibraryContentTest < ActionView::TestCase
       }
     }
 
-    assert_select ".genre-explorer__grid .genre-tile", 4
+    assert_select ".genre-explorer__grid .genre-tile", 9
+    assert_select ".genre-explorer__grid .genre-tile:last-child.genre-tile--all", "Browse all genres"
     assert_select ".genre-explorer__all-link", 0
     assert_equal [ "Recently played", "Most played songs", "Recently added albums", "Continue podcasts", "Continue audiobooks" ], css_select(".listen-section h2").map(&:text)
     assert_select "a[href='#{library_recently_played_path}']", "See all"

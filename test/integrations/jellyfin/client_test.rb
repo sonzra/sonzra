@@ -213,6 +213,64 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     assert_equal [ "track-1" ], response.items.pluck("Id")
   end
 
+  test "builds Friday Rediscovery from unplayed and long-unheard library tracks" do
+    response = lambda do |body|
+      Net::HTTPOK.new("1.1", "200", "OK").tap do |http_response|
+        http_response.instance_variable_set(:@read, true)
+        http_response.body = body.to_json
+      end
+    end
+    authentication_response = response.call(AccessToken: "token", User: { Id: "user-id", Name: "Bruno" })
+    podcast_library_response = response.call(Items: [ { Id: "podcast-library", Name: "Podcasts" } ])
+    podcast_albums_response = response.call(Items: [ { Id: "podcast-album" } ])
+    unplayed_response = response.call(Items: [
+      { Id: "unplayed", Name: "Never played", UserData: {} },
+      { Id: "podcast", Name: "Podcast episode", AlbumId: "podcast-album", UserData: {} }
+    ])
+    long_unheard_response = response.call(Items: [
+      { Id: "old", Name: "Long unheard", UserData: { LastPlayedDate: "2026-07-01T12:00:00Z" } },
+      { Id: "recent", Name: "Recently played", UserData: { LastPlayedDate: "2026-08-10T12:00:00Z" } }
+    ])
+    http = FakeHttp.new([ authentication_response, podcast_library_response, podcast_albums_response, unplayed_response, long_unheard_response ])
+
+    tracks = Integrations::Jellyfin::Client.new(base_url: "https://example.com", username: "bruno", password: "secret", http: http)
+      .recommendation_tracks("friday_rediscovery", Date.new(2026, 8, 14))
+
+    unplayed_parameters = URI.decode_www_form(URI.parse(http.requests[3].path).query).to_h
+    long_unheard_parameters = URI.decode_www_form(URI.parse(http.requests[4].path).query).to_h
+    assert_equal [ "unplayed", "old" ], tracks.pluck("Id")
+    assert_equal "false", unplayed_parameters["IsPlayed"]
+    assert_equal "Random", unplayed_parameters["SortBy"]
+    assert_equal "true", long_unheard_parameters["IsPlayed"]
+    assert_equal "DatePlayed", long_unheard_parameters["SortBy"]
+    assert_equal "Ascending", long_unheard_parameters["SortOrder"]
+    assert_equal "200", long_unheard_parameters["Limit"]
+  end
+
+  test "builds Top of the Month from Jellyfin playback activity" do
+    response = lambda do |body|
+      Net::HTTPOK.new("1.1", "200", "OK").tap do |http_response|
+        http_response.instance_variable_set(:@read, true)
+        http_response.body = body.to_json
+      end
+    end
+    authentication_response = response.call(AccessToken: "token", User: { Id: "user-id", Name: "Bruno" })
+    activity_response = response.call(Items: [
+      { UserId: "user-id", Type: "AudioPlayback", Date: "2026-08-11T12:00:00Z", Name: "Bruno is playing Artist - Monthly track on Sonzra" },
+      { UserId: "user-id", Type: "AudioPlayback", Date: "2026-07-31T12:00:00Z", Name: "Bruno is playing Artist - Older track on Sonzra" }
+    ])
+    podcast_library_response = response.call(Items: [])
+    track_response = response.call(Items: [ { Id: "track-id", Name: "Monthly track", AlbumArtist: "Artist", Type: "Audio" } ])
+    http = FakeHttp.new([ authentication_response, activity_response, podcast_library_response, track_response ])
+
+    tracks = Integrations::Jellyfin::Client.new(base_url: "https://example.com", username: "bruno", password: "secret", http: http)
+      .monthly_top_tracks(Date.new(2026, 8, 31))
+
+    assert_equal [ "track-id" ], tracks.pluck("Id")
+    assert_equal "/System/ActivityLog/Entries", URI.parse(http.requests[1].path).path
+    assert_equal "Monthly track", URI.decode_www_form(URI.parse(http.requests[3].path).query).to_h["SearchTerm"]
+  end
+
   test "fetches stored lyrics and treats a missing lyric document as unavailable" do
     authentication_response = Net::HTTPOK.new("1.1", "200", "OK")
     authentication_response.instance_variable_set(:@read, true)
