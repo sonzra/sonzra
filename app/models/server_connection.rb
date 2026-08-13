@@ -4,6 +4,7 @@ class ServerConnection < ApplicationRecord
   belongs_to :user
   belongs_to :media_server
   has_many :listening_events, dependent: :destroy
+  has_many :hidden_artists, dependent: :destroy
 
   validates :username, presence: true
   validates :access_token, presence: true, unless: :password?

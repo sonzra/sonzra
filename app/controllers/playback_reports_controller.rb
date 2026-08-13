@@ -8,6 +8,7 @@ class PlaybackReportsController < ApplicationController
       item_id: params.expect(:item_id),
       position_ticks: params.expect(:position_ticks).to_i,
       paused: ActiveModel::Type::Boolean.new.cast(params.expect(:paused)),
+      duration_ticks: params[:duration_ticks].to_i,
       resumable: ActiveModel::Type::Boolean.new.cast(params[:resumable]),
       access_token: session.dig(:server_access_tokens, server_connection.id.to_s)
     ).call

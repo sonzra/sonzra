@@ -4,7 +4,7 @@ class ArtworkController < ApplicationController
     access_token = session.dig(:server_access_tokens, server_connection.id.to_s)
     return head :unauthorized unless access_token
 
-    artwork = Integrations::Jellyfin::Client.new(**server_connection.client_options).artwork(item_id: params.expect(:item_id), tag: params[:tag], access_token: access_token)
+    artwork = Integrations::Client.for(server_connection).artwork(item_id: params.expect(:item_id), tag: params[:tag], access_token: access_token)
 
     if params[:tag].present?
       expires_in 1.year, immutable: true

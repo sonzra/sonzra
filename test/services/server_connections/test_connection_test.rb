@@ -20,7 +20,7 @@ class ServerConnections::TestConnectionTest < ActiveSupport::TestCase
     result = ServerConnections::TestConnection.new(server_connection, client: client).call
 
     assert_not_predicate result, :success?
-    assert_equal "The username or password was rejected.", result.message
+    assert_equal "The saved server credentials were rejected.", result.message
   end
 
   private

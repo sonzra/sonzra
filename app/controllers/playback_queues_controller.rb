@@ -5,8 +5,9 @@ class PlaybackQueuesController < ApplicationController
     return render json: { error: result.message }, status: :bad_gateway unless result.success?
 
     session[:server_access_tokens] = session.fetch(:server_access_tokens, {}).merge(server_connection.id.to_s => result.access_token)
+    items = HiddenArtists::Filter.new(current_user, server_connection).items(result.items)
     render json: {
-      items: result.items.map do |item|
+      items: items.map do |item|
         {
           source: audio_server_connection_path(server_connection, item.fetch("Id")),
           item_id: item.fetch("Id"),

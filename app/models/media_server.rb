@@ -1,7 +1,7 @@
 require "uri"
 
 class MediaServer < ApplicationRecord
-  PROVIDERS = { jellyfin: "jellyfin" }.freeze
+  PROVIDERS = { jellyfin: "jellyfin", plex: "plex" }.freeze
 
   has_many :server_connections, dependent: :restrict_with_error
 

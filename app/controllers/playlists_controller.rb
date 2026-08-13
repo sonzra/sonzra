@@ -7,7 +7,13 @@ class PlaylistsController < ApplicationController
   end
 
   def create
-    render json: { id: client.create_playlist(params.expect(:name)) }, status: :created
+    playlist_id = if server_connection.media_server.plex?
+      client.create_playlist(params.expect(:name), item_ids: playlist_item_ids)
+    else
+      client.create_playlist(params.expect(:name))
+    end
+
+    render json: { id: playlist_id, item_included: server_connection.media_server.plex? }, status: :created
     cache_remote_user_id
   rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError => error
     render json: { error: error.message }, status: :bad_gateway
@@ -47,7 +53,7 @@ class PlaylistsController < ApplicationController
   end
 
   def client
-    @client ||= Integrations::Jellyfin::Client.new(**server_connection.client_options(remote_user_id: session_remote_user_id))
+    @client ||= Integrations::Client.for(server_connection, remote_user_id: session_remote_user_id)
   end
 
   def cache_remote_user_id
@@ -64,7 +70,7 @@ class PlaylistsController < ApplicationController
   def delete_error_message(error)
     return error.message unless error.message.start_with?("The server returned HTTP")
 
-    "Jellyfin couldn’t delete this playlist. Some playlists are managed outside Sonzra and can only be removed directly in Jellyfin."
+    "The server couldn’t delete this playlist. Some playlists are managed outside Sonzra and can only be removed directly in their server app."
   end
 
   def playlist_item_ids

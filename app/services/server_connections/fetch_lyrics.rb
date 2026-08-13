@@ -28,7 +28,7 @@ module ServerConnections
     private
 
     def client
-      @client ||= Integrations::Jellyfin::Client.new(**@server_connection.client_options(remote_user_id: @remote_user_id))
+      @client ||= Integrations::Client.for(@server_connection, remote_user_id: @remote_user_id)
     end
 
     def normalize_lines(lines)

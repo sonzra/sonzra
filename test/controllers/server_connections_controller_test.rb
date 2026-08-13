@@ -17,7 +17,9 @@ class ServerConnectionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "h1", "Server"
     assert_select "h2", "Home server"
     assert_select "a.connection-card__edit[href='#{edit_server_connection_path(@server_connection)}']"
-    assert_select "a[href='#{new_server_connection_path}']", count: 0
+    assert_select "a.primary-button", "Add server"
+    assert_select "form[action='#{test_connection_server_connection_path(@server_connection)}'] button", "Test"
+    assert_select "form[action='#{server_connection_path(@server_connection)}'] input[name='_method'][value='delete']"
   end
 
   test "shows a server connection" do
@@ -25,6 +27,13 @@ class ServerConnectionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h1", "Home server"
+  end
+
+  test "lets an administrator choose Plex when adding a shared server" do
+    get new_server_connection_url(setup: true)
+
+    assert_response :success
+    assert_select "select[name='server_connection[provider]'] option[value='plex']", "Plex"
   end
 
   test "renders an edit cancel link back to the servers list" do
@@ -118,6 +127,12 @@ class ServerConnectionsControllerTest < ActionDispatch::IntegrationTest
     assert_difference("ServerConnection.count", -1) do
       delete server_connection_url(@server_connection)
     end
+
+    assert_redirected_to server_connections_url
+  end
+
+  test "returns to the server index after testing a connection from there" do
+    post test_connection_server_connection_url(@server_connection), headers: { "Referer" => server_connections_url }
 
     assert_redirected_to server_connections_url
   end

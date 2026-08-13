@@ -17,7 +17,7 @@ module ServerConnections
     private
 
     def client
-      @client ||= Integrations::Jellyfin::Client.new(**@server_connection.client_options)
+      @client ||= Integrations::Client.for(@server_connection)
     end
   end
 end

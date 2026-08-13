@@ -33,11 +33,11 @@ class LibraryController < ApplicationController
 
   def genres
     @title = "Genres"
-    @server_connection = current_user.server_connections.order(:created_at).first
+    @server_connection = current_server_connection
     return render :no_server unless @server_connection
 
     @query = params[:q].presence
-    @result = ServerConnections::FetchLibraryCollection.new(@server_connection, :genres, page: 1, query: @query).call
+    @result = ServerConnections::FetchLibraryCollection.new(@server_connection, :genres, user: current_user, page: 1, query: @query).call
   end
 
   private
@@ -45,14 +45,14 @@ class LibraryController < ApplicationController
   def render_collection(collection, title)
     @title = title
     @collection = collection
-    @server_connection = current_user.server_connections.order(:created_at).first
+    @server_connection = current_server_connection
     return render :no_server unless @server_connection
 
     @page = [ params[:page].to_i, 1 ].max
     @query = params[:q].presence
     @genre = params[:genre].presence
     @title = "#{title} in #{@genre}" if @genre
-    @result = ServerConnections::FetchLibraryCollection.new(@server_connection, collection, page: @page, query: @query, genre: @genre).call
+    @result = ServerConnections::FetchLibraryCollection.new(@server_connection, collection, user: current_user, page: @page, query: @query, genre: @genre).call
     session[:server_access_tokens] = session.fetch(:server_access_tokens, {}).merge(@server_connection.id.to_s => @result.access_token) if @result.success?
   end
 end

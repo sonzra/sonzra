@@ -1,8 +1,8 @@
 <main class="settings-shell">
   <section class="form-page form-page--compact quick-connect" data-controller="quick-connect" data-quick-connect-status-url-value="<%= quick_connect_status_server_connections_path %>">
-    <div class="page-title"><h1>Approve Jellyfin connection</h1></div>
-    <p>In an already signed-in Jellyfin app, open <strong>Settings → Quick Connect</strong> and enter this code.</p>
-    <p class="quick-connect__code"><%= @quick_connect.fetch("code") %></p>
+    <% plex = @quick_connect["provider"] == "plex" %>
+    <div class="page-title"><h1>Approve <%= plex ? "Plex" : "Jellyfin" %> connection</h1></div>
+    <% if plex %><p>Sign in to Plex in the page that opens, then approve Sonzra’s connection.</p><%= link_to "Open Plex sign-in", @quick_connect.fetch("url"), class: "primary-button", target: "_blank", rel: "noopener" %><% else %><p>In an already signed-in Jellyfin app, open <strong>Settings → Quick Connect</strong> and enter this code.</p><p class="quick-connect__code"><%= @quick_connect.fetch("code") %></p><% end %>
     <p data-quick-connect-target="message">Waiting for approval…</p>
     <%= link_to "Cancel", server_connections_path, class: "secondary-button" %>
   </section>

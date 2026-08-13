@@ -309,7 +309,7 @@ module Integrations
         end
       end
 
-      def report_playback(event:, item_id:, position_ticks:, paused:, access_token: nil)
+      def report_playback(event:, item_id:, position_ticks:, paused:, duration_ticks: 0, access_token: nil)
         token = access_token || authentication.fetch("AccessToken")
         response = perform(playback_report_request(event, item_id, position_ticks, paused, token))
 

@@ -6,6 +6,9 @@ services:
     environment:
       SOLID_QUEUE_IN_PUMA: "true"
       RAILS_ASSUME_SSL: ${RAILS_ASSUME_SSL:-false}
+      # Required before enabling Plex connections. Generate once with `uuidgen`
+      # and preserve the value across restarts and upgrades.
+      PLEX_CLIENT_ID: ${PLEX_CLIENT_ID:-}
       # Optional: set a stable value through your secret manager. If omitted,
       # Sonzra generates and persists one in the named volume on first boot.
       # SONZRA_SECRET_KEY: change-me

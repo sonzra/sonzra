@@ -5,6 +5,8 @@ class User < ApplicationRecord
   has_many :recommendation_collections, dependent: :destroy
   has_many :recommendation_runs, dependent: :destroy
   has_many :listening_events, dependent: :destroy
+  has_many :hidden_artists, dependent: :destroy
+  belongs_to :preferred_server_connection, class_name: "ServerConnection", optional: true
 
   normalizes :email_address, with: ->(e) { e.strip.downcase }
 

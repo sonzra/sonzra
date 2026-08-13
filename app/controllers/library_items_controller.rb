@@ -1,7 +1,7 @@
 class LibraryItemsController < ApplicationController
   def show
     @server_connection = current_user.server_connections.find(params.expect(:server_connection_id))
-    @result = ServerConnections::FetchLibraryItemDetails.new(@server_connection, params.expect(:id)).call
+    @result = ServerConnections::FetchLibraryItemDetails.new(@server_connection, params.expect(:id), user: current_user).call
     return unless @result.success?
 
     session[:server_access_tokens] = session.fetch(:server_access_tokens, {}).merge(@server_connection.id.to_s => @result.access_token)

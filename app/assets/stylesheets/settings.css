@@ -64,6 +64,21 @@
   height: 17px;
 }
 
+.connection-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-right: 42px;
+}
+
+.connection-card__actions form {
+  margin: 0;
+}
+
+.connection-card__actions .secondary-button {
+  padding: 9px 14px;
+}
+
 .settings-intro--compact {
   display: flex;
   align-items: center;
@@ -156,6 +171,10 @@
 
   .connection-detail--compact {
     padding: 22px;
+  }
+
+  .connection-card__actions {
+    margin-right: 0;
   }
 
   .empty-state {

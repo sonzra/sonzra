@@ -14,6 +14,7 @@ class ServerConnections::ReportPlaybackTest < ActiveSupport::TestCase
       event: "started",
       item_id: "track-id",
       position_ticks: 0,
+      duration_ticks: 180_000_000,
       paused: false,
       access_token: "session-token",
       client: client
@@ -23,5 +24,6 @@ class ServerConnections::ReportPlaybackTest < ActiveSupport::TestCase
     assert_equal "token", result.access_token
     assert_equal "track-id", client.instance_variable_get(:@attributes)[:item_id]
     assert_equal "session-token", client.instance_variable_get(:@attributes)[:access_token]
+    assert_equal 180_000_000, client.instance_variable_get(:@attributes)[:duration_ticks]
   end
 end

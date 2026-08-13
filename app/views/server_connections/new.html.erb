@@ -1,6 +1,6 @@
 <main class="settings-shell">
   <section class="form-page form-page--compact">
-    <div class="page-title"><%= link_to server_connections_path, class: "back-link back-link--compact", aria: { label: "Back to server" }, title: "Back to server" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1><%= @media_server ? "Connect Jellyfin account" : "Set up server" %></h1></div>
-    <%= render "form", server_connection: @server_connection %>
+    <% page_title = if @media_server&.persisted? then "Connect #{@media_server.provider.capitalize} account" elsif @media_server then "Add server" else "Choose a server" end %><div class="page-title"><%= link_to server_connections_path, class: "back-link back-link--compact", aria: { label: "Back to server" }, title: "Back to server" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1><%= page_title %></h1></div>
+    <% if @media_server %><%= render "form", server_connection: @server_connection %><% elsif @available_media_servers.any? %><p class="form-hint">Choose a configured server to connect your account.</p><section class="connection-list"><% @available_media_servers.each do |media_server| %><article class="connection-card"><div><p class="connection-card__provider"><%= media_server.provider.capitalize %></p><h2><%= media_server.name %></h2><p><%= media_server.base_url %></p></div><%= link_to "Connect", new_server_connection_path(media_server_id: media_server.id), class: "secondary-button" %></article><% end %></section><% else %><section class="empty-state"><h2>No server is available</h2><p>An administrator needs to add a server before you can connect an account.</p></section><% end %>
   </section>
 </main>

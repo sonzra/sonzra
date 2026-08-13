@@ -4,13 +4,14 @@ class RadioTracksController < ApplicationController
     result = ServerConnections::FetchRadioTracks.new(
       server_connection,
       params.expect(:item_id),
+      limit: params[:limit].presence&.to_i&.clamp(1, 12) || 12,
       remote_user_id: session.dig(:server_remote_user_ids, server_connection.id.to_s)
     ).call
     return render json: { error: result.message }, status: :bad_gateway unless result.success?
 
     session[:server_access_tokens] = session.fetch(:server_access_tokens, {}).merge(server_connection.id.to_s => result.access_token)
     render json: {
-      items: result.items.map do |item|
+      items: HiddenArtists::Filter.new(current_user, server_connection).items(result.items).map do |item|
         {
           source: audio_server_connection_path(server_connection, item.fetch("Id")),
           item_id: item.fetch("Id"),

@@ -22,6 +22,7 @@ module ServerConnections
         item_id: item_id,
         position_ticks: 0,
         paused: true,
+        reset_position: true,
         access_token: access_token
       )
     end

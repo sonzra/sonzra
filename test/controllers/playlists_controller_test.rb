@@ -65,7 +65,7 @@ class PlaylistsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :created
-    assert_equal({ "id" => "playlist-9" }, JSON.parse(response.body))
+    assert_equal({ "id" => "playlist-9", "item_included" => false }, JSON.parse(response.body))
   end
 
   test "deletes a playlist" do

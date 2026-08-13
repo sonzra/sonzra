@@ -10,7 +10,7 @@ module ServerConnections
 
       TestConnectionResultData.new(success: true, message: "Connected as #{user_name}.")
     rescue Integrations::Jellyfin::Client::AuthenticationError
-      TestConnectionResultData.new(success: false, message: "The username or password was rejected.")
+      TestConnectionResultData.new(success: false, message: "The saved server credentials were rejected.")
     rescue Integrations::Jellyfin::Client::ConnectionError => error
       TestConnectionResultData.new(success: false, message: error.message)
     end
@@ -24,12 +24,7 @@ module ServerConnections
     end
 
     def build_client
-      case server_connection.provider
-      when "jellyfin"
-        Integrations::Jellyfin::Client.new(**server_connection.client_options)
-      else
-        raise ArgumentError, "Unsupported server provider: #{server_connection.provider}"
-      end
+      Integrations::Client.for(server_connection)
     end
   end
 end

@@ -1,0 +1,6 @@
+<main class="settings-shell">
+  <header class="settings-header settings-header--page">
+    <div class="page-title"><%= link_to server_connections_path, class: "back-link back-link--compact", aria: { label: "Back to server connections" } do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1>Server configurations</h1></div>
+  </header>
+  <% if @media_servers.any? %><section class="connection-list"><% @media_servers.each do |media_server| %><article class="connection-card"><div><p class="connection-card__provider"><%= media_server.provider.capitalize %></p><h2><%= media_server.name %></h2><p><%= media_server.base_url %> · <%= pluralize(media_server.server_connections.size, "user connection") %></p></div><% if media_server.server_connections.empty? %><%= button_to "Remove configuration", media_server, method: :delete, class: "text-button text-button--danger", form: { data: { turbo_confirm: "Remove #{media_server.name} from Sonzra?" } } %><% else %><p class="form-hint">Remove all user connections before removing this configuration.</p><% end %></article><% end %></section><% else %><section class="empty-state"><h2>No configured servers</h2><p>Add a server before connecting user accounts.</p></section><% end %>
+</main>

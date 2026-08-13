@@ -60,6 +60,8 @@ services:
       SOLID_QUEUE_IN_PUMA: "true"
       RAILS_ASSUME_SSL: "false"
       SONZRA_SECRET_KEY: "change-me"
+      # Required only when adding a Plex connection:
+      # PLEX_CLIENT_ID: "generate-and-keep-a-stable-uuid"
     volumes:
       - sonzra_storage:/rails/storage
 
@@ -82,6 +84,22 @@ Sonzra creates its own root secret on first boot and persists it in the storage
 volume. You may set `SONZRA_SECRET_KEY` through a secret manager; keep its
 value unchanged for the lifetime of the installation.
 
+### Plex client identity (optional)
+
+Jellyfin-only installations do not need `PLEX_CLIENT_ID`. Before adding a Plex
+connection, set it to a UUID generated once for this Sonzra installation:
+
+```bash
+uuidgen
+```
+
+Store it in your deployment environment or secret manager and keep it stable
+across restarts and upgrades. Multiple replicas of the same Sonzra deployment
+must share the value; separate Sonzra installations must use different values.
+It identifies this installed Sonzra client to Plex, rather than an individual
+release or user. Plex connection support is enabled only after its local-server
+validation is complete.
+
 ### Docker
 
 ```bash
@@ -91,6 +109,9 @@ docker run -d --name sonzra --restart unless-stopped -p 3000:3000 \
   -v sonzra_storage:/rails/storage \
   ghcr.io/sonzra/sonzra:0.0.1-alpha
 ```
+
+When adding a Plex connection, also pass
+`-e PLEX_CLIENT_ID="$PLEX_CLIENT_ID"` to the container.
 
 For a private GitHub Container Registry image, authenticate the host first with
 `docker login ghcr.io`.
