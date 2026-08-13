@@ -174,24 +174,25 @@
   height:38px;
 }
 
-.listen-queue__item-menu>summary{
+.listen-queue__item-menu-toggle{
   display:grid;
   width:100%;
   height:100%;
+  padding:0;
   place-items:center;
   border:1px solid #ffffff20;
   border-radius:50%;
   background:#ffffff0b;
   color:#eeeaf7;
+  font:inherit;
   cursor:pointer;
   list-style:none;
 }
 
-.listen-queue__item-menu>summary::-webkit-details-marker{display:none}
-.listen-queue__item-menu>summary:hover,.listen-queue__item-menu[open]>summary{border-color:#a990ff;background:#7a5af833;outline:0}
-.listen-queue__item-menu>summary svg{width:18px;height:18px}
-.listen-queue__item-menu-actions{position:absolute;z-index:4;right:0;bottom:44px;display:none;min-width:194px;padding:6px;border:1px solid #ffffff22;border-radius:12px;background:#1c1b2bef;box-shadow:0 14px 30px #0009;backdrop-filter:blur(16px)}
-.listen-queue__item-menu[open] .listen-queue__item-menu-actions{display:grid;gap:2px}
+.listen-queue__item-menu-toggle:hover,.listen-queue__item-menu.is-open>.listen-queue__item-menu-toggle{border-color:#a990ff;background:#7a5af833;outline:0}
+.listen-queue__item-menu-toggle svg{width:18px;height:18px}
+.listen-queue__item-menu-actions{position:fixed;z-index:10000;top:var(--queue-menu-top);left:var(--queue-menu-left);display:grid;gap:2px;min-width:194px;padding:6px;border:1px solid #ffffff22;border-radius:12px;background:#1c1b2bef;box-shadow:0 14px 30px #0009;backdrop-filter:blur(16px)}
+.listen-queue__item-menu-actions[hidden]{display:none}
 .listen-queue__item-menu-action{display:flex;align-items:center;gap:9px;width:100%;padding:10px;border:0;border-radius:8px;background:transparent;color:var(--text);font:inherit;font-size:13px;font-weight:750;text-align:left;white-space:nowrap;cursor:pointer}
 .listen-queue__item-menu-action:hover,.listen-queue__item-menu-action:focus-visible{background:#ffffff12;outline:0}
 .listen-queue__item-menu-action svg{width:16px;height:16px}.listen-queue__item-menu-action.is-active{color:#ff9ab0}.listen-queue__item-menu-action.listen-queue__item-remove{color:#fecaca}
@@ -251,7 +252,7 @@
     height:32px;
   }
 
-  .listen-queue__item-menu{width:32px;height:32px}.listen-queue__item-menu-actions{bottom:38px;min-width:184px}.listen-queue__item-menu>summary svg{width:16px;height:16px}
+  .listen-queue__item-menu{width:32px;height:32px}.listen-queue__item-menu-actions{min-width:184px}.listen-queue__item-menu-toggle svg{width:16px;height:16px}
 
   .listen-queue__item-details strong{
     font-size:12px;

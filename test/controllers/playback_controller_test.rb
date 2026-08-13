@@ -47,4 +47,26 @@ class PlaybackControllerTest < ActionDispatch::IntegrationTest
     assert_equal "bytes", response.headers["Accept-Ranges"]
     assert_equal "audio-data", response.body
   end
+
+  test "does not treat a cancelled browser audio request as a server error" do
+    client = Class.new do
+      def stream_audio(**)
+        yield "audio-data"
+      end
+    end.new
+    client_class = Integrations::Jellyfin::Client
+    original_new = client_class.method(:new)
+    client_class.define_singleton_method(:new) { |**_attributes| client }
+    original_write = ActionController::Live::Buffer.instance_method(:write)
+    ActionController::Live::Buffer.define_method(:write) { |_part| raise ActionController::Live::ClientDisconnected }
+
+    begin
+      get audio_server_connection_url(@server_connection, "track-id")
+    ensure
+      client_class.define_singleton_method(:new, original_new)
+      ActionController::Live::Buffer.define_method(:write, original_write)
+    end
+
+    assert_not_equal 500, response.status
+  end
 end

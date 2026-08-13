@@ -13,6 +13,7 @@ class PlaybackController < ApplicationController
     head :unauthorized
   rescue Integrations::Jellyfin::Client::ConnectionError
     head :bad_gateway
+  rescue ActionController::Live::ClientDisconnected
   ensure
     response.stream.close
   end
@@ -20,7 +21,7 @@ class PlaybackController < ApplicationController
   private
 
   def client
-    @client ||= Integrations::Jellyfin::Client.new(**server_connection.client_options)
+    @client ||= Integrations::Client.for(server_connection)
   end
 
   def server_connection

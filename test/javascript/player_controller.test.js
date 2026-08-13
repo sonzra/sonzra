@@ -223,8 +223,39 @@ describe("player controller", () => {
 
     expect(document.querySelector(".listen-queue__item-playlist").getAttribute("aria-label")).toBe("Add A track to playlist")
     expect(document.querySelector(".listen-queue__item-menu")).not.toBeNull()
-    expect(document.querySelector(".listen-queue__item-menu summary svg")).not.toBeNull()
+    expect(document.querySelector(".listen-queue__item-menu-toggle svg")).not.toBeNull()
     expect(document.querySelectorAll(".listen-queue__item-action")).toHaveLength(1)
+  })
+
+  it("positions an open queue menu outside the scrollable queue list", async () => {
+    document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", '<section data-player-target="queuePanel"><ol data-player-target="queueList"></ol></section>')
+    controller.queue = [ { source: "/server_connections/1/audio/track-1.mp3", title: "A track", artist: "An artist" } ]
+    controller.currentIndex = 0
+    await Promise.resolve()
+    controller.renderQueue()
+
+    const toggle = document.querySelector(".listen-queue__item-menu-toggle")
+    const menu = document.querySelector(".listen-queue__item-menu-actions")
+    toggle.getBoundingClientRect = () => ({ top: 20, bottom: 58, right: 320 })
+    menu.getBoundingClientRect = () => ({ width: 194, height: 160 })
+    toggle.click()
+
+    expect(menu.style.getPropertyValue("--queue-menu-left")).toBe("126px")
+    expect(menu.style.getPropertyValue("--queue-menu-top")).toBe("64px")
+    expect(menu.parentElement).toBe(document.querySelector("[data-player-target='queuePanel']"))
+  })
+
+  it("dismisses an open queue menu when clicking outside it", async () => {
+    document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", '<section data-player-target="queuePanel"><ol data-player-target="queueList"></ol></section>')
+    controller.queue = [ { source: "/server_connections/1/audio/track-1.mp3", title: "A track", artist: "An artist" } ]
+    controller.currentIndex = 0
+    await Promise.resolve()
+    controller.renderQueue()
+
+    document.querySelector(".listen-queue__item-menu-toggle").click()
+    document.body.click()
+
+    expect(document.querySelector(".listen-queue__item-menu-actions")).toBeNull()
   })
 
   it("updates the queue favourite icon when favouriting from the player", async () => {

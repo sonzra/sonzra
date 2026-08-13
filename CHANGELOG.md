@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 0.0.12-alpha — 2026-08-13
+
+### Added
+
+- Plex server connections, including secure Plex account linking and multi-server switching.
+- Plex support for browsing, playback reporting and resume, playlists, favourites, radio, lyrics, mixes, audiobooks, and podcasts.
+- A per-user Hidden artists library, with tools to restore hidden artists later.
+
+### Changed
+
+- The active server is remembered in the user profile and current session; switching servers clears the active player queue and cached dashboard content.
+- Hidden artists are excluded from browsing, search, home shelves, mixes, radio, playback queues, and local downloads.
+- Server setup and administration now use provider-neutral language.
+- Queue track actions use an overflow menu that remains accessible at the top of the list and dismisses on outside clicks.
+- Cancelled audio-stream requests now end quietly instead of being logged as server errors.
+
 ## 0.0.11-alpha — 2026-08-12
 
 ### Added

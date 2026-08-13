@@ -48,6 +48,7 @@ export default class extends Controller {
     window.addEventListener("sonzra:native-media-command", this.boundHandleNativeMediaCommand)
     document.addEventListener("visibilitychange", this.boundHandleVisibilityChange)
     document.addEventListener("turbo:load", this.boundSyncPageTrackControls)
+    document.addEventListener("click", this.boundDismissQueueMenu)
     this.reconcilePlayback()
     this.syncPageTrackControls()
   }
@@ -77,6 +78,7 @@ export default class extends Controller {
     window.removeEventListener("sonzra:native-media-command", this.boundHandleNativeMediaCommand)
     document.removeEventListener("visibilitychange", this.boundHandleVisibilityChange)
     document.removeEventListener("turbo:load", this.boundSyncPageTrackControls)
+    document.removeEventListener("click", this.boundDismissQueueMenu)
     this.stopProgressWatch()
     this.clearPlaybackRecovery()
     this.lyricsRequest?.abort()
@@ -525,6 +527,7 @@ export default class extends Controller {
     const firstVisibleIndex = Math.max(0, this.currentIndex - 3)
     if (!this.hasQueueListTarget) return
 
+    this.closeQueueMenu()
     this.queueListTarget.textContent = ""
     this.queue.slice(firstVisibleIndex).forEach((track, index) => {
       const item = document.createElement("li")
@@ -551,14 +554,30 @@ export default class extends Controller {
       playButton.className = "listen-queue__item-action listen-queue__item-play"
       playButton.classList.toggle("is-current", isCurrent)
       playButton.addEventListener("click", () => isCurrent ? this.toggle() : this.playQueueIndex(queueIndex))
-      const moreMenu = document.createElement("details")
+      const moreMenu = document.createElement("div")
       moreMenu.className = "listen-queue__item-menu"
-      const moreToggle = document.createElement("summary")
+      const moreToggle = document.createElement("button")
+      moreToggle.type = "button"
+      moreToggle.className = "listen-queue__item-menu-toggle"
       moreToggle.ariaLabel = `More actions for ${track.title}`
       moreToggle.innerHTML = this.icon("ellipsis")
       const moreActions = document.createElement("div")
       moreActions.className = "listen-queue__item-menu-actions"
-      const closeMoreMenu = () => moreMenu.removeAttribute("open")
+      moreActions.hidden = true
+      const closeMoreMenu = () => this.closeQueueMenu()
+      moreToggle.addEventListener("click", () => {
+        const opening = this.activeQueueMenu !== moreActions
+        this.closeQueueMenu()
+        if (!opening) return
+
+        moreActions.style.visibility = "hidden"
+        moreActions.hidden = false
+        moreMenu.classList.add("is-open")
+        this.queuePanelTarget.append(moreActions)
+        this.activeQueueMenu = moreActions
+        this.activeQueueMenuToggle = moreMenu
+        this.positionQueueMenu(moreToggle, moreActions)
+      })
       if (!this.offlineMode) {
         const favoriteButton = document.createElement("button")
         favoriteButton.type = "button"
@@ -593,6 +612,35 @@ export default class extends Controller {
       this.queueListTarget.appendChild(item)
     })
     if (this.queue.length === 0) this.queueListTarget.textContent = "Nothing queued"
+  }
+
+  positionQueueMenu(toggle, menu) {
+    requestAnimationFrame(() => {
+      const toggleBounds = toggle.getBoundingClientRect()
+      const menuBounds = menu.getBoundingClientRect()
+      const edge = 8
+      const left = Math.max(edge, Math.min(toggleBounds.right - menuBounds.width, window.innerWidth - menuBounds.width - edge))
+      const top = toggleBounds.top >= menuBounds.height + edge ? toggleBounds.top - menuBounds.height - 6 : toggleBounds.bottom + 6
+
+      menu.style.setProperty("--queue-menu-left", `${left}px`)
+      menu.style.setProperty("--queue-menu-top", `${top}px`)
+      menu.style.visibility = "visible"
+    })
+  }
+
+  closeQueueMenu() {
+    if (!this.activeQueueMenu) return
+
+    this.activeQueueMenu.remove()
+    this.activeQueueMenuToggle?.classList.remove("is-open")
+    this.activeQueueMenu = null
+    this.activeQueueMenuToggle = null
+  }
+
+  dismissQueueMenu(event) {
+    if (!this.activeQueueMenu || this.activeQueueMenu.contains(event.target) || this.activeQueueMenuToggle?.contains(event.target)) return
+
+    this.closeQueueMenu()
   }
 
   updateRepeatControls() {
@@ -814,7 +862,7 @@ export default class extends Controller {
           "Content-Type": "application/json",
           "X-CSRF-Token": document.querySelector("meta[name='csrf-token']")?.content
         },
-        body: JSON.stringify({ event, item_id: this.currentTrack.itemId, position_ticks: positionTicks, paused: this.audioTarget.paused, resumable: this.currentTrack.resumable && !this.audioTarget.ended }),
+        body: JSON.stringify({ event, item_id: this.currentTrack.itemId, position_ticks: positionTicks, duration_ticks: Math.round((Number(this.audioTarget.duration) || 0) * 10_000_000), paused: this.audioTarget.paused, resumable: this.currentTrack.resumable && !this.audioTarget.ended }),
         keepalive
       }).catch(() => {})
     } catch (_) {
@@ -1178,6 +1226,7 @@ export default class extends Controller {
     this.boundHandleVisibilityChange = this.handleVisibilityChange.bind(this)
     this.boundHandleNativeMediaCommand = this.handleNativeMediaCommand.bind(this)
     this.boundSyncPageTrackControls = this.syncPageTrackControls.bind(this)
+    this.boundDismissQueueMenu = this.dismissQueueMenu.bind(this)
   }
 
   startProgressWatch() {
