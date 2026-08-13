@@ -7,9 +7,11 @@ log/*
 tmp/*
 storage/*
 public/assets
+public/demo-covers
 coverage
 test
 docs
+website
 config/master.key
 config/*.key
 config/credentials.yml.enc
