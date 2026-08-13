@@ -21,7 +21,7 @@ describe("card options controller", () => {
     }
     fetchMock = vi.fn(async (url, options = {}) => {
       if (options.method === "POST" && url === "/server_connections/1/playlists") {
-        return { ok: true, json: async () => ({ id: "playlist-1" }) }
+        return { ok: true, json: async () => ({ id: "playlist-1", item_included: true }) }
       }
       if (options.method === "POST") return { ok: true }
       return {
@@ -99,7 +99,7 @@ describe("card options controller", () => {
     expect(document.querySelector("[data-player-target='queueFeedback']").textContent).toBe("Track added to playlist")
   })
 
-  it("creates a playlist before adding the selected track", async () => {
+  it("creates a playlist with the selected track", async () => {
     await cardOptionsController.openPlaylistPicker()
 
     document.querySelector("[data-card-options-target='playlistName']").value = "Road trip"
@@ -112,27 +112,19 @@ describe("card options controller", () => {
       "/server_connections/1/playlists",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ name: "Road trip" })
-      })
-    )
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      3,
-      "/server_connections/1/playlists/playlist-1/items",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ item_id: "track-1", item_type: "Audio" })
+        body: JSON.stringify({ name: "Road trip", item_id: "track-1", item_type: "Audio" })
       })
     )
   })
 
-  it("accepts a playlist object when creating a playlist", async () => {
+  it("does not make a second request when Plex created the playlist with the selected track", async () => {
     fetchMock.mockImplementationOnce(async () => ({
       ok: true,
       json: async () => [ { Id: "playlist-1", Name: "Road trip" } ]
     })).mockImplementationOnce(async () => ({
       ok: true,
-      json: async () => ({ Id: "playlist-2" })
-    })).mockImplementationOnce(async () => ({ ok: true }))
+      json: async () => ({ Id: "playlist-2", item_included: true })
+    }))
 
     await cardOptionsController.openPlaylistPicker()
 
@@ -141,14 +133,7 @@ describe("card options controller", () => {
     await Promise.resolve()
     await Promise.resolve()
 
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      3,
-      "/server_connections/1/playlists/playlist-2/items",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ item_id: "track-1", item_type: "Audio" })
-      })
-    )
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
   it("opens the playlist modal before the playlists request resolves", async () => {

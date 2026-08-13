@@ -7,6 +7,7 @@
     <button type="button" data-card-options-target="playlistAction" data-action="click->card-options#openPlaylistPicker" hidden><%= lucide_icon "list-plus", aria: { hidden: true } %> Add to playlist</button>
     <button type="button" data-card-options-target="offlineAction" data-action="touchend->card-options#downloadForOffline click->card-options#downloadForOffline" hidden><%= lucide_icon "download", aria: { hidden: true } %> <span data-card-options-target="offlineLabel">Download for offline</span></button>
     <button type="button" data-card-options-target="deletePlaylistAction" data-action="touchend->card-options#deletePlaylist click->card-options#deletePlaylist" hidden><%= lucide_icon "trash-2", aria: { hidden: true } %> Delete playlist</button>
+    <button type="button" data-card-options-target="hideArtistAction" data-action="touchend->card-options#hideArtist click->card-options#hideArtist" hidden><%= lucide_icon "eye-off", aria: { hidden: true } %> Hide artist</button>
     <button type="button" data-card-options-target="resetAction" data-action="touchend->card-options#resetPlaybackPosition click->card-options#resetPlaybackPosition" hidden><%= lucide_icon "rotate-ccw", aria: { hidden: true } %> Start from the beginning</button>
   </div>
 </section>

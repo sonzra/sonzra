@@ -62,4 +62,20 @@ class RecommendationGeneratorTest < ActiveSupport::TestCase
     assert_equal 20, collection.recommendation_tracks.count
     assert_operator collection.recommendation_tracks.group_by(&:album_id).values.map(&:size).max, :<=, 2
   end
+
+  test "creates separate snapshots when the user switches servers" do
+    plex_connection = ServerConnection.create!(name: "Plex", provider: :plex, base_url: "https://plex.example.com", username: "bruno", access_token: "token", user: users(:one))
+    items = [ { "Id" => "track", "Name" => "Track", "AlbumArtist" => "Artist", "AlbumId" => "album", "Album" => "Album", "RunTimeTicks" => 180_000_000 } ]
+    jellyfin_client = Object.new
+    jellyfin_client.define_singleton_method(:recommendation_tracks) { |_, _| items }
+    plex_client = Object.new
+    plex_client.define_singleton_method(:recommendation_tracks) { |_, _| items }
+
+    first = RecommendationGenerator.new(user: users(:one), strategy: "best_of_genre", period_date: Date.new(2026, 8, 13), client: jellyfin_client).call
+    users(:one).update!(preferred_server_connection: plex_connection)
+    second = RecommendationGenerator.new(user: users(:one), strategy: "best_of_genre", period_date: Date.new(2026, 8, 13), client: plex_client).call
+
+    assert_not_equal first.id, second.id
+    assert_equal [ @connection.id, plex_connection.id ].sort, users(:one).recommendation_collections.where(strategy: "best_of_genre", period_date: Date.new(2026, 8, 13)).pluck(:server_connection_id).sort
+  end
 end

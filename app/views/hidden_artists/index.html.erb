@@ -1,0 +1,4 @@
+<main class="settings-shell">
+  <header class="settings-header settings-header--page"><div class="page-title"><%= link_to root_path, class: "back-link back-link--compact", aria: { label: "Back to home" } do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1>Hidden artists</h1></div></header>
+  <% if @hidden_artists.any? %><section class="connection-list"><% @hidden_artists.each do |artist| %><article class="connection-card"><div><p class="connection-card__provider"><%= artist.server_connection.name %></p><h2><%= artist.name %></h2></div><%= button_to "Unhide", hidden_artist_path(artist), method: :delete, class: "secondary-button" %></article><% end %></section><% else %><section class="empty-state"><h2>No hidden artists</h2><p>Artists you hide will appear here.</p></section><% end %>
+</main>

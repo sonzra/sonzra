@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 import { OfflineMediaStore, OfflineMediaStoreError } from "offline_media_store"
 
 export default class extends Controller {
-  static targets = ["sheet", "queueAction", "resetAction", "favoriteAction", "favoriteLabel", "playlistAction", "offlineAction", "offlineLabel", "deletePlaylistAction", "playlistDialog", "playlistList", "playlistName", "playlistFeedback", "panel", "loader", "loaderMessage", "loaderCancel"]
+  static targets = ["sheet", "queueAction", "resetAction", "favoriteAction", "favoriteLabel", "playlistAction", "offlineAction", "offlineLabel", "deletePlaylistAction", "hideArtistAction", "playlistDialog", "playlistList", "playlistName", "playlistFeedback", "panel", "loader", "loaderMessage", "loaderCancel"]
 
   connect() {
     this.boundCloseOnOutsideClick = this.closeOnOutsideClick.bind(this)
@@ -142,6 +142,31 @@ export default class extends Controller {
     this.playlistActionTarget.dataset.cardOptionsItemType = options?.dataset.cardOptionsItemType || ""
     this.deletePlaylistActionTarget.hidden = !options?.dataset.cardOptionsDeletePlaylistUrl
     this.deletePlaylistActionTarget.dataset.cardOptionsDeletePlaylistUrl = options?.dataset.cardOptionsDeletePlaylistUrl || ""
+    if (this.hasHideArtistActionTarget) {
+      this.hideArtistActionTarget.hidden = !options?.dataset.cardOptionsHideUrl
+      this.hideArtistActionTarget.dataset.cardOptionsHideUrl = options?.dataset.cardOptionsHideUrl || ""
+      this.hideArtistActionTarget.dataset.cardOptionsHideArtistId = options?.dataset.cardOptionsHideArtistId || ""
+      this.hideArtistActionTarget.dataset.cardOptionsHideName = options?.dataset.cardOptionsHideName || ""
+      this.hideArtistActionTarget.dataset.cardOptionsHideServerConnectionId = options?.dataset.cardOptionsHideServerConnectionId || ""
+    }
+  }
+
+  async hideArtist(event) {
+    event.preventDefault()
+    const action = event.currentTarget
+    const hideUrl = action.dataset.cardOptionsHideUrl || this.hideArtistActionTarget.dataset.cardOptionsHideUrl
+    const artistId = action.dataset.cardOptionsHideArtistId || this.hideArtistActionTarget.dataset.cardOptionsHideArtistId
+    const name = action.dataset.cardOptionsHideName || this.hideArtistActionTarget.dataset.cardOptionsHideName
+    const serverConnectionId = action.dataset.cardOptionsHideServerConnectionId || this.hideArtistActionTarget.dataset.cardOptionsHideServerConnectionId
+    const response = await fetch(hideUrl, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json", "X-CSRF-Token": document.querySelector("meta[name='csrf-token']")?.content },
+      body: JSON.stringify({ artist_id: artistId, name, server_connection_id: serverConnectionId })
+    })
+    if (response.ok) {
+      await this.offlineStore().removeByArtist(name)
+      window.Turbo?.visit(window.location.href)
+    }
   }
 
   async configureOfflineAction(playButton) {
@@ -259,14 +284,24 @@ export default class extends Controller {
   async createPlaylist(event) {
     event.preventDefault()
     this.showLoader("Creating playlist…")
-    const response = await fetch(this.playlistActionTarget.dataset.cardOptionsPlaylistsUrl, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", "X-CSRF-Token": document.querySelector("meta[name='csrf-token']")?.content }, body: JSON.stringify({ name: this.playlistNameTarget.value }) })
+    const itemType = this.playlistActionTarget.dataset.cardOptionsItemType
+    const response = await fetch(this.playlistActionTarget.dataset.cardOptionsPlaylistsUrl, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", "X-CSRF-Token": document.querySelector("meta[name='csrf-token']")?.content }, body: JSON.stringify({ name: this.playlistNameTarget.value, item_id: this.playlistActionTarget.dataset.cardOptionsItemId, item_type: itemType }) })
     if (!response.ok) {
       this.hideLoader()
       this.playerController()?.showFeedback("Couldn’t create this playlist right now")
       return
     }
 
-    await this.addToPlaylist(await response.json())
+    const playlist = await response.json()
+    this.playlistsCache = null
+    if (playlist.item_included) {
+      this.closePlaylistPicker()
+      this.hideLoader()
+      this.playerController()?.showFeedback(itemType === "MusicAlbum" ? "Playlist created and album added" : "Playlist created and track added")
+      return
+    }
+
+    await this.addToPlaylist(playlist)
   }
 
   async addToPlaylist(playlistId) {

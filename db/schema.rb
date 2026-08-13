@@ -10,11 +10,23 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_12_202000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_13_143000) do
   create_table "application_settings", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.boolean "registrations_enabled", default: true, null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "hidden_artists", force: :cascade do |t|
+    t.string "artist_id", null: false
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.integer "server_connection_id", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["server_connection_id"], name: "index_hidden_artists_on_server_connection_id"
+    t.index ["user_id", "server_connection_id", "artist_id"], name: "index_hidden_artists_on_connection_and_artist", unique: true
+    t.index ["user_id"], name: "index_hidden_artists_on_user_id"
   end
 
   create_table "listening_events", force: :cascade do |t|
@@ -60,7 +72,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_12_202000) do
     t.datetime "updated_at", null: false
     t.integer "user_id", null: false
     t.index ["server_connection_id"], name: "index_recommendation_collections_on_server_connection_id"
-    t.index ["user_id", "strategy", "period_date"], name: "index_recommendations_on_user_strategy_period", unique: true
+    t.index ["user_id", "server_connection_id", "strategy", "period_date"], name: "index_recommendations_on_user_connection_strategy_period", unique: true
     t.index ["user_id"], name: "index_recommendation_collections_on_user_id"
   end
 
@@ -70,12 +82,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_12_202000) do
     t.datetime "generated_at"
     t.date "period_date", null: false
     t.integer "recommendation_collection_id"
+    t.integer "server_connection_id"
     t.string "status", default: "pending", null: false
     t.string "strategy", null: false
     t.datetime "updated_at", null: false
     t.integer "user_id", null: false
     t.index ["recommendation_collection_id"], name: "index_recommendation_runs_on_recommendation_collection_id"
-    t.index ["user_id", "strategy", "period_date"], name: "index_recommendation_runs_on_user_strategy_period", unique: true
+    t.index ["server_connection_id"], name: "index_recommendation_runs_on_server_connection_id"
+    t.index ["user_id", "server_connection_id", "strategy", "period_date"], name: "index_recommendation_runs_on_user_connection_strategy_period", unique: true
     t.index ["user_id"], name: "index_recommendation_runs_on_user_id"
   end
 
@@ -84,6 +98,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_12_202000) do
     t.string "album_artist"
     t.string "album_id"
     t.string "artist"
+    t.string "artist_id"
     t.string "artwork_item_id"
     t.datetime "created_at", null: false
     t.string "duration"
@@ -119,24 +134,42 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_12_202000) do
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
+  create_table "tv_device_sessions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "last_used_at"
+    t.string "token_digest", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["token_digest"], name: "index_tv_device_sessions_on_token_digest", unique: true
+    t.index ["user_id"], name: "index_tv_device_sessions_on_user_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.boolean "admin", default: false, null: false
     t.datetime "created_at", null: false
     t.string "email_address", null: false
     t.string "password_digest", null: false
+    t.integer "preferred_server_connection_id"
     t.datetime "updated_at", null: false
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
+    t.index ["preferred_server_connection_id"], name: "index_users_on_preferred_server_connection_id"
   end
 
+  add_foreign_key "hidden_artists", "server_connections"
+  add_foreign_key "hidden_artists", "users"
   add_foreign_key "listening_events", "server_connections"
   add_foreign_key "listening_events", "users"
   add_foreign_key "recommendation_collection_events", "recommendation_collections"
   add_foreign_key "recommendation_collections", "server_connections"
   add_foreign_key "recommendation_collections", "users"
   add_foreign_key "recommendation_runs", "recommendation_collections"
+  add_foreign_key "recommendation_runs", "server_connections"
   add_foreign_key "recommendation_runs", "users"
   add_foreign_key "recommendation_tracks", "recommendation_collections"
   add_foreign_key "server_connections", "media_servers"
   add_foreign_key "server_connections", "users"
   add_foreign_key "sessions", "users"
+  add_foreign_key "tv_device_sessions", "users"
+  add_foreign_key "users", "server_connections", column: "preferred_server_connection_id"
 end

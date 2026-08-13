@@ -84,6 +84,16 @@ describe("offline media store", () => {
     expect(store.catalog()).toEqual([])
   })
 
+  it("removes downloaded tracks for a hidden artist", async () => {
+    const store = new OfflineMediaStore({ scope: "user-1", cacheStorage, storage, fetcher: vi.fn(async () => responseWithClone()) })
+    await store.download({ source: "/audio/one", artist: "Artist A" })
+    await store.download({ source: "/audio/two", artist: "Artist B" })
+
+    await store.removeByArtist("Artist A")
+
+    expect(store.catalog().map((track) => track.source)).toEqual([ "/audio/two" ])
+  })
+
   it("removes a whole album atomically without leaving its other tracks behind", async () => {
     const store = new OfflineMediaStore({ scope: "user-1", cacheStorage, storage, fetcher: vi.fn(async () => responseWithClone()) })
     await store.download({ source: "/audio/one" })

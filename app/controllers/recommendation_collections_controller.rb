@@ -1,10 +1,11 @@
 class RecommendationCollectionsController < ApplicationController
   def index
-    @recommendation_collections = current_user.recommendation_collections.includes(:recommendation_tracks, :server_connection).order(generated_at: :desc)
+    @recommendation_collections = current_user.recommendation_collections.where(server_connection: current_server_connection).includes(:recommendation_tracks, :server_connection).order(generated_at: :desc)
   end
 
   def show
     @collection = current_user.recommendation_collections.includes(:recommendation_tracks, :server_connection).find(params.expect(:id))
+    @tracks = visible_tracks
     @media_detail_header = true
     @media_detail_title = @collection.title
     @back_path = recommendation_collections_path
@@ -15,7 +16,7 @@ class RecommendationCollectionsController < ApplicationController
       format.json do
         connection = @collection.server_connection
         render json: {
-          items: @collection.recommendation_tracks.map do |track|
+          items: @tracks.map do |track|
         {
           source: audio_server_connection_path(connection, track.item_id), item_id: track.item_id,
           reporting_url: playback_reports_server_connection_path(connection), title: track.title,
@@ -33,5 +34,14 @@ class RecommendationCollectionsController < ApplicationController
     collection = current_user.recommendation_collections.find(params.expect(:id))
     collection.recommendation_collection_events.create!(event_type: params.expect(:event_type), occurred_at: Time.current)
     head :created
+  end
+
+  private
+
+  def visible_tracks
+    hidden_artists = current_user.hidden_artists.where(server_connection: @collection.server_connection)
+    hidden_ids = hidden_artists.pluck(:artist_id)
+    hidden_names = hidden_artists.pluck(:name)
+    @collection.recommendation_tracks.reject { |track| hidden_ids.include?(track.artist_id) || (track.artist_id.blank? && hidden_names.include?(track.artist)) }
   end
 end

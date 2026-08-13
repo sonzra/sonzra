@@ -26,4 +26,12 @@ class RecommendationCollectionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :created
     assert_equal "started", @collection.recommendation_collection_events.last.event_type
   end
+
+  test "does not expose a hidden artist from a previously generated mix" do
+    HiddenArtist.create!(user: users(:one), server_connection: @connection, artist_id: "artist-1", name: "Artist")
+
+    get recommendation_collection_url(@collection), headers: { "Accept" => "application/json" }
+
+    assert_equal [], JSON.parse(response.body).fetch("items")
+  end
 end

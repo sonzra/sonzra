@@ -7,20 +7,21 @@ module ServerConnections
       cache.delete([ "server_connection", server_connection.cache_key_with_version, "home_content", CACHE_VERSION ])
     end
 
-    def initialize(server_connection, access_token:, fetch_home_content: nil, cache: Rails.cache)
+    def initialize(server_connection, access_token:, user: nil, fetch_home_content: nil, cache: Rails.cache)
       @server_connection = server_connection
       @access_token = access_token
+      @user = user
       @fetch_home_content = fetch_home_content
       @cache = cache
     end
 
     def call
       cached_content = cache.read(cache_key)
-      return cached_result(cached_content) if cached_content && access_token.present?
+      return filter_result(cached_result(cached_content)) if cached_content && access_token.present?
 
       result = fetch_home_content.call
       cache.write(cache_key, result.content, expires_in: CACHE_TTL) if result.success?
-      result
+      filter_result(result)
     end
 
     private
@@ -37,6 +38,14 @@ module ServerConnections
 
     def fetch_home_content
       @fetch_home_content ||= FetchHomeContent.new(server_connection)
+    end
+
+    def filter_result(result)
+      return result unless result.success? && @user
+
+      filter = HiddenArtists::Filter.new(@user, server_connection)
+      content = result.content.transform_values { |value| value.is_a?(Array) ? filter.items(value) : value }
+      FetchHomeContentResultData.new(content:, access_token: result.access_token, message: result.message)
     end
   end
 end

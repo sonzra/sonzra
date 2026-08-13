@@ -149,6 +149,12 @@ export class OfflineMediaStore {
     this.saveCollections(this.collections().map((collection) => ({ ...collection, sources: collection.sources.filter((source) => !sourceSet.has(source)) })).filter((collection) => collection.sources.length > 0))
   }
 
+  async removeByArtist(artist) {
+    if (!artist) return
+
+    await this.removeAll(this.catalog().filter((track) => track.artist === artist || track.albumArtist === artist).map((track) => track.source))
+  }
+
   catalog() {
     try {
       return JSON.parse(this.storage?.getItem(this.catalogKey()) || "[]")

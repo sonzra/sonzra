@@ -17,13 +17,14 @@ class RecommendationGenerator
   end
 
   def call
-    run = @user.recommendation_runs.find_or_create_by!(strategy: @strategy, period_date: @period_date)
+    connection = @user.preferred_server_connection || @user.server_connections.order(:created_at).first
+    return unless connection
+
+    run = @user.recommendation_runs.find_or_create_by!(server_connection: connection, strategy: @strategy, period_date: @period_date)
     return run.recommendation_collection if run.status == "generated" && run.recommendation_collection
 
-    connection = @user.server_connections.order(:created_at).first
-    return fail!(run, "No Jellyfin server connection") unless connection
-
     tracks, title, subtitle = candidates(connection)
+    tracks = HiddenArtists::Filter.new(@user, connection).items(tracks)
     selected = if @strategy == "top_of_month"
       tracks.first(MAX_TRACKS)
     elsif @strategy == "more_from_artist"
@@ -33,8 +34,8 @@ class RecommendationGenerator
     end
     return fail!(run, "Not enough listening history") if selected.empty?
 
-    collection = RecommendationCollection.find_or_initialize_by(user: @user, strategy: @strategy, period_date: @period_date)
-    collection.assign_attributes(server_connection: connection, title:, subtitle:, generated_at: Time.current)
+    collection = RecommendationCollection.find_or_initialize_by(user: @user, server_connection: connection, strategy: @strategy, period_date: @period_date)
+    collection.assign_attributes(title:, subtitle:, generated_at: Time.current)
     collection.save!
     collection.recommendation_tracks.delete_all
     selected.each_with_index { |track, index| collection.recommendation_tracks.create!(track_attributes(track).merge(position: index + 1)) }
@@ -66,12 +67,16 @@ class RecommendationGenerator
   end
 
   def monthly_top_item_ids
-    @user.listening_events.where(occurred_at: @period_date.beginning_of_month..@period_date.end_of_day)
+    @user.listening_events.where(server_connection: current_connection, occurred_at: @period_date.beginning_of_month..@period_date.end_of_day)
       .group(:item_id).order(Arel.sql("COUNT(*) DESC"), :item_id).limit(MAX_TRACKS).count.keys
   end
 
   def client_for(connection)
-    @client ||= Integrations::Jellyfin::Client.new(**connection.client_options)
+    @client ||= Integrations::Client.for(connection)
+  end
+
+  def current_connection
+    @current_connection ||= @user.preferred_server_connection || @user.server_connections.order(:created_at).first
   end
 
   def diversify(items, max_tracks_per_artist: MAX_TRACKS_PER_ARTIST)
@@ -90,7 +95,7 @@ class RecommendationGenerator
   end
 
   def track_attributes(item)
-    { item_id: item.fetch("Id"), title: item.fetch("Name"), artist: item["AlbumArtist"] || item["Artists"]&.join(", "), album: item["Album"], album_artist: item["AlbumArtist"], album_id: item["AlbumId"], artwork_item_id: item["AlbumId"] || item["Id"], duration: ApplicationController.helpers.track_duration(item["RunTimeTicks"]), genre: item["Genres"]&.first }
+    { item_id: item.fetch("Id"), title: item.fetch("Name"), artist: item["AlbumArtist"] || item["Artists"]&.join(", "), artist_id: item.dig("AlbumArtists", 0, "Id") || item.dig("ArtistItems", 0, "Id"), album: item["Album"], album_artist: item["AlbumArtist"], album_id: item["AlbumId"], artwork_item_id: item["AlbumId"] || item["Id"], duration: ApplicationController.helpers.track_duration(item["RunTimeTicks"]), genre: item["Genres"]&.first }
   end
 
   def fail!(run, message)
