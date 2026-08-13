@@ -39,6 +39,5 @@ class CreateRecommendationCollections < ActiveRecord::Migration[8.1]
       t.timestamps
     end
     add_index :recommendation_runs, %i[user_id strategy period_date], unique: true, name: "index_recommendation_runs_on_user_strategy_period"
-
   end
 end

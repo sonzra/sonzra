@@ -1,0 +1,31 @@
+name: Bug report
+description: Report reproducible behavior that differs from expectations.
+labels: [bug]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. …\n2. …\n3. …"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Sonzra version
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Media server
+      options: [Jellyfin, Plex, Not provider-specific]
+  - type: textarea
+    id: context
+    attributes:
+      label: Relevant logs or screenshots
+      description: Remove credentials, tokens, server addresses, and private media details.

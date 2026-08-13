@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.0.13-alpha — 2026-08-13
+
+### Added
+
+- A branded GitHub Pages site with product, requirements, and installation information.
+- Pull request quality checks for RuboCop, Rails, and JavaScript tests.
+- Release automation for merged `release/**` branches, plus contribution, security, issue, and pull-request guidance.
+
+### Changed
+
+- Repository documentation now reflects Jellyfin and Plex support, multi-server listening, offline downloads, mixes, hidden artists, and automatic database migrations in the container.
+
 ## 0.0.12-alpha — 2026-08-13
 
 ### Added

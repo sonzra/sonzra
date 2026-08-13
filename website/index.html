@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Sonzra is your private listening home for Jellyfin and Plex.">
+    <title>Sonzra — Your private listening home</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="Sonzra home"><span class="brand-mark">S</span>sonzra</a>
+      <nav aria-label="Main navigation"><a href="#features">Features</a><a href="#install">Install</a><a href="#requirements">Requirements</a><a href="https://github.com/sonzra/sonzra">GitHub</a></nav>
+    </header>
+    <main id="top">
+      <section class="hero">
+        <div><p class="eyebrow">Self-hosted · Open source · AGPL-3.0</p><h1>Your music library, <em>made personal.</em></h1><p class="lede">Sonzra is a calm, private listening home for the Jellyfin and Plex libraries you already own.</p><div class="actions"><a class="button button--primary" href="#install">Install Sonzra</a><a class="button" href="https://github.com/sonzra/sonzra">View on GitHub</a></div></div>
+        <div class="player-preview" aria-label="Sonzra player preview"><div class="preview-nav"><span>sonzra</span><span>⌁</span></div><div class="preview-title">Explore by genre</div><div class="genres"><b>Rock</b><b>Electronic</b><b>Jazz</b><b>Classical</b></div><div class="now-playing"><i></i><span><strong>Now playing</strong><small>Your private listening home</small></span><button>▶</button></div></div>
+      </section>
+      <section class="intro"><p class="eyebrow">Why Sonzra</p><h2>Built for the collection you care about.</h2><p>Streaming services optimize for their catalogues. Sonzra puts your own music, your own listening history, and your own media server first—without sending it to a third party.</p></section>
+      <section id="features" class="features"><article><span>◌</span><h3>One listening home</h3><p>Browse music, podcasts, audiobooks, artists, albums, genres, and playlists across Jellyfin and Plex.</p></article><article><span>⌁</span><h3>Thoughtful discovery</h3><p>Saved mixes, radio, favourites, and hidden artists make recommendations feel like yours.</p></article><article><span>↓</span><h3>Ready when offline</h3><p>Download tracks and collections to supported browsers, with artwork and playback preserved locally.</p></article><article><span>♫</span><h3>Made to listen</h3><p>Keep a persistent queue, resume long-form audio, and follow time-synced lyrics from LRC files.</p></article></section>
+      <section class="screenshots"><div><p class="eyebrow">In your library</p><h2>Designed for the everyday listen.</h2><p>Use Sonzra as a responsive web app or install it as a PWA. The same player stays with you while you browse.</p></div><div class="screen-placeholder"><span>Real product screenshots are added with each release.</span><small>Web dashboard · Queue · PWA · Downloads</small></div></section>
+      <section id="install" class="install"><p class="eyebrow">Install anywhere Docker runs</p><h2>One container. Your server. Your music.</h2><p>Persistent storage keeps Sonzra’s databases, encrypted credentials, jobs, and installation secret. Pending database migrations run automatically when the container starts.</p><pre><code>docker compose up -d</code></pre><a class="button button--primary" href="https://github.com/sonzra/sonzra/blob/main/docs/INSTALLATION.md">Read the installation guide</a></section>
+      <section id="requirements" class="requirements"><div><p class="eyebrow">Requirements</p><h2>Bring your own library.</h2></div><ul><li>A reachable Jellyfin or Plex server</li><li>A modern browser for web playback and downloads</li><li>Optional <code>.lrc</code> files for synced lyrics</li><li><code>Audiobooks</code> and <code>Podcasts</code> Plex libraries for dedicated long-form sections</li><li>A stable <code>PLEX_CLIENT_ID</code> only when using Plex</li></ul></section>
+    </main>
+    <footer><span class="brand"><span class="brand-mark">S</span>sonzra</span><span>Open source under AGPL-3.0</span><a href="https://github.com/sonzra/sonzra">GitHub</a></footer>
+  </body>
+</html>
