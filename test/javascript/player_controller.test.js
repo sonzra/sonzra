@@ -167,6 +167,55 @@ describe("player controller", () => {
     expect(document.querySelector("[data-player-target='lyricsStatus']").textContent).toBe("Lyrics aren’t available for this track.")
   })
 
+  it("reloads lyrics automatically when the next track loads while lyrics panel is open", async () => {
+    addLyricsTargets()
+    controller.activeExpandedView = "lyrics"
+    controller.loadLyrics = vi.fn()
+
+    controller.loadTrack({ source: "/server_connections/1/audio/track-2", title: "Next", artist: "Artist", artwork: "" })
+
+    expect(controller.loadLyrics).toHaveBeenCalled()
+  })
+
+  it("does not reload lyrics automatically when the queue tab is active", () => {
+    addLyricsTargets()
+    controller.activeExpandedView = "queue"
+    controller.loadLyrics = vi.fn()
+
+    controller.loadTrack({ source: "/server_connections/1/audio/track-2", title: "Next", artist: "Artist", artwork: "" })
+
+    expect(controller.loadLyrics).not.toHaveBeenCalled()
+  })
+
+  it("does not reload lyrics automatically before any tab has been selected", () => {
+    addLyricsTargets()
+    // activeExpandedView is undefined at controller startup
+    controller.loadLyrics = vi.fn()
+
+    controller.loadTrack({ source: "/server_connections/1/audio/track-2", title: "Next", artist: "Artist", artwork: "" })
+
+    expect(controller.loadLyrics).not.toHaveBeenCalled()
+  })
+
+  it("sets activeExpandedView to lyrics when the lyrics tab is opened", async () => {
+    addLyricsTargets()
+    controller.currentTrack = { itemId: "track-1", source: "/server_connections/1/audio/track-1", title: "A track" }
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ available: true, synchronized: false, lines: [] }) }))
+
+    await controller.showLyricsTab()
+
+    expect(controller.activeExpandedView).toBe("lyrics")
+  })
+
+  it("sets activeExpandedView to queue when the queue tab is opened", async () => {
+    addLyricsTargets()
+    controller.activeExpandedView = "lyrics"
+
+    controller.showQueueTab()
+
+    expect(controller.activeExpandedView).toBe("queue")
+  })
+
   it("does not interrupt lyric following for its own automatic scroll", () => {
     addLyricsTargets()
     controller.currentLyrics = { available: true, synchronized: true, lines: [ { text: "A line", start: 10 } ] }

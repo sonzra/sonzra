@@ -453,6 +453,7 @@ export default class extends Controller {
     this.updateFavoriteControls()
     this.updateRadioControls()
     this.resetLyricsView()
+    if (this.activeExpandedView === "lyrics") this.loadLyrics()
     this.syncNativeMedia()
     this.syncBrowserMedia()
     this.syncPageTrackControls()
@@ -902,6 +903,7 @@ export default class extends Controller {
   setExpandedView(view) {
     if (!this.hasQueueViewTarget || !this.hasLyricsViewTarget) return
 
+    this.activeExpandedView = view
     const showLyrics = view === "lyrics"
     this.queueViewTarget.hidden = showLyrics
     this.lyricsViewTarget.hidden = !showLyrics
