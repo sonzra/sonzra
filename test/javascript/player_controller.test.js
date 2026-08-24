@@ -96,9 +96,19 @@ describe("player controller", () => {
     controller.tracksFor = vi.fn(async () => [ { source: "/audio/track-1", title: "Mix track" } ])
     controller.setRadioEnabled = vi.fn()
 
-    await controller.replaceQueue({ params: { queueUrl: "/recommendation_collections/1", radioEnabled: "true" } })
+    await controller.replaceQueue({ params: { queueUrl: "/recommendation_collections/1", radioEnabled: true } })
 
     expect(controller.setRadioEnabled).toHaveBeenCalledWith(true)
+  })
+
+  it("shows radio as active after a mix starts", () => {
+    controller.currentTrack = { radioEligible: true }
+
+    controller.setRadioEnabled(true)
+
+    const radio = document.querySelector("[data-player-target='radio']")
+    expect(radio.classList.contains("is-active")).toBe(true)
+    expect(radio.getAttribute("aria-label")).toBe("Radio on")
   })
 
   it("keeps the minimized progress indicator in sync with playback", () => {

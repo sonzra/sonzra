@@ -92,17 +92,19 @@ export default class extends Controller {
       return
     }
 
-    if (event.params.radioEnabled === "true") {
-      this.setRadioEnabled(true)
-    } else if (event.params.queueUrl && this.radioEnabled) {
-      this.setRadioEnabled(false)
-    }
+    const shouldEnableRadio = event.params.radioEnabled === true || event.params.radioEnabled === "true"
     this.queue = tracks
     this.currentIndex = 0
     this.recordRecommendationStart(event.params.recommendationCollectionId)
     this.persistQueue({ force: true })
     this.renderQueue()
     this.playCurrent()
+    if (shouldEnableRadio) {
+      this.setRadioEnabled(true)
+      this.maybeExtendRadioQueue()
+    } else if (event.params.queueUrl && this.radioEnabled) {
+      this.setRadioEnabled(false)
+    }
   }
 
   recordRecommendationStart(collectionId) {
@@ -648,7 +650,6 @@ export default class extends Controller {
     this.repeatTargets.forEach((button) => {
       button.classList.toggle("is-active", this.repeatMode !== "off")
       button.setAttribute("aria-label", labels[this.repeatMode])
-      button.setAttribute("title", labels[this.repeatMode])
       button.innerHTML = this.icon(this.repeatMode === "one" ? "repeat-one" : "repeat")
     })
   }
@@ -671,7 +672,6 @@ export default class extends Controller {
       button.classList.toggle("is-active", eligible && this.radioEnabled)
       const label = this.radioEnabled ? "Radio on" : "Radio off"
       button.setAttribute("aria-label", label)
-      button.setAttribute("title", label)
       button.innerHTML = this.icon("radio")
     })
   }
