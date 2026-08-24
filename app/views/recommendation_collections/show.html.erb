@@ -11,12 +11,12 @@
   </section>
   <section class="detail-section">
     <h2>Tracks</h2>
-    <ol class="track-list">
+    <ol class="track-list track-list--mixed">
       <% @tracks.each_with_index do |track, index| %>
         <% track_artwork_path = track.artwork_item_id.present? ? artwork_server_connection_path(@collection.server_connection, track.artwork_item_id) : "/brand/sonzra-mark.svg" %>
         <li>
           <span><%= index + 1 %></span>
-          <strong><%= track.title %></strong>
+          <strong data-artist="<%= track.artist || "Unknown artist" %>"><%= track.title %></strong>
           <time><%= track.duration %></time>
           <button type="button" class="listen-card__play" aria-label="Play <%= track.title %>" data-action="player#replaceQueue" data-player-source-param="<%= audio_server_connection_path(@collection.server_connection, track.item_id) %>" data-player-item-id-param="<%= track.item_id %>" data-player-reporting-url-param="<%= playback_reports_server_connection_path(@collection.server_connection) %>" data-player-title-param="<%= track.title %>" data-player-artist-param="<%= track.artist || "Unknown artist" %>" data-player-artwork-param="<%= track_artwork_path %>" data-player-radio-url-param="<%= radio_tracks_server_connection_path(@collection.server_connection, track.item_id) %>" data-player-radio-eligible-param="true"><%= lucide_icon "play", aria: { hidden: true } %></button>
           <button type="button" class="track-list__queue" aria-label="Add <%= track.title %> to queue" data-action="player#appendQueue" data-player-source-param="<%= audio_server_connection_path(@collection.server_connection, track.item_id) %>" data-player-item-id-param="<%= track.item_id %>" data-player-reporting-url-param="<%= playback_reports_server_connection_path(@collection.server_connection) %>" data-player-title-param="<%= track.title %>" data-player-artist-param="<%= track.artist || "Unknown artist" %>" data-player-artwork-param="<%= track_artwork_path %>" data-player-radio-url-param="<%= radio_tracks_server_connection_path(@collection.server_connection, track.item_id) %>" data-player-radio-eligible-param="true"><%= lucide_icon "plus", aria: { hidden: true } %></button>

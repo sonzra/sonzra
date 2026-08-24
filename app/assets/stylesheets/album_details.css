@@ -452,7 +452,7 @@
   border-color: #a990ff66;
   border-radius: 10px;
   background: #7a5af826;
-  box-shadow: inset 3px 0 #a990ff;
+  box-shadow: none;
 }
 
 .track-list li.is-selected strong,
@@ -491,7 +491,27 @@
 .track-list li.is-playing {
   border-color: #43d7c688;
   background: #43d7c614;
-  box-shadow: inset 3px 0 #43d7c6;
+  box-shadow: none;
+}
+
+.detail-section .track-list--mixed strong {
+  display: block;
+  overflow: hidden;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-section .track-list--mixed strong::after {
+  display: block;
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--muted);
+  content: attr(data-artist);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @media (max-width: 760px) {
