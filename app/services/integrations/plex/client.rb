@@ -144,15 +144,17 @@ module Integrations
         section = music_section
         case strategy
         when "friday_rediscovery"
-          recommendation_tracks_for(section, sort: "random", limit: 200)
+          tracks = recommendation_tracks_for(section, sort: "random", limit: 200)
             .select { |track| track.dig("UserData", "LastPlayedDate").blank? || Time.zone.parse(track.dig("UserData", "LastPlayedDate")) < period_date - 14.days }
+          tracks.empty? ? recommendation_tracks_for(section, sort: "random", limit: 200) : tracks
         when "best_of_genre"
           popular = recommendation_tracks_for(section, sort: "viewCount:desc", limit: 100)
           genre = popular.flat_map { |track| track["Genres"] }.tally.max_by { |_, count| count }&.first
-          genre ? recommendation_tracks_for(section, sort: "viewCount:desc", genre:, limit: 200) : []
+          genre ? recommendation_tracks_for(section, sort: "viewCount:desc", genre:, limit: 200) : recommendation_tracks_for(section, sort: "random", limit: 200)
         when "more_from_artist"
           recent = recommendation_tracks_for(section, sort: "lastViewedAt:desc", limit: 100)
           artist_id = recent.group_by { |track| track.dig("AlbumArtists", 0, "Id") }.max_by { |_, tracks| tracks.size }&.first
+          artist_id ||= recommendation_tracks_for(section, sort: "viewCount:desc", limit: 50).first&.dig("AlbumArtists", 0, "Id")
           artist_id ? recommendation_tracks_for(section, sort: "random", artist_id:, limit: 200) : []
         else
           []
@@ -160,7 +162,7 @@ module Integrations
       end
 
       def monthly_top_tracks(_period_date)
-        []
+        recommendation_tracks_for(music_section, sort: "viewCount:desc", limit: 20)
       end
 
       def recommendation_tracks_by_ids(item_ids)
@@ -322,7 +324,7 @@ module Integrations
         item.dig("UserData", "PlaybackPositionTicks").to_i
       end
 
-      def section_response(section, type:, sort:, page:, query: nil, genre: nil, limit: 48)
+      def section_response(section, type:, sort:, page:, query: nil, genre: nil, limit: Library::Pagination::PAGE_SIZE)
         parameters = {
           type:,
           sort:,

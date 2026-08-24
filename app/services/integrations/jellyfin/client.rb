@@ -98,7 +98,7 @@ module Integrations
         session = authentication
         user_id = session.fetch("User").fetch("Id")
         token = session.fetch("AccessToken")
-        parameters = { UserId: user_id, Limit: 48, StartIndex: (page - 1) * 48, SearchTerm: query, Genres: genre, EnableImages: true }.compact
+        parameters = { UserId: user_id, Limit: Library::Pagination::PAGE_SIZE, StartIndex: (page - 1) * Library::Pagination::PAGE_SIZE, SearchTerm: query, Genres: genre, EnableImages: true }.compact
         response = case collection
         when :artists then get("Artists", token, **parameters)
         when :albums then get("Users/#{user_id}/Items", token, **parameters.merge(Recursive: true, IncludeItemTypes: "MusicAlbum", SortBy: "SortName"))
@@ -146,11 +146,17 @@ module Integrations
           unplayed = items(user_id, token, limit: 200, IncludeItemTypes: "Audio", IsPlayed: false, SortBy: "Random", EnableUserData: true, Fields: fields)
           long_unheard = items(user_id, token, limit: 200, sort_order: "Ascending", IncludeItemTypes: "Audio", IsPlayed: true, SortBy: "DatePlayed", EnableUserData: true, Fields: fields)
             .select { |item| (last_played_at = playback_time(item)) && last_played_at < period_date - 14.days }
-          music_songs_without_podcasts(unplayed + long_unheard, podcast_ids)
+          tracks = music_songs_without_podcasts(unplayed + long_unheard, podcast_ids)
+          tracks = music_songs_without_podcasts(items(user_id, token, limit: 200, IncludeItemTypes: "Audio", SortBy: "Random", EnableUserData: true, Fields: fields), podcast_ids) if tracks.empty?
+          tracks
         when "best_of_genre"
           played = items(user_id, token, limit: 100, IncludeItemTypes: "Audio", SortBy: "PlayCount", SortOrder: "Descending", EnableUserData: true, Fields: fields)
           genre = music_songs_without_podcasts(played, podcast_ids).flat_map { |item| item["Genres"] || [] }.tally.max_by { |_, count| count }&.first
-          genre ? music_songs_without_podcasts(items(user_id, token, limit: 200, IncludeItemTypes: "Audio", Genres: genre, SortBy: "PlayCount", SortOrder: "Descending", EnableUserData: true, Fields: fields), podcast_ids) : []
+          if genre
+            music_songs_without_podcasts(items(user_id, token, limit: 200, IncludeItemTypes: "Audio", Genres: genre, SortBy: "PlayCount", SortOrder: "Descending", EnableUserData: true, Fields: fields), podcast_ids)
+          else
+            music_songs_without_podcasts(items(user_id, token, limit: 200, IncludeItemTypes: "Audio", SortBy: "Random", EnableUserData: true, Fields: fields), podcast_ids)
+          end
         when "more_from_artist"
           recent_tracks = music_songs_without_podcasts(
             items(user_id, token, limit: 200, IncludeItemTypes: "Audio", IsPlayed: true, SortBy: "DatePlayed", EnableUserData: true, Fields: fields),
@@ -158,7 +164,12 @@ module Integrations
           ).select { |item| (last_played_at = playback_time(item)) && last_played_at >= period_date - 7.days }
           artist = recent_tracks.group_by { |item| [ item.dig("AlbumArtists", 0, "Id"), item["AlbumArtist"] || item["Artists"]&.first ] }
             .max_by { |_, tracks| tracks.size }&.first
-          artist&.first ? music_songs_without_podcasts(items(user_id, token, limit: 200, IncludeItemTypes: "Audio", ArtistIds: artist.first, SortBy: "Random", EnableUserData: true, Fields: fields), podcast_ids) : []
+          artist_id = artist&.first
+          unless artist_id
+            played = music_songs_without_podcasts(items(user_id, token, limit: 100, IncludeItemTypes: "Audio", SortBy: "PlayCount", SortOrder: "Descending", EnableUserData: true, Fields: fields), podcast_ids)
+            artist_id = played.first&.dig("AlbumArtists", 0, "Id")
+          end
+          artist_id ? music_songs_without_podcasts(items(user_id, token, limit: 200, IncludeItemTypes: "Audio", ArtistIds: artist_id, SortBy: "Random", EnableUserData: true, Fields: fields), podcast_ids) : []
         else
           []
         end
@@ -609,8 +620,8 @@ module Integrations
           start_index += items.size
         end
 
-        start = (page - 1) * 48
-        { "Items" => recent_items.slice(start, 48) || [], "TotalRecordCount" => recent_items.size }
+        start = (page - 1) * Library::Pagination::PAGE_SIZE
+        { "Items" => recent_items.slice(start, Library::Pagination::PAGE_SIZE) || [], "TotalRecordCount" => recent_items.size }
       end
 
       def recently_played_music(items, podcast_album_ids)

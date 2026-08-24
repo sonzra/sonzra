@@ -18,7 +18,7 @@
       <% end %>
     </div>
     <% end %>
-    <nav class="library-pagination"><%= link_to "← Previous", url_for(page: @page - 1, q: @query, genre: @genre), class: "secondary-button" if @page > 1 %><span>Page <%= @page %> of <%= [(@result.total / 48.0).ceil, 1].max %></span><%= link_to "Next →", url_for(page: @page + 1, q: @query, genre: @genre), class: "secondary-button" if @page * 48 < @result.total %></nav>
+    <nav class="library-pagination"><%= link_to "← Previous", url_for(page: @page - 1, q: @query, genre: @genre), class: "secondary-button" if @page > 1 %><span>Page <%= @page %> of <%= [(@result.total / Library::Pagination::PAGE_SIZE.to_f).ceil, 1].max %></span><%= link_to "Next →", url_for(page: @page + 1, q: @query, genre: @genre), class: "secondary-button" if @page * Library::Pagination::PAGE_SIZE < @result.total %></nav>
   <% else %>
     <section class="listen-loading listen-loading--error"><h1>We couldn’t load your <%= @title.downcase %>.</h1><p><%= @result.message %></p></section>
   <% end %>

@@ -177,8 +177,8 @@ class Integrations::Plex::ClientTest < ActiveSupport::TestCase
 
     assert_equal "AudioBook", audiobooks.content.first["Type"]
     assert_equal "Audio", podcasts.content.first["Type"]
-    assert_equal "/library/sections/2/all?type=10&sort=titleSort&X-Plex-Container-Start=0&X-Plex-Container-Size=48", http.requests[1].path
-    assert_equal "/library/sections/3/all?type=10&sort=titleSort&X-Plex-Container-Start=0&X-Plex-Container-Size=48", http.requests[2].path
+    assert_equal "/library/sections/2/all?type=10&sort=titleSort&X-Plex-Container-Start=0&X-Plex-Container-Size=60", http.requests[1].path
+    assert_equal "/library/sections/3/all?type=10&sort=titleSort&X-Plex-Container-Start=0&X-Plex-Container-Size=60", http.requests[2].path
   ensure
     ENV["PLEX_CLIENT_ID"] = previous_value if previous_value
   end
