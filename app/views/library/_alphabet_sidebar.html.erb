@@ -1,0 +1,14 @@
+<nav class="library-alphabet" aria-label="Browse by letter" data-library-pagination-target="alphabet">
+  <% ("A".."Z").each do |letter| %>
+    <button type="button"
+            class="<%= "is-active" if @letter == letter %>"
+            data-action="library-pagination#jumpToLetter"
+            data-library-pagination-letter-param="<%= letter %>">
+      <%= letter %>
+    </button>
+  <% end %>
+  <button type="button"
+          class="<%= "is-active" if @letter == "#" %>"
+          data-action="library-pagination#jumpToLetter"
+          data-library-pagination-letter-param="#">#</button>
+</nav>

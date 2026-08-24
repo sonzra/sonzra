@@ -1,10 +1,15 @@
 require "json"
 require "net/http"
 require "uri"
+require_relative "../capabilities"
+require_relative "../capability_support"
 
 module Integrations
   module Plex
     class Client
+      CAPABILITIES = [].freeze
+      include Integrations::CapabilitySupport
+
       AuthenticationError = Integrations::Jellyfin::Client::AuthenticationError
       ConnectionError = Integrations::Jellyfin::Client::ConnectionError
 
@@ -63,7 +68,7 @@ module Integrations
         Integrations::Jellyfin::HomeContentResponseData.new(content:, access_token: @access_token)
       end
 
-      def library_collection(collection, page:, query:, genre: nil)
+      def library_collection(collection, page:, query:, genre: nil, letter: nil)
         if collection == :playlists
           items = playlists
           return collection_response(items, page:, total: items.size)

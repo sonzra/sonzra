@@ -1,10 +1,15 @@
 require "json"
 require "net/http"
 require "uri"
+require_relative "../capabilities"
+require_relative "../capability_support"
 
 module Integrations
   module Jellyfin
     class Client
+      CAPABILITIES = [ Integrations::Capabilities::LETTER_FILTERING ].freeze
+      include Integrations::CapabilitySupport
+
       class AuthenticationError < StandardError; end
       class ConnectionError < StandardError; end
 
@@ -94,11 +99,11 @@ module Integrations
         LibraryItemDetailsResponseData.new(details: details, access_token: token)
       end
 
-      def library_collection(collection, page:, query:, genre: nil)
+      def library_collection(collection, page:, query:, genre: nil, letter: nil)
         session = authentication
         user_id = session.fetch("User").fetch("Id")
         token = session.fetch("AccessToken")
-        parameters = { UserId: user_id, Limit: Library::Pagination::PAGE_SIZE, StartIndex: (page - 1) * Library::Pagination::PAGE_SIZE, SearchTerm: query, Genres: genre, EnableImages: true }.compact
+        parameters = { UserId: user_id, Limit: Library::Pagination::PAGE_SIZE, StartIndex: (page - 1) * Library::Pagination::PAGE_SIZE, SearchTerm: query, Genres: genre, NameStartsWith: letter, EnableImages: true }.compact
         response = case collection
         when :artists then get("Artists", token, **parameters)
         when :albums then get("Users/#{user_id}/Items", token, **parameters.merge(Recursive: true, IncludeItemTypes: "MusicAlbum", SortBy: "SortName"))
