@@ -47,7 +47,7 @@
     <%= stylesheet_link_tag "music_shelf_pages", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
-  <% if authenticated? %><body class="authenticated-body <%= "media-detail-body" if @media_detail_header %> <%= "offline-shell" if @offline_shell %>" data-controller="card-options media-header offline-media <%= "offline-connection" if @offline_shell %>" data-offline-media-scope-value="<%= current_user.id %>"><% else %><body><% end %>
+  <% if authenticated? %><body class="authenticated-body <%= "media-detail-body" if @media_detail_header %> <%= "offline-shell" if @offline_shell %>" data-controller="card-options media-header offline-media tooltip <%= "offline-connection" if @offline_shell %>" data-offline-media-scope-value="<%= current_user.id %>"><% else %><body><% end %>
     <% if authenticated? %><%= @offline_shell ? render("shared/navigation", offline: true) : render(@media_detail_header ? "shared/media_navigation" : "shared/navigation") %><% end %>
     <%= yield %>
     <% if authenticated? %><%= render "shared/player" %><p id="player-feedback" class="listen-player__feedback" data-player-target="queueFeedback" data-turbo-permanent role="status" aria-live="polite" hidden></p><%= render "shared/player_queue" %><%= render "shared/card_options_sheet" %><% end %>
