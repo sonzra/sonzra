@@ -26,6 +26,10 @@
   margin-top: 28px;
 }
 
+.connection-list + .form-actions {
+  margin-top: 24px;
+}
+
 .primary-button {
   display: inline-flex;
   align-items: center;
