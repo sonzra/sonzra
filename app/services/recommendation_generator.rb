@@ -2,13 +2,29 @@ class RecommendationGenerator
   MAX_TRACKS = 20
   MAX_TRACKS_PER_ARTIST = 3
   MAX_TRACKS_PER_ALBUM = 2
+  MINIMUM_TRACK_DURATION_TICKS = 600_000_000
 
   def self.scheduled?(strategy, period_date)
     case strategy
     when "friday_rediscovery" then period_date.friday?
     when "more_from_artist" then period_date.wednesday?
-    when "top_of_month" then period_date.monday? && (period_date + 7.days).month != period_date.month
+    when "top_of_month" then period_date.monday? || period_date.day == 1
     else true
+    end
+  end
+
+  def self.ensure_all(user:, connection: nil, period_date: Date.current, client: nil)
+    connection ||= user.preferred_server_connection || user.server_connections.order(:created_at).first
+    return unless connection
+
+    RecommendationCollection::STRATEGIES.each do |strategy|
+      next unless scheduled?(strategy, period_date)
+
+      target_period = strategy == "top_of_month" ? period_date.beginning_of_month : period_date
+      exists = user.recommendation_collections.exists?(server_connection: connection, strategy:, period_date: target_period)
+      next if exists
+
+      new(user:, strategy:, period_date:, client:).call
     end
   end
 
@@ -20,11 +36,13 @@ class RecommendationGenerator
     connection = @user.preferred_server_connection || @user.server_connections.order(:created_at).first
     return unless connection
 
-    run = @user.recommendation_runs.find_or_create_by!(server_connection: connection, strategy: @strategy, period_date: @period_date)
+    effective_period_date = @strategy == "top_of_month" ? @period_date.beginning_of_month : @period_date
+
+    run = @user.recommendation_runs.find_or_create_by!(server_connection: connection, strategy: @strategy, period_date: effective_period_date)
     return run.recommendation_collection if run.status == "generated" && run.recommendation_collection
 
     tracks, title, subtitle = candidates(connection)
-    tracks = HiddenArtists::Filter.new(@user, connection).items(tracks)
+    tracks = HiddenArtists::Filter.new(@user, connection).items(tracks).select { |track| track["RunTimeTicks"].to_i >= MINIMUM_TRACK_DURATION_TICKS }
     selected = if @strategy == "top_of_month"
       tracks.first(MAX_TRACKS)
     elsif @strategy == "more_from_artist"
@@ -34,7 +52,7 @@ class RecommendationGenerator
     end
     return fail!(run, "Not enough listening history") if selected.empty?
 
-    collection = RecommendationCollection.find_or_initialize_by(user: @user, server_connection: connection, strategy: @strategy, period_date: @period_date)
+    collection = RecommendationCollection.find_or_initialize_by(user: @user, server_connection: connection, strategy: @strategy, period_date: effective_period_date)
     collection.assign_attributes(title:, subtitle:, generated_at: Time.current)
     collection.save!
     collection.recommendation_tracks.delete_all
@@ -51,17 +69,18 @@ class RecommendationGenerator
     if @strategy == "top_of_month"
       items = client_for(connection).monthly_top_tracks(@period_date)
       items = client_for(connection).recommendation_tracks_by_ids(monthly_top_item_ids) if items.empty?
+      items = client_for(connection).recommendation_tracks("friday_rediscovery", @period_date) if items.empty?
       [ items, "Top of #{@period_date.strftime("%B")}", "Your most-played tracks this month" ]
     else
       items = client_for(connection).recommendation_tracks(@strategy, @period_date)
       if @strategy == "best_of_genre"
-      genre = items.first&.dig("Genres")&.first || "your library"
-      [ items, "Best of #{genre}", "A daily mix from your most-played genre" ]
+        genre = items.first&.dig("Genres")&.first || "your library"
+        [ items, "Best of #{genre}", "A daily mix from your most-played genre" ]
       elsif @strategy == "more_from_artist"
-        artist = items.first&.fetch("AlbumArtist", nil) || "your favourite artist"
+        artist = items.first&.fetch("AlbumArtist", nil) || items.first&.fetch("Artists", [])&.first || "your favourite artist"
         [ items, "More from #{artist}", "Inspired by your listening this week" ]
       else
-      [ items, "Friday Rediscovery", "Tracks you loved and have not heard in a while" ]
+        [ items, "Friday Rediscovery", "Tracks you loved and have not heard in a while" ]
       end
     end
   end

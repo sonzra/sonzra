@@ -224,6 +224,7 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".detail-hero__release", "2 tracks"
     assert_select ".detail-hero h1", "Focus mix"
     assert_select ".track-list--playlist li span", count: 0
+    assert_select ".track-list--mixed strong[data-artist='Unknown artist']", "Intro"
     assert_select ".track-list__remove[data-card-options-remove-playlist-track-url-param='#{playlist_item_server_connection_path(@server_connection, playlist_id: "playlist-id", entry_id: "entry-1")}']"
   ensure
     service_class.define_singleton_method(:new, original_new)

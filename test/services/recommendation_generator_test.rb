@@ -7,7 +7,7 @@ class RecommendationGeneratorTest < ActiveSupport::TestCase
 
   test "persists a stable 20-track Friday snapshot with artist and album limits" do
     items = 30.times.map do |index|
-      { "Id" => "track-#{index}", "Name" => "Track #{index}", "AlbumArtist" => "Artist #{index / 3}", "AlbumId" => "album-#{index / 2}", "Album" => "Album #{index / 2}", "RunTimeTicks" => 180_000_000 }
+      { "Id" => "track-#{index}", "Name" => "Track #{index}", "AlbumArtist" => "Artist #{index / 3}", "AlbumId" => "album-#{index / 2}", "Album" => "Album #{index / 2}", "RunTimeTicks" => 1_800_000_000 }
     end
     client = Object.new
     client.define_singleton_method(:recommendation_tracks) { |_, _| items }
@@ -20,6 +20,19 @@ class RecommendationGeneratorTest < ActiveSupport::TestCase
     assert_equal collection, users(:one).recommendation_runs.last.recommendation_collection
   end
 
+  test "excludes tracks shorter than one minute from mixes" do
+    items = [
+      { "Id" => "intro", "Name" => "Intro", "AlbumArtist" => "Artist", "AlbumId" => "album", "RunTimeTicks" => 590_000_000 },
+      { "Id" => "song", "Name" => "Song", "AlbumArtist" => "Artist", "AlbumId" => "album", "RunTimeTicks" => 600_000_000 }
+    ]
+    client = Object.new
+    client.define_singleton_method(:recommendation_tracks) { |_, _| items }
+
+    collection = RecommendationGenerator.new(user: users(:one), strategy: "friday_rediscovery", period_date: Date.new(2026, 8, 14), client:).call
+
+    assert_equal [ "song" ], collection.recommendation_tracks.pluck(:item_id)
+  end
+
   test "only schedules Friday Rediscovery on Fridays" do
     assert RecommendationGenerator.scheduled?("friday_rediscovery", Date.new(2026, 8, 14))
     assert_not RecommendationGenerator.scheduled?("friday_rediscovery", Date.new(2026, 8, 13))
@@ -27,7 +40,8 @@ class RecommendationGeneratorTest < ActiveSupport::TestCase
     assert RecommendationGenerator.scheduled?("more_from_artist", Date.new(2026, 8, 12))
     assert_not RecommendationGenerator.scheduled?("more_from_artist", Date.new(2026, 8, 13))
     assert RecommendationGenerator.scheduled?("top_of_month", Date.new(2026, 8, 31))
-    assert_not RecommendationGenerator.scheduled?("top_of_month", Date.new(2026, 8, 24))
+    assert RecommendationGenerator.scheduled?("top_of_month", Date.new(2026, 8, 24))
+    assert_not RecommendationGenerator.scheduled?("top_of_month", Date.new(2026, 8, 25))
   end
 
   test "builds Top of the Month from Sonzra playback starts in the current month" do
@@ -39,7 +53,7 @@ class RecommendationGeneratorTest < ActiveSupport::TestCase
     client.define_singleton_method(:monthly_top_tracks) { |_| [] }
     client.define_singleton_method(:recommendation_tracks_by_ids) do |item_ids|
       item_ids.map.with_index do |item_id, index|
-        { "Id" => item_id, "Name" => item_id, "AlbumArtist" => "Artist", "AlbumId" => "album-#{index}", "Album" => "Album", "RunTimeTicks" => 180_000_000 }
+        { "Id" => item_id, "Name" => item_id, "AlbumArtist" => "Artist", "AlbumId" => "album-#{index}", "Album" => "Album", "RunTimeTicks" => 1_800_000_000 }
       end
     end
 
@@ -51,7 +65,7 @@ class RecommendationGeneratorTest < ActiveSupport::TestCase
 
   test "allows More from Artist to include up to 20 tracks from one artist" do
     items = 30.times.map do |index|
-      { "Id" => "track-#{index}", "Name" => "Track #{index}", "AlbumArtist" => "Artist", "AlbumId" => "album-#{index / 2}", "Album" => "Album #{index / 2}", "RunTimeTicks" => 180_000_000 }
+      { "Id" => "track-#{index}", "Name" => "Track #{index}", "AlbumArtist" => "Artist", "AlbumId" => "album-#{index / 2}", "Album" => "Album #{index / 2}", "RunTimeTicks" => 1_800_000_000 }
     end
     client = Object.new
     client.define_singleton_method(:recommendation_tracks) { |_, _| items }
@@ -65,7 +79,7 @@ class RecommendationGeneratorTest < ActiveSupport::TestCase
 
   test "creates separate snapshots when the user switches servers" do
     plex_connection = ServerConnection.create!(name: "Plex", provider: :plex, base_url: "https://plex.example.com", username: "bruno", access_token: "token", user: users(:one))
-    items = [ { "Id" => "track", "Name" => "Track", "AlbumArtist" => "Artist", "AlbumId" => "album", "Album" => "Album", "RunTimeTicks" => 180_000_000 } ]
+    items = [ { "Id" => "track", "Name" => "Track", "AlbumArtist" => "Artist", "AlbumId" => "album", "Album" => "Album", "RunTimeTicks" => 1_800_000_000 } ]
     jellyfin_client = Object.new
     jellyfin_client.define_singleton_method(:recommendation_tracks) { |_, _| items }
     plex_client = Object.new
@@ -77,5 +91,18 @@ class RecommendationGeneratorTest < ActiveSupport::TestCase
 
     assert_not_equal first.id, second.id
     assert_equal [ @connection.id, plex_connection.id ].sort, users(:one).recommendation_collections.where(strategy: "best_of_genre", period_date: Date.new(2026, 8, 13)).pluck(:server_connection_id).sort
+  end
+
+  test "ensure_all generates missing collections for scheduled strategies on period_date" do
+    items = [ { "Id" => "track", "Name" => "Track", "AlbumArtist" => "Artist", "AlbumId" => "album", "Album" => "Album", "RunTimeTicks" => 1_800_000_000 } ]
+    client = Object.new
+    client.define_singleton_method(:recommendation_tracks) { |_, _| items }
+    client.define_singleton_method(:monthly_top_tracks) { |_| items }
+
+    RecommendationGenerator.ensure_all(user: users(:one), connection: @connection, period_date: Date.new(2026, 8, 14), client:)
+
+    strategies = users(:one).recommendation_collections.where(server_connection: @connection).pluck(:strategy)
+    assert_includes strategies, "friday_rediscovery"
+    assert_includes strategies, "best_of_genre"
   end
 end

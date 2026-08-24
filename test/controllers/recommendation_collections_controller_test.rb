@@ -20,7 +20,8 @@ class RecommendationCollectionsControllerTest < ActionDispatch::IntegrationTest
     get recommendation_collection_url(@collection)
     assert_response :success
     assert_select ".detail-hero h1", "Best of ambient"
-    assert_select ".track-list", 1
+    assert_select ".track-list.track-list--mixed", 1
+    assert_select ".track-list strong[data-artist='Artist']", "Track"
 
     post events_recommendation_collection_url(@collection), params: { event_type: "started" }
     assert_response :created
