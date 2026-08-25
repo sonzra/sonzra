@@ -175,6 +175,8 @@ module Integrations
             artist_id = played.first&.dig("AlbumArtists", 0, "Id")
           end
           artist_id ? music_songs_without_podcasts(items(user_id, token, limit: 200, IncludeItemTypes: "Audio", ArtistIds: artist_id, SortBy: "Random", EnableUserData: true, Fields: fields), podcast_ids) : []
+        when "all_time_top"
+          music_collection_response(user_id, token, parameters.merge(limit: 100), IncludeItemTypes: "Audio", SortBy: "PlayCount", SortOrder: "Descending", EnableUserData: true) { |items, p_ids| music_songs_without_podcasts(items, p_ids).select { |item| item.dig("UserData", "PlayCount").to_i.positive? } }
         else
           []
         end

@@ -42,6 +42,8 @@ class RecommendationGeneratorTest < ActiveSupport::TestCase
     assert RecommendationGenerator.scheduled?("top_of_month", Date.new(2026, 8, 31))
     assert RecommendationGenerator.scheduled?("top_of_month", Date.new(2026, 8, 24))
     assert_not RecommendationGenerator.scheduled?("top_of_month", Date.new(2026, 8, 25))
+    assert RecommendationGenerator.scheduled?("all_time_top", Date.new(2026, 8, 24))
+    assert_not RecommendationGenerator.scheduled?("all_time_top", Date.new(2026, 8, 25))
   end
 
   test "builds Top of the Month from Sonzra playback starts in the current month" do
@@ -61,6 +63,26 @@ class RecommendationGeneratorTest < ActiveSupport::TestCase
 
     assert_equal "Top of August", collection.title
     assert_equal expected_item_ids, collection.recommendation_tracks.pluck(:item_id)
+  end
+
+  test "generates All-Time Heavy Rotation mix combining local listening events and provider top tracks" do
+    [ [ "top-local-1", 5 ], [ "top-local-2", 3 ] ].each do |item_id, count|
+      count.times { ListeningEvent.create!(user: users(:one), server_connection: @connection, item_id:, occurred_at: Time.zone.local(2026, 1, 10)) }
+    end
+    provider_items = [
+      { "Id" => "provider-top-1", "Name" => "Provider Top 1", "AlbumArtist" => "Artist", "AlbumId" => "album-1", "Album" => "Album", "RunTimeTicks" => 1_800_000_000 }
+    ]
+    client = Object.new
+    client.define_singleton_method(:recommendation_tracks_by_ids) do |item_ids|
+      item_ids.map { |item_id| { "Id" => item_id, "Name" => item_id, "AlbumArtist" => "Artist", "AlbumId" => "album-#{item_id}", "Album" => "Album", "RunTimeTicks" => 1_800_000_000 } }
+    end
+    client.define_singleton_method(:recommendation_tracks) { |strategy, _| strategy == "all_time_top" ? provider_items : [] }
+
+    collection = RecommendationGenerator.new(user: users(:one), strategy: "all_time_top", period_date: Date.new(2026, 8, 24), client:).call
+
+    assert_equal "All-Time Heavy Rotation", collection.title
+    assert_equal "Your 20 most-played songs of all time", collection.subtitle
+    assert_equal [ "top-local-1", "top-local-2", "provider-top-1" ], collection.recommendation_tracks.pluck(:item_id)
   end
 
   test "allows More from Artist to include up to 20 tracks from one artist" do

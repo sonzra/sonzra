@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Added
+
+- Weekly Monday "All-Time Heavy Rotation" mix strategy featuring top 20 most-played tracks of all time.
+- Infinite scroll and vertical A–Z / # alphabet sidebar for Albums and Artists library pages.
+- Provider capabilities system (`Integrations::Capabilities`) to enable feature UI based on provider capabilities.
+- Custom styled tooltip Stimulus controller (`tooltip_controller.js`) across actionable items.
+- Artist subtitles on mixed track lists in playlists and recommendation collections.
+
+### Changed
+
+- Standardized library pagination size to 60 items across providers.
+- Excluded short tracks under one minute from generated recommendation mixes.
+- Mixes now start playback in Radio mode automatically.
+- Added vertical spacing above form actions in server connection settings.
+
+### Fixed
+
+- Automatic lyrics reload when track advances while the lyrics tab is open.
+- Refined active track highlight styling so track numbers remain fully visible.
+
 ## 0.0.13-alpha — 2026-08-13
 
 ### Added

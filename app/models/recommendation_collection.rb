@@ -1,5 +1,5 @@
 class RecommendationCollection < ApplicationRecord
-  STRATEGIES = %w[friday_rediscovery best_of_genre more_from_artist top_of_month].freeze
+  STRATEGIES = %w[friday_rediscovery best_of_genre more_from_artist top_of_month all_time_top].freeze
 
   belongs_to :user
   belongs_to :server_connection

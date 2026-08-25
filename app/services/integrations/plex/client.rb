@@ -161,6 +161,8 @@ module Integrations
           artist_id = recent.group_by { |track| track.dig("AlbumArtists", 0, "Id") }.max_by { |_, tracks| tracks.size }&.first
           artist_id ||= recommendation_tracks_for(section, sort: "viewCount:desc", limit: 50).first&.dig("AlbumArtists", 0, "Id")
           artist_id ? recommendation_tracks_for(section, sort: "random", artist_id:, limit: 200) : []
+        when "all_time_top"
+          recommendation_tracks_for(section, sort: "viewCount:desc", limit: 200)
         else
           []
         end

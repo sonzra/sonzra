@@ -9,6 +9,7 @@ class RecommendationGenerator
     when "friday_rediscovery" then period_date.friday?
     when "more_from_artist" then period_date.wednesday?
     when "top_of_month" then period_date.monday? || period_date.day == 1
+    when "all_time_top" then period_date.monday?
     else true
     end
   end
@@ -43,7 +44,7 @@ class RecommendationGenerator
 
     tracks, title, subtitle = candidates(connection)
     tracks = HiddenArtists::Filter.new(@user, connection).items(tracks).select { |track| track["RunTimeTicks"].to_i >= MINIMUM_TRACK_DURATION_TICKS }
-    selected = if @strategy == "top_of_month"
+    selected = if @strategy.in?([ "top_of_month", "all_time_top" ])
       tracks.first(MAX_TRACKS)
     elsif @strategy == "more_from_artist"
       diversify(tracks, max_tracks_per_artist: MAX_TRACKS)
@@ -71,6 +72,10 @@ class RecommendationGenerator
       items = client_for(connection).recommendation_tracks_by_ids(monthly_top_item_ids) if items.empty?
       items = client_for(connection).recommendation_tracks("friday_rediscovery", @period_date) if items.empty?
       [ items, "Top of #{@period_date.strftime("%B")}", "Your most-played tracks this month" ]
+    elsif @strategy == "all_time_top"
+      items = all_time_top_tracks(connection)
+      items = client_for(connection).recommendation_tracks("friday_rediscovery", @period_date) if items.empty?
+      [ items, "All-Time Heavy Rotation", "Your 20 most-played songs of all time" ]
     else
       items = client_for(connection).recommendation_tracks(@strategy, @period_date)
       if @strategy == "best_of_genre"
@@ -83,6 +88,26 @@ class RecommendationGenerator
         [ items, "Friday Rediscovery", "Tracks you loved and have not heard in a while" ]
       end
     end
+  end
+
+  def all_time_top_tracks(connection)
+    local_ids = @user.listening_events.where(server_connection: connection)
+      .group(:item_id).order(Arel.sql("COUNT(*) DESC"), :item_id).limit(MAX_TRACKS).count.keys
+    local_items = local_ids.present? ? client_for(connection).recommendation_tracks_by_ids(local_ids) : []
+
+    if local_items.size < MAX_TRACKS
+      provider_items = client_for(connection).recommendation_tracks("all_time_top", @period_date)
+      existing_ids = Set.new(local_items.map { |item| item["Id"] })
+      provider_items.each do |item|
+        next if existing_ids.include?(item["Id"])
+
+        local_items << item
+        existing_ids.add(item["Id"])
+        break if local_items.size == MAX_TRACKS
+      end
+    end
+
+    local_items
   end
 
   def monthly_top_item_ids
