@@ -32,6 +32,18 @@ Rails.application.routes.draw do
   post "server_connections/:server_connection_id/resume_items/:item_id/reset", to: "resume_items#reset", as: :reset_resume_server_connection
   get "server_connections/:server_connection_id/playback_queues/:item_id", to: "playback_queues#show", as: :playback_queue_server_connection
   get "server_connections/:server_connection_id/radio_tracks/:item_id", to: "radio_tracks#show", as: :radio_tracks_server_connection
+  get "sonic_graph", to: "sonic_graphs#index", as: :sonic_graph
+  get "server_connections/:server_connection_id/sonic_graph/:item_id", to: "sonic_graphs#show", as: :sonic_graph_server_connection
+
+  namespace :api do
+    namespace :v1 do
+      resource :sonic_graph, only: [] do
+        get :status
+        post :resolve_paths
+        post :edges
+      end
+    end
+  end
   get "server_connections/:server_connection_id/library_items/:id", to: "library_items#show", as: :library_item_server_connection
   patch "server_connections/:server_connection_id/favorites/:item_id", to: "favorites#update", as: :favorite_server_connection
   get "server_connections/:server_connection_id/playlists", to: "playlists#index", as: :playlists_server_connection
