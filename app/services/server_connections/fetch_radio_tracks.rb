@@ -9,8 +9,20 @@ module ServerConnections
     end
 
     def call
-      response = client.instant_mix(@item_id, limit: @limit)
-      FetchRadioTracksResultData.new(items: response.items, access_token: response.access_token, message: nil)
+      traverser = SonicGraph::Traverser.new(@server_connection)
+      items = if traverser.graph_available?(@item_id)
+        next_ids = traverser.next_tracks(@item_id, limit: @limit)
+        client.recommendation_tracks_by_ids(next_ids)
+      else
+        []
+      end
+
+      if items.empty?
+        response = client.instant_mix(@item_id, limit: @limit)
+        items = response.items
+      end
+
+      FetchRadioTracksResultData.new(items:, access_token: client.instance_variable_get(:@access_token), message: nil)
     rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError => error
       FetchRadioTracksResultData.new(items: [], access_token: nil, message: error.message.presence || "Could not prepare radio tracks.")
     end

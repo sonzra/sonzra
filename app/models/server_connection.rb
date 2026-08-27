@@ -5,6 +5,10 @@ class ServerConnection < ApplicationRecord
   belongs_to :media_server
   has_many :listening_events, dependent: :destroy
   has_many :hidden_artists, dependent: :destroy
+  has_many :track_similarities, dependent: :destroy
+  has_many :sonic_graph_nodes, dependent: :destroy
+
+  after_create_commit -> { BuildSonicGraphJob.perform_later(id) }
 
   validates :username, presence: true
   validates :access_token, presence: true, unless: :password?

@@ -7,7 +7,7 @@ require_relative "../capability_support"
 module Integrations
   module Jellyfin
     class Client
-      CAPABILITIES = [ Integrations::Capabilities::LETTER_FILTERING ].freeze
+      CAPABILITIES = [ Integrations::Capabilities::LETTER_FILTERING, Integrations::Capabilities::SONIC_GRAPH ].freeze
       include Integrations::CapabilitySupport
 
       class AuthenticationError < StandardError; end
@@ -190,11 +190,22 @@ module Integrations
         token = session.fetch("AccessToken")
         podcast_view = podcast_library(user_id, token)
         podcast_ids = podcast_view ? podcast_album_ids(user_id, token, podcast_view) : []
-        tracks = music_songs_without_podcasts(
-          items(user_id, token, limit: item_ids.size, IncludeItemTypes: "Audio", Ids: item_ids.join(","), EnableUserData: true, Fields: "Genres,AlbumArtists,AlbumPrimaryImageTag,RunTimeTicks"),
-          podcast_ids
-        )
+
+        raw_tracks = item_ids.each_slice(50).flat_map do |slice|
+          items(user_id, token, limit: slice.size, IncludeItemTypes: "Audio", Ids: slice.join(","), EnableUserData: true, Fields: "Genres,AlbumArtists,AlbumPrimaryImageTag,RunTimeTicks")
+        end
+
+        tracks = music_songs_without_podcasts(raw_tracks, podcast_ids)
         tracks.sort_by { |track| item_ids.index(track["Id"]) || item_ids.size }
+      rescue AuthenticationError
+        if @username.present? && @password.present?
+          @access_token = nil
+          @resolved_user = nil
+          retry
+        end
+        []
+      rescue StandardError
+        []
       end
 
       def monthly_top_tracks(period_date)
@@ -236,6 +247,43 @@ module Integrations
         ).fetch("Items", [])
 
         PlaybackQueueResponseData.new(items: items.select { |item| item["Type"] == "Audio" }, access_token: token)
+      end
+
+      def all_track_ids
+        session = authentication
+        user_id = session.fetch("User").fetch("Id")
+        token = session.fetch("AccessToken")
+        all_items(user_id, token, sort_order: "Ascending", IncludeItemTypes: "Audio", Recursive: true)
+          .map { |item| item["Id"] }
+      rescue AuthenticationError
+        if @username.present? && @password.present?
+          @access_token = nil
+          @resolved_user = nil
+          retry
+        end
+        []
+      rescue StandardError
+        []
+      end
+
+      def similar_tracks_for(item_id, limit: 20)
+        session = authentication
+        token = session.fetch("AccessToken")
+        user_id = session.fetch("User").fetch("Id")
+        items = get("Items/#{item_id}/Similar", token, UserId: user_id, Limit: limit, IncludeItemTypes: "Audio").fetch("Items", [])
+        items.each_with_index.map do |item, index|
+          rank_distance = (0.05 + (index * 0.045)).round(3)
+          { id: item["Id"], distance: rank_distance }
+        end
+      rescue AuthenticationError
+        if @username.present? && @password.present?
+          @access_token = nil
+          @resolved_user = nil
+          retry
+        end
+        []
+      rescue StandardError
+        []
       end
 
       def lyrics(item_id)
@@ -717,9 +765,19 @@ module Integrations
 
       private
 
-      def perform(http_request)
-        http.start(http_request.uri.host, http_request.uri.port, use_ssl: http_request.uri.scheme == "https", open_timeout: 5, read_timeout: 10) do |connection|
-          connection.request(http_request)
+      def perform(http_request, max_retries: 2)
+        retries = 0
+        begin
+          http.start(http_request.uri.host, http_request.uri.port, use_ssl: http_request.uri.scheme == "https", open_timeout: 5, read_timeout: 10) do |connection|
+            connection.request(http_request)
+          end
+        rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED, Errno::ETIMEDOUT, Timeout::Error => error
+          if retries < max_retries
+            retries += 1
+            sleep(0.5 * retries)
+            retry
+          end
+          raise ConnectionError, "Connection failed: #{error.message}"
         end
       end
 
@@ -730,6 +788,7 @@ module Integrations
       end
 
       def ensure_success!(response)
+        raise AuthenticationError, "Session expired." if response.code == "401"
         raise ConnectionError, "The server returned HTTP #{response.code}." unless response.is_a?(Net::HTTPSuccess)
       end
 

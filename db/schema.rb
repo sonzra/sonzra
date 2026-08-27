@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_13_143000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_25_161200) do
   create_table "application_settings", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.boolean "registrations_enabled", default: true, null: false
@@ -134,6 +134,32 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_143000) do
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
+  create_table "sonic_graph_nodes", force: :cascade do |t|
+    t.string "artist"
+    t.string "artwork_url"
+    t.datetime "created_at", null: false
+    t.string "item_id", null: false
+    t.integer "server_connection_id", null: false
+    t.datetime "synced_at", null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["server_connection_id", "item_id"], name: "idx_sonic_graph_nodes_unique", unique: true
+    t.index ["server_connection_id"], name: "index_sonic_graph_nodes_on_server_connection_id"
+  end
+
+  create_table "track_similarities", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.float "distance", default: 1.0, null: false
+    t.string "from_item_id", null: false
+    t.integer "server_connection_id", null: false
+    t.datetime "synced_at", null: false
+    t.string "to_item_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["server_connection_id", "from_item_id", "to_item_id"], name: "idx_track_similarities_unique", unique: true
+    t.index ["server_connection_id", "from_item_id"], name: "idx_track_similarities_connection_from"
+    t.index ["server_connection_id"], name: "index_track_similarities_on_server_connection_id"
+  end
+
   create_table "tv_device_sessions", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "expires_at", null: false
@@ -170,6 +196,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_143000) do
   add_foreign_key "server_connections", "media_servers"
   add_foreign_key "server_connections", "users"
   add_foreign_key "sessions", "users"
+  add_foreign_key "sonic_graph_nodes", "server_connections"
+  add_foreign_key "track_similarities", "server_connections"
   add_foreign_key "tv_device_sessions", "users"
   add_foreign_key "users", "server_connections", column: "preferred_server_connection_id"
 end

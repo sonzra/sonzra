@@ -7,7 +7,7 @@ require_relative "../capability_support"
 module Integrations
   module Plex
     class Client
-      CAPABILITIES = [].freeze
+      CAPABILITIES = [ Integrations::Capabilities::SONIC_GRAPH ].freeze
       include Integrations::CapabilitySupport
 
       AuthenticationError = Integrations::Jellyfin::Client::AuthenticationError
@@ -174,6 +174,21 @@ module Integrations
 
       def recommendation_tracks_by_ids(item_ids)
         item_ids.filter_map { |item_id| normalize_item(metadata(item_id)) }
+      end
+
+      def all_track_ids
+        section = music_section
+        media_items("/library/sections/#{section.fetch("key")}/all", type: 10, "X-Plex-Container-Size" => 10_000)
+          .map { |item| item["Id"] }
+      rescue ConnectionError
+        []
+      end
+
+      def similar_tracks_for(item_id, limit: 20)
+        media_items("/library/metadata/#{item_id}/nearest", limit:)
+          .map { |item| { id: item["Id"], distance: 1.0 } }
+      rescue ConnectionError
+        []
       end
 
       def lyrics(item_id)
@@ -506,7 +521,7 @@ module Integrations
         uri.to_s.chomp("/")
       end
 
-      def request(method, url, params: {}, access_token: nil, form: false, allow_not_found: false)
+      def request(method, url, params: {}, access_token: nil, form: false, allow_not_found: false, max_retries: 2)
         uri = URI.parse(url)
         uri.query = URI.encode_www_form(params) if params.present? && !form
         request_class = { get: Net::HTTP::Get, post: Net::HTTP::Post, put: Net::HTTP::Put, delete: Net::HTTP::Delete }.fetch(method)
@@ -515,12 +530,22 @@ module Integrations
           request["Content-Type"] = "application/x-www-form-urlencoded"
           request.body = URI.encode_www_form(params)
         end
-        response = @http.start(uri.host, uri.port, use_ssl: uri.scheme == "https") { |connection| connection.request(request) }
+        retries = 0
+        response = begin
+          @http.start(uri.host, uri.port, use_ssl: uri.scheme == "https", open_timeout: 5, read_timeout: 10) { |connection| connection.request(request) }
+        rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED, Errno::ETIMEDOUT, Timeout::Error => error
+          if retries < max_retries
+            retries += 1
+            sleep(0.5 * retries)
+            retry
+          end
+          raise error
+        end
         raise AuthenticationError if response.code == "401"
         raise ConnectionError, "Plex returned HTTP #{response.code}." unless response.is_a?(Net::HTTPSuccess) || (allow_not_found && response.code == "404")
 
         response
-      rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED
+      rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED, Errno::ETIMEDOUT, Timeout::Error
         raise ConnectionError, "Could not reach Plex. Check the address and try again."
       rescue OpenSSL::SSL::SSLError
         raise ConnectionError, "Could not establish a secure connection to Plex."
