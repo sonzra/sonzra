@@ -11,6 +11,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <meta name="theme-color" content="#16161f">
     <meta name="application-name" content="Sonzra">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <%= csrf_meta_tags %>
@@ -45,6 +46,7 @@
     <%= stylesheet_link_tag "minimized_player", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag "mobile_queue_layout", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag "music_shelf_pages", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "sonic_graph", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
   <% if authenticated? %><body class="authenticated-body <%= "media-detail-body" if @media_detail_header %> <%= "offline-shell" if @offline_shell %>" data-controller="card-options media-header offline-media tooltip <%= "offline-connection" if @offline_shell %>" data-offline-media-scope-value="<%= current_user.id %>"><% else %><body><% end %>

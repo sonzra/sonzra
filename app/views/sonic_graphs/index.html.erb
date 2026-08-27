@@ -1,0 +1,39 @@
+<div class="sonic-graph-canvas"
+     data-controller="sonic-graph"
+     data-sonic-graph-data-value="<%= { nodes: @nodes, edges: @edges }.to_json %>">
+
+  <%# Loading Indicator Overlay %>
+  <div data-sonic-graph-target="loader" class="sonic-graph-canvas__loader">
+    <div class="sonic-graph-canvas__spinner"></div>
+    <div class="sonic-graph-canvas__loader-text">Mapping your music galaxy...</div>
+  </div>
+
+  <%# Title Overlay (top-left) %>
+  <div class="sonic-graph-canvas__title">
+    <h1>Sonic Map</h1>
+    <p><%= @nodes.size %> tracks</p>
+  </div>
+
+  <%# Search & Zoom Toolbar (top-right) %>
+  <div class="sonic-graph-canvas__toolbar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text"
+           data-sonic-graph-target="search"
+           data-action="input->sonic-graph#onSearch"
+           placeholder="Search tracks..." />
+    <button data-action="click->sonic-graph#resetZoom"
+            class="button button--subtle button--icon"
+            title="Reset View"
+            style="padding: 0.3rem; border-radius: 6px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+    </button>
+  </div>
+
+  <%# WebGL Canvas %>
+  <div data-sonic-graph-target="container"
+       class="sonic-graph-canvas__viewport"></div>
+
+  <%# Detail Panel (bottom-right) %>
+  <div data-sonic-graph-target="panel"
+       class="sonic-graph-canvas__panel"></div>
+</div>

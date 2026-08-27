@@ -1,0 +1,137 @@
+.sonic-graph-canvas {
+  position: relative;
+  width: 100%;
+  height: calc(100dvh - 76px - 91px);
+  background: #0b0f19;
+  overflow: hidden;
+}
+
+.sonic-graph-canvas__viewport {
+  width: 100%;
+  height: 100%;
+}
+
+.sonic-graph-canvas__title {
+  position: absolute;
+  top: 1.25rem;
+  left: 1.25rem;
+  z-index: 40;
+  color: #fff;
+  pointer-events: none;
+}
+
+.sonic-graph-canvas__title h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-family: Georgia, serif;
+  margin: 0;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+}
+
+.sonic-graph-canvas__title p {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  font-style: italic;
+  margin: 0.2rem 0 0;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
+}
+
+.sonic-graph-canvas__toolbar {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 0.4rem 0.75rem;
+}
+
+.sonic-graph-canvas__toolbar input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 0.85rem;
+  width: 180px;
+}
+
+.sonic-graph-canvas__panel {
+  display: none;
+  position: absolute;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  z-index: 60;
+  width: 320px;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 1rem;
+  color: #fff;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.sonic-graph-canvas__loader {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  background: #0b0f19;
+  color: #fff;
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.sonic-graph-canvas__loader--hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.sonic-graph-canvas__spinner {
+  width: 42px;
+  height: 42px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #ec4899;
+  border-right-color: #3b82f6;
+  border-radius: 50%;
+  animation: sonic-spin 0.9s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+}
+
+.sonic-graph-canvas__loader-text {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #cbd5e1;
+  letter-spacing: 0.02em;
+}
+
+@keyframes sonic-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive: account for mobile player height */
+@media (max-width: 760px) {
+  .sonic-graph-canvas {
+    height: calc(100dvh - 65px - 70px);
+  }
+
+  .sonic-graph-canvas__panel {
+    width: 260px;
+    bottom: 1rem;
+    right: 1rem;
+  }
+
+  .sonic-graph-canvas__toolbar input {
+    width: 140px;
+  }
+}

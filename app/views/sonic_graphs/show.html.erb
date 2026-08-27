@@ -1,0 +1,47 @@
+<div class="library-page container" style="max-width: 900px; margin: 0 auto; padding: 2rem 1rem;">
+  <div class="library-page__header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+    <div>
+      <a href="javascript:history.back()" class="button button--subtle" style="margin-bottom: 0.5rem; display: inline-flex; align-items: center; gap: 0.35rem;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        Back
+      </a>
+      <h1 class="library-page__title" style="font-size: 1.75rem; font-weight: 700;">Sonic Music Map</h1>
+      <p style="color: var(--color-text-muted, #94a3b8); margin-top: 0.25rem;">
+        A visual audio similarity network showing nearest musical neighbors for <strong><%= @center_item ? @center_item["Name"] : "Track" %></strong>
+      </p>
+    </div>
+  </div>
+
+  <div class="card" style="position: relative; background: var(--color-surface, #1e293b); border-radius: 12px; padding: 1rem; overflow: hidden;"
+       data-controller="sonic-graph"
+       data-sonic-graph-data-value="<%= { center: @center_item ? { item_id: @center_item["Id"], title: @center_item["Name"], artist: @center_item["AlbumArtist"] || @center_item["Artists"]&.join(", ") || "Unknown artist", artwork: library_artwork_path(current_user.preferred_server_connection, @center_item) || "/brand/sonzra-mark.svg" } : nil, neighbors: @neighbors }.to_json %>">
+
+    <div data-sonic-graph-target="container"
+         style="width: 100%; height: 550px; border-radius: 8px; background: #090d16;"></div>
+
+    <div data-sonic-graph-target="tooltip"
+         style="display: none; position: fixed; z-index: 1000; pointer-events: none; background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 0.6rem 0.85rem; color: #fff; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);">
+    </div>
+  </div>
+
+  <% if @neighbors.present? %>
+    <div style="margin-top: 2rem;">
+      <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem;">Nearest Musical Neighbors</h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem;">
+        <% @neighbors.each do |neighbor| %>
+          <div class="card" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--color-surface, #1e293b); border-radius: 8px;">
+            <img src="<%= neighbor[:artwork] %>" alt="<%= neighbor[:title] %>" style="width: 48px; height: 48px; border-radius: 6px; object-fit: cover;" />
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-weight: 600; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;"><%= neighbor[:title] %></div>
+              <div style="font-size: 0.8rem; color: var(--color-text-muted, #94a3b8); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;"><%= neighbor[:artist] %></div>
+              <div style="font-size: 0.75rem; color: #a855f7; margin-top: 2px;">Distance: <%= neighbor[:distance].round(2) %></div>
+            </div>
+            <a href="<%= neighbor[:graph_url] %>" class="button button--subtle button--icon" title="View Sonic Map" style="padding: 0.4rem;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><path d="M12 9V5M12 15v4M9 12H5M15 12h4"/></svg>
+            </a>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+</div>

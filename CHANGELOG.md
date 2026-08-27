@@ -4,6 +4,7 @@
 
 ### Added
 
+- Sonic Music Map & Radio Similarity Graph: Local SQLite graph engine (`TrackSimilarity` & `SonicGraphNode`), interactive force-directed canvas visualizer (`/sonic_graph`), ActiveJob builder worker (`BuildSonicGraphJob`), and rank-weighted distance scoring. Supports Plex Sonic Analysis out-of-the-box, and recommends [AudioMuse-AI](https://github.com/NeptuneHub/AudioMuse-AI) for Jellyfin servers for deep neural acoustic waveform matching.
 - Weekly Monday "All-Time Heavy Rotation" mix strategy featuring top 20 most-played tracks of all time.
 - Infinite scroll and vertical A–Z / # alphabet sidebar for Albums and Artists library pages.
 - Provider capabilities system (`Integrations::Capabilities`) to enable feature UI based on provider capabilities.
