@@ -1,0 +1,31 @@
+#!/usr/bin/env ruby
+
+require "optparse"
+require_relative "../lib/music_library/lyrics_sync"
+
+options = { write: false, overwrite: false, allow_plain: false, delay: 1.0 }
+parser = OptionParser.new do |arguments|
+  arguments.banner = "Usage: script/sync_lyrics MUSIC_DIRECTORY [options]"
+  arguments.on("--write", "Write .lrc sidecars (default is dry run)") { options[:write] = true }
+  arguments.on("--overwrite", "Replace existing .lrc sidecars") { options[:overwrite] = true }
+  arguments.on("--allow-plain", "Accept unsynchronized lyrics when no timed result is found") { options[:allow_plain] = true }
+  arguments.on("--delay SECONDS", Float, "Delay between LRCmux requests (default: 1)") { |value| options[:delay] = value }
+end
+parser.parse!
+root = ARGV.shift
+abort parser.to_s if root.nil? || root.strip.empty? || ARGV.any?
+abort "Directory not found: #{root}" unless Dir.exist?(root)
+
+progress = lambda do |update|
+  puts "[#{update.current}/#{update.total}] Looking up #{File.basename(update.path)}"
+  $stdout.flush
+end
+begin
+  results = MusicLibrary::LyricsSynchronizer.new(root: root, progress: progress, **options).call
+  results.each { |result| puts "#{result.status.to_s.upcase}: #{result.path} — #{result.message}" }
+  puts "\n#{results.group_by(&:status).transform_values(&:count).sort.to_h.to_json}"
+  exit 1 if results.any? { |result| result.status == :failed }
+rescue MusicLibrary::SidecarWriter::WriteAccessError => error
+  warn "\nWRITE ABORTED: #{error.message}\nNo further lyric files were written."
+  exit 1
+end
