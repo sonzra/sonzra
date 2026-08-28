@@ -253,8 +253,11 @@ module Integrations
         session = authentication
         user_id = session.fetch("User").fetch("Id")
         token = session.fetch("AccessToken")
-        all_items(user_id, token, sort_order: "Ascending", IncludeItemTypes: "Audio", Recursive: true)
-          .map { |item| item["Id"] }
+        podcast_view = podcast_library(user_id, token)
+        podcast_ids = podcast_view ? podcast_album_ids(user_id, token, podcast_view) : []
+
+        raw_tracks = all_items(user_id, token, sort_order: "Ascending", IncludeItemTypes: "Audio", Recursive: true)
+        music_songs_without_podcasts(raw_tracks, podcast_ids).map { |item| item["Id"] }
       rescue AuthenticationError
         if @username.present? && @password.present?
           @access_token = nil
