@@ -1,10 +1,10 @@
 class ArtworkController < ApplicationController
   def show
     server_connection = current_user.server_connections.find(params.expect(:server_connection_id))
-    access_token = session.dig(:server_access_tokens, server_connection.id.to_s)
-    return send_fallback_artwork unless access_token
+    client = Integrations::Client.for(server_connection)
+    access_token = session.dig(:server_access_tokens, server_connection.id.to_s) || server_connection.access_token
 
-    artwork = Integrations::Client.for(server_connection).artwork(
+    artwork = client.artwork(
       item_id: params.expect(:item_id),
       tag: params[:tag],
       access_token: access_token

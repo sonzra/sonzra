@@ -753,11 +753,12 @@ module Integrations
 
       public
 
-      def artwork(item_id:, tag:, access_token:)
+      def artwork(item_id:, tag:, access_token: nil)
+        token = access_token.presence || authentication.fetch("AccessToken")
         parameters = tag.present? ? { tag: tag } : {}
         uri = URI.parse("#{base_url}/Items/#{item_id}/Images/Primary")
         uri.query = URI.encode_www_form(parameters) if parameters.any?
-        response = perform(Net::HTTP::Get.new(uri, "X-Emby-Token" => access_token))
+        response = perform(Net::HTTP::Get.new(uri, "X-Emby-Token" => token))
 
         ensure_success!(response)
         ArtworkResponseData.new(body: response.body, content_type: response["Content-Type"] || "image/jpeg")
