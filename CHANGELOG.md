@@ -14,6 +14,7 @@
 
 ### Changed
 
+- Optimized Sonic Map loading performance for large libraries via Top-5 nearest neighbor SQLite windowing and server-side response caching.
 - Standardized library pagination size to 60 items across providers.
 - Excluded short tracks under one minute from generated recommendation mixes.
 - Mixes now start playback in Radio mode automatically.

@@ -7,33 +7,50 @@ class SonicGraphsController < ApplicationController
     server_connection = current_user.preferred_server_connection || current_user.server_connections.first
     return redirect_to root_path unless server_connection
 
-    cached_nodes = SonicGraphNode.where(server_connection:)
+    last_nodes_updated = SonicGraphNode.where(server_connection:).maximum(:updated_at)
+    last_edges_updated = TrackSimilarity.where(server_connection:).maximum(:updated_at)
 
-    # Count connections per track ID to determine node size (degree centrality)
-    degrees = TrackSimilarity.where(server_connection:).group(:from_item_id).count
+    cached_payload = Rails.cache.fetch([ "sonic_graph_v2", server_connection.id, last_nodes_updated, last_edges_updated ]) do
+      cached_nodes = SonicGraphNode.where(server_connection:)
+      degrees = TrackSimilarity.where(server_connection:).group(:from_item_id).count
 
-    @nodes = cached_nodes.map do |node|
-      deg = degrees[node.item_id] || 0
-      {
-        id: node.item_id,
-        label: node.title,
-        group: node.artist.presence || "Unknown artist",
-        image: node.artwork_url,
-        audio_url: audio_server_connection_path(server_connection, node.item_id),
-        graph_url: sonic_graph_server_connection_path(server_connection, node.item_id),
-        degree: deg
-      }
+      nodes = cached_nodes.map do |node|
+        deg = degrees[node.item_id] || 0
+        {
+          id: node.item_id,
+          label: node.title,
+          group: node.artist.presence || "Unknown artist",
+          image: node.artwork_url,
+          audio_url: audio_server_connection_path(server_connection, node.item_id),
+          graph_url: sonic_graph_server_connection_path(server_connection, node.item_id),
+          degree: deg
+        }
+      end
+
+      # Top 5 nearest similarity edges per node for lightweight layout payload
+      top_edges = TrackSimilarity.find_by_sql([
+        "SELECT from_item_id, to_item_id, distance FROM (
+           SELECT from_item_id, to_item_id, distance,
+                  ROW_NUMBER() OVER (PARTITION BY from_item_id ORDER BY distance ASC) as rn
+           FROM track_similarities
+           WHERE server_connection_id = ?
+         ) WHERE rn <= 5",
+        server_connection.id
+      ])
+
+      edges = top_edges.map do |e|
+        { from: e.from_item_id, to: e.to_item_id, value: (1.0 - (e.distance || 1.0)).round(2) }
+      end
+
+      { nodes:, edges: }
     end
 
-    node_ids = @nodes.map { |n| n[:id] }
-    all_edges = TrackSimilarity.where(server_connection:, from_item_id: node_ids, to_item_id: node_ids)
-    @edges = all_edges.pluck(:from_item_id, :to_item_id, :distance).map do |from, to, dist|
-      { from:, to:, value: (1.0 - (dist || 1.0)).round(2) }
-    end
+    @nodes = cached_payload[:nodes]
+    @edges = cached_payload[:edges]
 
     respond_to do |format|
       format.html
-      format.json { render json: { nodes: @nodes, edges: @edges } }
+      format.json { render json: cached_payload }
     end
   end
 
