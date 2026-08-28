@@ -6,6 +6,7 @@
 
 - Sonic Music Map & Radio Similarity Graph: Local SQLite graph engine (`TrackSimilarity` & `SonicGraphNode`), full-viewport WebGL galaxy visualizer (`/sonic_graph`), ActiveJob builder worker (`BuildSonicGraphJob`), and rank-weighted distance scoring. Supports Plex Sonic Analysis out-of-the-box, internal sync API for [`sonzra-analyzer`](https://github.com/sonzra/sonzra-analyzer) neural DSP sidecar, and AudioMuse-AI for Jellyfin servers.
 - Command-line tool `script/sync_lyrics` and `MusicLibrary::LyricsSynchronizer` to batch synchronize and write `.lrc` sidecar files directly to your music storage.
+- Rake task `sonic_graph:prune_non_music` to prune podcasts and audiobooks from existing similarity graphs.
 - Weekly Monday "All-Time Heavy Rotation" mix strategy featuring top 20 most-played tracks of all time.
 - Infinite scroll and vertical A–Z / # alphabet sidebar for Albums and Artists library pages.
 - Provider capabilities system (`Integrations::Capabilities`) to enable feature UI based on provider capabilities.
@@ -14,6 +15,7 @@
 
 ### Changed
 
+- Filtered out non-music items (podcasts and audiobooks) from Sonic Graph indexing.
 - Optimized Sonic Map loading performance for large libraries via Top-5 nearest neighbor SQLite windowing and server-side response caching.
 - Standardized library pagination size to 60 items across providers.
 - Excluded short tracks under one minute from generated recommendation mixes.
