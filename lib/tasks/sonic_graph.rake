@@ -1,4 +1,13 @@
 namespace :sonic_graph do
+  desc "Delete all derived sonic analysis so the external analyzer can rebuild it"
+  task reset: :environment do
+    ServerConnection.find_each do |connection|
+      result = SonicGraph::Reset.new(connection).call
+      puts "Connection ##{connection.id} (#{connection.name}): deleted #{result.nodes_deleted} nodes and #{result.edges_deleted} similarity edges."
+    end
+    Rails.cache.delete_matched("sonic_graph_v*")
+  end
+
   desc "Backfill sonic similarity graph for connections without data"
   task backfill: :environment do
     ServerConnection.find_each do |connection|
