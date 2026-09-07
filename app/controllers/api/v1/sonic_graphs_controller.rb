@@ -11,35 +11,17 @@ module Api
           return render json: { status: "error", message: "No server connection found" }, status: :unprocessable_entity
         end
 
-        all_ids = TrackSimilarity.where(server_connection:).distinct.pluck(:from_item_id)
-        analyzed_ids = SonicGraphNode.where(server_connection:).pluck(:item_id)
-        pending_ids = (all_ids - analyzed_ids).first(50)
-
         client = Integrations::Client.for(server_connection)
+        all_ids = track_ids_for(client, server_connection)
+        analysis_version = requested_analysis_version
+        analyzed_ids = SonicGraphNode.where(server_connection:).with_analysis_version(analysis_version).pluck(:item_id)
+        pending_ids = (all_ids - analyzed_ids).first(50)
         pending_tracks = pending_ids.present? ? client.recommendation_tracks_by_ids(pending_ids) : []
-
-        if pending_ids.present? && pending_tracks.empty?
-          now = Time.current
-          dummy_records = pending_ids.map do |id|
-            {
-              server_connection_id: server_connection.id,
-              item_id: id.to_s,
-              title: "Track #{id}",
-              artist: "Unknown artist",
-              artwork_url: "/server_connections/#{server_connection.id}/artwork/#{id}",
-              synced_at: now,
-              created_at: now,
-              updated_at: now
-            }
-          end
-          SonicGraphNode.upsert_all(dummy_records, unique_by: :idx_sonic_graph_nodes_unique)
-          analyzed_ids = SonicGraphNode.where(server_connection:).pluck(:item_id)
-          pending_ids = (all_ids - analyzed_ids).first(50)
-        end
 
         render json: {
           status: "ok",
           server_connection_id: server_connection.id,
+          analysis_version:,
           total_indexed_tracks: all_ids.size,
           analyzed_nodes: analyzed_ids.size,
           pending_count: (all_ids.size - analyzed_ids.size),
@@ -48,10 +30,23 @@ module Api
               item_id: t["Id"],
               title: t["Name"],
               artist: t["AlbumArtist"] || t["Artists"]&.join(", ") || "Unknown artist",
+              duration_seconds: t["RunTimeTicks"].to_f / 10_000_000,
               artwork_url: "/server_connections/#{server_connection.id}/artwork/#{t['Id']}",
               audio_url: "/server_connections/#{server_connection.id}/audio/#{t['Id']}"
             }
           }
+        }
+      end
+
+      def features
+        server_connection = ServerConnection.find_by(id: params[:server_connection_id]) || ServerConnection.first
+        return render json: { status: "error", message: "Server connection not found" }, status: :not_found unless server_connection
+
+        records = SonicGraphNode.where(server_connection:).with_analysis_version(requested_analysis_version).where.not(feature_vector: nil)
+        render json: {
+          status: "ok",
+          analysis_version: requested_analysis_version,
+          features: records.pluck(:item_id, :artist, :feature_vector).map { |item_id, artist, vector| { item_id:, artist:, vector: } }
         }
       end
 
@@ -94,13 +89,18 @@ module Api
               title: n[:title].presence || "Untitled",
               artist: n[:artist] || "Unknown artist",
               artwork_url: n[:artwork_url] || "/server_connections/#{server_connection.id}/artwork/#{n[:item_id]}",
+              analysis_version: requested_analysis_version,
+              feature_vector: n[:feature_vector],
               synced_at: now,
               created_at: now,
               updated_at: now
             }
           end
-          SonicGraphNode.upsert_all(node_records, unique_by: :idx_sonic_graph_nodes_unique)
+          SonicGraphNode.upsert_all(node_records, unique_by: :idx_sonic_graph_nodes_unique, update_only: [ :title, :artist, :artwork_url, :analysis_version, :feature_vector, :synced_at, :updated_at ])
         end
+
+        replace_from_item_ids = Array(params[:replace_from_item_ids]).map(&:to_s).uniq
+        TrackSimilarity.where(server_connection:, from_item_id: replace_from_item_ids).delete_all if replace_from_item_ids.present?
 
         if edges_data.present?
           edge_records = edges_data.map do |e|
@@ -109,6 +109,7 @@ module Api
               from_item_id: e[:from_item_id].to_s,
               to_item_id: e[:to_item_id].to_s,
               distance: e[:distance].to_f.round(4),
+              analysis_version: requested_analysis_version,
               synced_at: now,
               created_at: now,
               updated_at: now
@@ -133,6 +134,20 @@ module Api
         unless ActiveSupport::SecurityUtils.secure_compare(provided_token.to_s, expected_token)
           render json: { status: "error", message: "Unauthorized analyzer token" }, status: :unauthorized
         end
+      end
+
+      def requested_analysis_version
+        request.headers.fetch("X-Sonzra-Analysis-Version", "legacy")
+      end
+
+      def track_ids_for(client, server_connection)
+        return SonicGraph::TrackCatalog.new(server_connection:, client:).track_ids if requested_artist_names.empty?
+
+        client.sonic_graph_track_ids_for_artists(requested_artist_names)
+      end
+
+      def requested_artist_names
+        Array(params[:artists]).flat_map { |names| names.to_s.split(",") }.map(&:strip).reject(&:blank?).uniq
       end
     end
   end

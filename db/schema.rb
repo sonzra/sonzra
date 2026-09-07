@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_25_161200) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_06_121000) do
   create_table "application_settings", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.boolean "registrations_enabled", default: true, null: false
@@ -135,9 +135,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_161200) do
   end
 
   create_table "sonic_graph_nodes", force: :cascade do |t|
+    t.string "analysis_version"
     t.string "artist"
     t.string "artwork_url"
     t.datetime "created_at", null: false
+    t.json "feature_vector"
     t.string "item_id", null: false
     t.integer "server_connection_id", null: false
     t.datetime "synced_at", null: false
@@ -148,6 +150,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_161200) do
   end
 
   create_table "track_similarities", force: :cascade do |t|
+    t.string "analysis_version"
     t.datetime "created_at", null: false
     t.float "distance", default: 1.0, null: false
     t.string "from_item_id", null: false
@@ -155,6 +158,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_161200) do
     t.datetime "synced_at", null: false
     t.string "to_item_id", null: false
     t.datetime "updated_at", null: false
+    t.index ["server_connection_id", "analysis_version"], name: "index_track_similarities_on_connection_and_analysis_version"
     t.index ["server_connection_id", "from_item_id", "to_item_id"], name: "idx_track_similarities_unique", unique: true
     t.index ["server_connection_id", "from_item_id"], name: "idx_track_similarities_connection_from"
     t.index ["server_connection_id"], name: "index_track_similarities_on_server_connection_id"

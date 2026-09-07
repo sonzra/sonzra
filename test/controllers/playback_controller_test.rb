@@ -69,4 +69,20 @@ class PlaybackControllerTest < ActionDispatch::IntegrationTest
 
     assert_not_equal 500, response.status
   end
+
+  test "allows the analyzer token to stream audio without a browser session" do
+    client = FakeClient.new
+    client_class = Integrations::Jellyfin::Client
+    original_new = client_class.method(:new)
+    client_class.define_singleton_method(:new) { |**_attributes| client }
+
+    begin
+      get audio_server_connection_url(@server_connection, "track-id"), headers: { "X-Sonzra-Analyzer-Token" => "development_analyzer_token", "Accept" => "audio/mpeg" }
+    ensure
+      client_class.define_singleton_method(:new, original_new)
+    end
+
+    assert_response :partial_content
+    assert_equal "audio-data", response.body
+  end
 end

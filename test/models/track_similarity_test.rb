@@ -15,6 +15,8 @@ class TrackSimilarityTest < ActiveSupport::TestCase
   test "returns ordered neighbors for a track and connection" do
     TrackSimilarity.create!(server_connection: @connection, from_item_id: "track-1", to_item_id: "track-2", distance: 0.8, synced_at: Time.current)
     TrackSimilarity.create!(server_connection: @connection, from_item_id: "track-1", to_item_id: "track-3", distance: 0.2, synced_at: Time.current)
+    TrackSimilarity.create!(server_connection: @connection, from_item_id: "track-2", to_item_id: "track-1", distance: 0.8, synced_at: Time.current)
+    TrackSimilarity.create!(server_connection: @connection, from_item_id: "track-3", to_item_id: "track-1", distance: 0.2, synced_at: Time.current)
 
     neighbors = TrackSimilarity.neighbors_for(@connection, "track-1")
     assert_equal [ "track-3", "track-2" ], neighbors.map(&:to_item_id)

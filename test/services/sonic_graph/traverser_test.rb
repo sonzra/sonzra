@@ -13,6 +13,7 @@ class SonicGraph::TraverserTest < ActiveSupport::TestCase
     TrackSimilarity.create!(server_connection: @connection, from_item_id: "track-1", to_item_id: "track-2", distance: 0.2, synced_at: Time.current)
     TrackSimilarity.create!(server_connection: @connection, from_item_id: "track-1", to_item_id: "track-3", distance: 0.5, synced_at: Time.current)
     TrackSimilarity.create!(server_connection: @connection, from_item_id: "track-1", to_item_id: "track-4", distance: 0.8, synced_at: Time.current)
+    [ "track-2", "track-3", "track-4" ].each { |item_id| TrackSimilarity.create!(server_connection: @connection, from_item_id: item_id, to_item_id: "track-1", distance: 0.5, synced_at: Time.current) }
   end
 
   test "returns next tracks excluding history" do

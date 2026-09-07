@@ -39,6 +39,7 @@ Rails.application.routes.draw do
     namespace :v1 do
       resource :sonic_graph, only: [] do
         get :status
+        get :features
         post :resolve_paths
         post :edges
       end

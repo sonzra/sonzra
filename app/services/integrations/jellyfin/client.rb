@@ -269,6 +269,34 @@ module Integrations
         []
       end
 
+      def sonic_graph_track_ids_for_artists(artist_names)
+        session = authentication
+        user_id = session.fetch("User").fetch("Id")
+        token = session.fetch("AccessToken")
+        artist_ids = artist_names.filter_map do |artist_name|
+          get("Artists", token, UserId: user_id, SearchTerm: artist_name, Limit: 10).fetch("Items", [])
+            .find { |artist| artist["Name"].to_s.casecmp?(artist_name) }
+            &.fetch("Id")
+        end
+        return [] if artist_ids.empty?
+
+        podcast_view = podcast_library(user_id, token)
+        podcast_ids = podcast_view ? podcast_album_ids(user_id, token, podcast_view) : []
+        tracks = artist_ids.flat_map do |artist_id|
+          all_items(user_id, token, sort_order: "Ascending", IncludeItemTypes: "Audio", ArtistIds: artist_id)
+        end
+        music_songs_without_podcasts(tracks, podcast_ids).map { |track| track["Id"] }.uniq
+      rescue AuthenticationError
+        if @username.present? && @password.present?
+          @access_token = nil
+          @resolved_user = nil
+          retry
+        end
+        []
+      rescue StandardError
+        []
+      end
+
       def similar_tracks_for(item_id, limit: 20)
         session = authentication
         token = session.fetch("AccessToken")

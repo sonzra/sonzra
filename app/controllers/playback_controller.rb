@@ -1,5 +1,8 @@
 class PlaybackController < ApplicationController
   include ActionController::Live
+  allow_unauthenticated_access only: :show
+
+  before_action :require_playback_access
 
   def show
     client.stream_audio(
@@ -25,7 +28,23 @@ class PlaybackController < ApplicationController
   end
 
   def server_connection
-    @server_connection ||= current_user.server_connections.find(params.expect(:server_connection_id))
+    @server_connection ||= analyzer_request? ? ServerConnection.find(params.expect(:server_connection_id)) : current_user.server_connections.find(params.expect(:server_connection_id))
+  end
+
+  def require_playback_access
+    return if authenticated?
+    return if analyzer_request? && valid_analyzer_token?
+
+    request_authentication
+  end
+
+  def analyzer_request?
+    request.headers["X-Sonzra-Analyzer-Token"].present?
+  end
+
+  def valid_analyzer_token?
+    expected_token = ENV.fetch("ANALYZER_API_KEY", "development_analyzer_token")
+    ActiveSupport::SecurityUtils.secure_compare(request.headers["X-Sonzra-Analyzer-Token"].to_s, expected_token)
   end
 
   def start_stream(stream)

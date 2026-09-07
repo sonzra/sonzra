@@ -213,6 +213,35 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     assert_equal [ "track-1" ], response.items.pluck("Id")
   end
 
+  test "collects calibration tracks for each artist instead of intersecting artist ids" do
+    response = lambda do |body|
+      Net::HTTPOK.new("1.1", "200", "OK").tap do |http_response|
+        http_response.instance_variable_set(:@read, true)
+        http_response.body = body.to_json
+      end
+    end
+    http = FakeHttp.new([
+      response.call(AccessToken: "token", User: { Id: "user-id", Name: "Bruno" }),
+      response.call(Items: [ { Id: "resgate-id", Name: "Resgate" } ]),
+      response.call(Items: [ { Id: "rodolfo-id", Name: "Rodolfo Abrantes" } ]),
+      response.call(Items: []),
+      response.call(Items: [ { Id: "resgate-track", AlbumId: "resgate-album" } ], TotalRecordCount: 1),
+      response.call(Items: [ { Id: "rodolfo-track", AlbumId: "rodolfo-album" } ], TotalRecordCount: 1)
+    ])
+    client = Integrations::Jellyfin::Client.new(base_url: "https://example.com", username: "bruno", password: "secret", http: http)
+
+    track_ids = client.sonic_graph_track_ids_for_artists([ "Resgate", "Rodolfo Abrantes" ])
+
+    assert_equal [ "resgate-track", "rodolfo-track" ], track_ids
+    artist_ids = http.requests.filter_map do |request|
+      uri = URI.parse(request.path)
+      next unless uri.path == "/Users/user-id/Items"
+
+      URI.decode_www_form(uri.query).to_h["ArtistIds"]
+    end
+    assert_equal [ "resgate-id", "rodolfo-id" ], artist_ids
+  end
+
   test "builds Friday Rediscovery from unplayed and long-unheard library tracks" do
     response = lambda do |body|
       Net::HTTPOK.new("1.1", "200", "OK").tap do |http_response|
