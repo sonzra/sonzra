@@ -12,9 +12,10 @@ export default class extends Controller {
 
   async signOut(event) {
     event.preventDefault()
+    const submitter = event.currentTarget
 
     await this.store().clear()
-    event.currentTarget.closest("form")?.submit()
+    submitter?.closest("form")?.submit()
   }
 
   async download(event) {

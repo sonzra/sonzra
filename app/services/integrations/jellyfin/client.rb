@@ -321,7 +321,7 @@ module Integrations
         session = authentication
         token = session.fetch("AccessToken")
         uri = URI.parse("#{base_url}/Audio/#{item_id}/Lyrics")
-        response = perform(Net::HTTP::Get.new(uri, "X-Emby-Token" => token))
+        response = perform(Net::HTTP::Get.new(uri, authorization_headers(token)))
 
         raise AuthenticationError if response.code == "401"
         return LyricsResponseData.new(lines: [], access_token: token, available: false) if response.code == "404"
@@ -341,7 +341,7 @@ module Integrations
         session = authentication
         token = session.fetch("AccessToken")
         request_class = favorite ? Net::HTTP::Post : Net::HTTP::Delete
-        request = request_class.new(URI.parse("#{base_url}/UserFavoriteItems/#{item_id}"), "X-Emby-Token" => token)
+        request = request_class.new(URI.parse("#{base_url}/UserFavoriteItems/#{item_id}"), authorization_headers(token))
         ensure_success!(perform(request))
       rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED
         raise ConnectionError, "Could not reach the server. Check the address and try again."
@@ -356,7 +356,7 @@ module Integrations
         session = authentication
         token = session.fetch("AccessToken")
         uri = URI.parse("#{base_url}/Playlists")
-        request = Net::HTTP::Post.new(uri, "X-Emby-Token" => token, "Content-Type" => "application/json")
+        request = Net::HTTP::Post.new(uri, authorization_headers(token).merge("Content-Type" => "application/json"))
         request.body = { Name: name, UserId: session.dig("User", "Id"), MediaType: "Audio" }.to_json
         ensure_success!(response = perform(request))
         JSON.parse(response.body).fetch("Id")
@@ -367,20 +367,20 @@ module Integrations
         token = session.fetch("AccessToken")
         uri = URI.parse("#{base_url}/Playlists/#{playlist_id}/Items")
         uri.query = URI.encode_www_form(Ids: Array(item_ids || item_id).join(","), UserId: session.dig("User", "Id"))
-        ensure_success!(perform(Net::HTTP::Post.new(uri, "X-Emby-Token" => token)))
+        ensure_success!(perform(Net::HTTP::Post.new(uri, authorization_headers(token))))
       end
 
       def delete_playlist(playlist_id:)
         session = authentication
         uri = URI.parse("#{base_url}/Items/#{playlist_id}")
-        ensure_success!(perform(Net::HTTP::Delete.new(uri, "X-Emby-Token" => session.fetch("AccessToken"))))
+        ensure_success!(perform(Net::HTTP::Delete.new(uri, authorization_headers(session.fetch("AccessToken")))))
       end
 
       def remove_from_playlist(playlist_id:, entry_id:)
         session = authentication
         uri = URI.parse("#{base_url}/Playlists/#{playlist_id}/Items")
         uri.query = URI.encode_www_form(EntryIds: entry_id)
-        ensure_success!(perform(Net::HTTP::Delete.new(uri, "X-Emby-Token" => session.fetch("AccessToken"))))
+        ensure_success!(perform(Net::HTTP::Delete.new(uri, authorization_headers(session.fetch("AccessToken")))))
       end
 
       def stream_audio(item_id:, range:, access_token: nil)
@@ -390,7 +390,7 @@ module Integrations
         parameters = { Static: true }
         parameters[:UserId] = session.fetch("User").fetch("Id") if session
         uri.query = URI.encode_www_form(parameters)
-        headers = { "X-Emby-Token" => token }
+        headers = authorization_headers(token)
         headers["Range"] = range if range.present?
         stream(Net::HTTP::Get.new(uri, headers)) do |response|
           ensure_success!(response)
@@ -424,7 +424,7 @@ module Integrations
         token = access_token || authentication.fetch("AccessToken")
         uri = URI.parse("#{base_url}/UserItems/#{item_id}/UserData")
         response = perform(
-          Net::HTTP::Post.new(uri, "X-Emby-Token" => token, "Content-Type" => "application/json").tap do |request|
+          Net::HTTP::Post.new(uri, authorization_headers(token).merge("Content-Type" => "application/json")).tap do |request|
             request.body = { PlaybackPositionTicks: position_ticks, Played: false }.to_json
           end
         )
@@ -748,7 +748,7 @@ module Integrations
       def get(path, token, **parameters)
         uri = URI.parse("#{base_url}/#{path}")
         uri.query = URI.encode_www_form(parameters)
-        headers = token.present? ? { "X-Emby-Token" => token } : {}
+        headers = token.present? ? authorization_headers(token) : {}
         response = perform(Net::HTTP::Get.new(uri, headers))
 
         ensure_success!(response)
@@ -765,7 +765,7 @@ module Integrations
         else raise ArgumentError, "Unsupported playback event"
         end
         uri = URI.parse("#{base_url}/#{path}")
-        Net::HTTP::Post.new(uri, "X-Emby-Token" => token, "Content-Type" => "application/json").tap do |request|
+        Net::HTTP::Post.new(uri, authorization_headers(token).merge("Content-Type" => "application/json")).tap do |request|
           request.body = {
             ItemId: item_id,
             PositionTicks: position_ticks,
@@ -789,7 +789,7 @@ module Integrations
         parameters = tag.present? ? { tag: tag } : {}
         uri = URI.parse("#{base_url}/Items/#{item_id}/Images/Primary")
         uri.query = URI.encode_www_form(parameters) if parameters.any?
-        response = perform(Net::HTTP::Get.new(uri, "X-Emby-Token" => token))
+        response = perform(Net::HTTP::Get.new(uri, authorization_headers(token)))
 
         ensure_success!(response)
         ArtworkResponseData.new(body: response.body, content_type: response["Content-Type"] || "image/jpeg")
@@ -831,7 +831,7 @@ module Integrations
       public
 
       def initiate_quick_connect
-        response = perform(Net::HTTP::Post.new(URI.parse("#{base_url}/QuickConnect/Initiate"), "X-Emby-Authorization" => authorization_header))
+        response = perform(Net::HTTP::Post.new(URI.parse("#{base_url}/QuickConnect/Initiate"), "Authorization" => authorization_header))
         ensure_success!(response)
         JSON.parse(response.body)
       rescue JSON::ParserError
@@ -843,7 +843,7 @@ module Integrations
       end
 
       def authenticate_with_quick_connect(secret)
-        request = Net::HTTP::Post.new(URI.parse("#{base_url}/Users/AuthenticateWithQuickConnect"), "Content-Type" => "application/json", "X-Emby-Authorization" => authorization_header)
+        request = Net::HTTP::Post.new(URI.parse("#{base_url}/Users/AuthenticateWithQuickConnect"), "Content-Type" => "application/json", "Authorization" => authorization_header)
         request.body = { Secret: secret }.to_json
         response = perform(request)
         raise AuthenticationError if response.code == "401"
@@ -858,13 +858,19 @@ module Integrations
           endpoint,
           {
             "Content-Type" => "application/json",
-            "X-Emby-Authorization" => authorization_header
+            "Authorization" => authorization_header
           }
         ).tap { |post| post.body = { Username: username, Pw: password }.to_json }
       end
 
-      def authorization_header
-        'MediaBrowser Client="Sonzra", Device="Sonzra", DeviceId="sonzra-web", Version="1.0.0"'
+      def authorization_header(token = nil)
+        values = 'Client="Sonzra", Device="Sonzra", DeviceId="sonzra-web", Version="1.0.0"'
+        values += ", Token=\"#{token}\"" if token.present?
+        "MediaBrowser #{values}"
+      end
+
+      def authorization_headers(token)
+        { "Authorization" => authorization_header(token) }
       end
     end
   end

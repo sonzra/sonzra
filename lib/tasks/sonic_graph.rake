@@ -5,7 +5,14 @@ namespace :sonic_graph do
       result = SonicGraph::Reset.new(connection).call
       puts "Connection ##{connection.id} (#{connection.name}): deleted #{result.nodes_deleted} nodes and #{result.edges_deleted} similarity edges."
     end
-    Rails.cache.delete_matched("sonic_graph_v*")
+    begin
+      Rails.cache.delete_matched("sonic_graph_v*")
+    rescue NotImplementedError
+      # Solid Cache does not support pattern deletion. Graph payload keys also
+      # include node/edge timestamps, so stale entries become unreachable after
+      # a reset and do not need broad cache clearing.
+      puts "Cache backend does not support pattern deletion; graph cache will expire naturally."
+    end
   end
 
   desc "Backfill sonic similarity graph for connections without data"

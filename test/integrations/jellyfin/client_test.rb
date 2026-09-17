@@ -349,7 +349,7 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
 
     assert_equal "image-data", artwork.body
     assert_equal "image/webp", artwork.content_type
-    assert_equal "token", http.last_request["X-Emby-Token"]
+    assert_equal 'MediaBrowser Client="Sonzra", Device="Sonzra", DeviceId="sonzra-web", Version="1.0.0", Token="token"', http.last_request["Authorization"]
   end
 
   test "streams browser-compatible audio and forwards a byte range" do
@@ -372,7 +372,7 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     assert_equal 206, stream.status
     assert_equal "/Audio/track-id/stream?Static=true", http.last_request.path
     assert_equal "bytes=10-", http.last_request["Range"]
-    assert_equal "token", http.last_request["X-Emby-Token"]
+    assert_equal 'MediaBrowser Client="Sonzra", Device="Sonzra", DeviceId="sonzra-web", Version="1.0.0", Token="token"', http.last_request["Authorization"]
   end
 
   test "reports playback progress with the supplied access token" do
@@ -389,7 +389,7 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
 
     assert_equal "token", result.access_token
     assert_equal "/Sessions/Playing/Progress", http.last_request.path
-    assert_equal "token", http.last_request["X-Emby-Token"]
+    assert_equal 'MediaBrowser Client="Sonzra", Device="Sonzra", DeviceId="sonzra-web", Version="1.0.0", Token="token"', http.last_request["Authorization"]
     assert_equal({ "ItemId" => "track-id", "PositionTicks" => 32_100_000, "CanSeek" => true, "IsPaused" => true, "PlayMethod" => "DirectPlay" }, JSON.parse(http.last_request.body))
   end
 
@@ -406,7 +406,7 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     )
 
     assert_equal "/Playlists/playlist-1/Items?Ids=track-1&UserId=user-id", http.last_request.path
-    assert_equal "token", http.last_request["X-Emby-Token"]
+    assert_equal 'MediaBrowser Client="Sonzra", Device="Sonzra", DeviceId="sonzra-web", Version="1.0.0", Token="token"', http.last_request["Authorization"]
   end
 
   test "adds multiple tracks to a playlist for the authenticated user" do
@@ -422,7 +422,7 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     )
 
     assert_equal "/Playlists/playlist-1/Items?Ids=track-1%2Ctrack-2&UserId=user-id", http.last_request.path
-    assert_equal "token", http.last_request["X-Emby-Token"]
+    assert_equal 'MediaBrowser Client="Sonzra", Device="Sonzra", DeviceId="sonzra-web", Version="1.0.0", Token="token"', http.last_request["Authorization"]
   end
 
   test "deletes a playlist item by id" do
@@ -437,7 +437,7 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     )
 
     assert_equal "/Items/playlist-7", http.last_request.path
-    assert_equal "token", http.last_request["X-Emby-Token"]
+    assert_equal 'MediaBrowser Client="Sonzra", Device="Sonzra", DeviceId="sonzra-web", Version="1.0.0", Token="token"', http.last_request["Authorization"]
   end
 
   test "removes a playlist entry by id" do
@@ -453,7 +453,7 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     )
 
     assert_equal "/Playlists/playlist-1/Items?EntryIds=entry-7", http.last_request.path
-    assert_equal "token", http.last_request["X-Emby-Token"]
+    assert_equal 'MediaBrowser Client="Sonzra", Device="Sonzra", DeviceId="sonzra-web", Version="1.0.0", Token="token"', http.last_request["Authorization"]
   end
 
   test "reuses a cached remote user id with an access token" do
