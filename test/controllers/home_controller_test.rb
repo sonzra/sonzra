@@ -60,10 +60,17 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "body.redesign"
     assert_select "link[rel='stylesheet'][href*='redesign']", minimum: 1
+    %w[application player queue responsive mobile_player minimized_player].each do |legacy_asset|
+      assert_select "link[rel='stylesheet'][href*='#{legacy_asset}']", count: 0
+    end
     assert_select "header.redesign-topbar[data-controller~='navigation'][data-controller~='library-search']"
+    assert_select ".redesign-profile__menu[data-profile-menu-target='menu'][hidden]"
     assert_select ".redesign-transition[data-transition-target='overlay'][aria-hidden='true']"
+    assert_select "turbo-frame#home_content[data-transition-message='Getting your music ready…']"
+    assert_select "turbo-frame#home_content .listen-loading", count: 0
     assert_select ".redesign-bottom-nav button[data-action='player#toggleQueue']"
     assert_select "aside#player[data-turbo-permanent][data-player-target='shell']"
+    assert_select "aside#player .listen-player__playing-mark[aria-hidden='true'] i", 3
     assert_select "aside#player .listen-player__timeline[data-player-target='timeline'][data-action='input->player#seek']"
     assert_select "aside#player .listen-player__queue-button[data-action='player#toggleQueue']"
   end

@@ -9,9 +9,10 @@ const RADIO_TARGET_AHEAD = 8
 const RADIO_MAX_QUEUE_SIZE = 24
 const PLAYBACK_RECOVERY_DELAY = 8_000
 const MAX_PLAYBACK_RECOVERY_ATTEMPTS = 2
+const QUEUE_TRANSITION_DURATION = 320
 
 export default class extends Controller {
-  static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "favorite", "radio", "clearDialog", "queueView", "lyricsView", "queueTab", "lyricsTab", "lyricsStatus", "lyricsList", "lyricsFollow"]
+  static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "favorite", "radio", "volume", "clearDialog", "queueView", "lyricsView", "queueTab", "lyricsTab", "lyricsStatus", "lyricsList", "lyricsFollow"]
   static values = { radioEnabled: Boolean, preferencesUrl: String, offline: Boolean }
 
   connect() {
@@ -150,6 +151,13 @@ export default class extends Controller {
     this.syncNativeMedia()
   }
 
+  setVolume(event) {
+    const volume = Math.min(1, Math.max(0, Number(event.currentTarget.value) || 0))
+    this.audioTarget.volume = volume
+    sessionStorage.setItem("sonzra:volume", String(volume))
+    this.volumeTargets.forEach((input) => { input.value = volume })
+  }
+
   toggleQueue() {
     this.relocateLegacyQueue()
     if (!this.hasQueuePanelTarget) return
@@ -159,6 +167,11 @@ export default class extends Controller {
     } else {
       this.closeQueue()
     }
+  }
+
+  openLyrics() {
+    this.openQueue()
+    this.showLyricsTab()
   }
 
   previous() {
@@ -250,6 +263,7 @@ export default class extends Controller {
   }
 
   handlePlay() {
+    this.syncPlayingState()
     this.updateToggle()
     this.syncNativeMedia()
     this.syncBrowserMedia()
@@ -260,6 +274,7 @@ export default class extends Controller {
   }
 
   handlePause() {
+    this.syncPlayingState()
     this.updateToggle()
     this.syncNativeMedia()
     this.syncBrowserMedia()
@@ -440,6 +455,7 @@ export default class extends Controller {
     this.playbackRecoveryAttempts = 0
     this.playbackRecoveryPosition = 0
     this.audioTarget.src = track.source
+    this.syncPlayingState()
     this.pendingStartPosition = Number(startPosition) || 0
     const artwork = track.artwork || "/brand/sonzra-mark.svg"
     this.titleTarget.textContent = track.title
@@ -876,6 +892,7 @@ export default class extends Controller {
 
     const volume = sessionStorage.getItem("sonzra:volume") || "0.8"
     this.audioTarget.volume = volume
+    this.volumeTargets.forEach((input) => { input.value = volume })
   }
 
   showPlayer() {
@@ -1077,8 +1094,12 @@ export default class extends Controller {
     this.queueCloseTimeout = window.setTimeout(() => {
       this.queuePanelTarget.hidden = true
       this.queuePanelTarget.classList.remove("is-closing")
-    }, 180)
+    }, this.queueTransitionDuration())
     this.persistQueue({ force: true })
+  }
+
+  queueTransitionDuration() {
+    return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? 0 : QUEUE_TRANSITION_DURATION
   }
 
   showQueueFeedback(tracks) {
@@ -1246,11 +1267,16 @@ export default class extends Controller {
   reconcilePlayback() {
     if (!this.hasAudioTarget) return
 
+    this.syncPlayingState()
     this.updateTimeline()
     this.maybeExtendRadioQueue()
     const duration = this.audioTarget.duration
     const finished = this.audioTarget.ended || (Number.isFinite(duration) && duration > 0 && this.audioTarget.currentTime >= duration - 0.05)
     if (finished) this.playNext()
+  }
+
+  syncPlayingState() {
+    if (this.hasShellTarget) this.shellTarget.classList.toggle("is-playing", !this.audioTarget.paused && !this.audioTarget.ended)
   }
 
   handlePageHide() {

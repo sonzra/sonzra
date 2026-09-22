@@ -117,6 +117,45 @@ describe("player controller", () => {
     expect(document.querySelector("[data-player-target='miniProgress']").style.width).toBe("25%")
   })
 
+  it("persists a volume change from the redesign player", () => {
+    document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", '<input data-player-target="volume" value="0.8">')
+    const volume = document.querySelector("[data-player-target='volume']")
+    volume.value = "0.35"
+
+    controller.setVolume({ currentTarget: volume })
+
+    expect(controller.audioTarget.volume).toBeCloseTo(0.35)
+    expect(sessionStorage.getItem("sonzra:volume")).toBe("0.35")
+  })
+
+  it("keeps the persistent player state in sync with playback", () => {
+    Object.defineProperty(controller.audioTarget, "paused", { configurable: true, value: false })
+
+    controller.handlePlay()
+
+    expect(document.querySelector("[data-player-target='shell']").classList).toContain("is-playing")
+
+    Object.defineProperty(controller.audioTarget, "paused", { configurable: true, value: true })
+    controller.handlePause()
+
+    expect(document.querySelector("[data-player-target='shell']").classList).not.toContain("is-playing")
+  })
+
+  it("keeps the queue mounted until its redesign transition finishes", () => {
+    vi.useFakeTimers()
+    document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", '<section data-player-target="queuePanel"></section>')
+    const queue = document.querySelector("[data-player-target='queuePanel']")
+    queue.hidden = false
+
+    controller.closeQueue()
+
+    expect(queue.classList).toContain("is-closing")
+    vi.advanceTimersByTime(319)
+    expect(queue.hidden).toBe(false)
+    vi.advanceTimersByTime(1)
+    expect(queue.hidden).toBe(true)
+  })
+
   it("loads and renders stored plain lyrics when the Lyrics view opens", async () => {
     addLyricsTargets()
     controller.currentTrack = { itemId: "track-1", source: "/server_connections/1/audio/track-1", title: "A track" }
