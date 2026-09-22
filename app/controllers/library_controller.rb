@@ -1,4 +1,6 @@
 class LibraryController < ApplicationController
+  before_action :load_redesign_library_tab_counts
+
   def artists
     render_collection(:artists, "Artists")
   end
@@ -41,6 +43,15 @@ class LibraryController < ApplicationController
   end
 
   private
+
+  def load_redesign_library_tab_counts
+    return unless redesign_enabled?
+
+    server_connection = current_server_connection
+    return unless server_connection
+
+    @library_tab_counts = Library::TabCounts.new(server_connection, user: current_user).call
+  end
 
   def render_collection(collection, title)
     @title = title

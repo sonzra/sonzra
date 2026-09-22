@@ -1,3 +1,6 @@
+<% if redesign_enabled? %>
+  <%= render "redesign_collection" %>
+<% else %>
 <main class="settings-shell">
   <% if @result.success? %>
     <% shelf_collection = @collection.in?([ :recently_played, :most_played_songs, :recently_added_albums ]) %>
@@ -33,3 +36,4 @@
     <section class="listen-loading listen-loading--error"><h1>We couldn’t load your <%= @title.downcase %>.</h1><p><%= @result.message %></p></section>
   <% end %>
 </main>
+<% end %>

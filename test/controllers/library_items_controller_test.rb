@@ -170,6 +170,7 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "shows a selected song within its album context" do
+    users(:one).update!(ui_variant: "redesign")
     result = ServerConnections::FetchLibraryItemDetailsResultData.new(
       details: {
         item: { "Id" => "song-id", "Name" => "Selected song", "Type" => "Audio", "AlbumId" => "album-id" },
@@ -190,6 +191,9 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     get library_item_server_connection_url(@server_connection, "song-id")
 
     assert_response :success
+    assert_select ".settings-shell.redesign-detail-page"
+    assert_select ".redesign-detail-hero"
+    assert_select ".redesign-detail-tracks__heading"
     assert_select ".detail-hero h1", "Album name"
     assert_select ".track-list li.is-selected strong", "Selected song"
     assert_select ".track-list li:not(.is-selected) strong", "Other song"

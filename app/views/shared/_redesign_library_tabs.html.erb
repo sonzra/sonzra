@@ -1,3 +1,6 @@
 <nav class="redesign-library-tabs" aria-label="Library sections">
-  <% { "Albums" => library_albums_path, "Artists" => library_artists_path, "Playlists" => library_playlists_path, "Podcasts" => library_podcasts_path, "Audiobooks" => library_audiobooks_path, "Genres" => library_genres_path }.each do |label, path| %><%= link_to label, path, aria: (current_page?(path) ? { current: "page" } : {}) %><% end %>
+  <% { albums: [ "Albums", library_albums_path ], artists: [ "Artists", library_artists_path ], playlists: [ "Playlists", library_playlists_path ], podcasts: [ "Podcasts", library_podcasts_path ], audiobooks: [ "Audiobooks", library_audiobooks_path ], genres: [ "Genres", library_genres_path ] }.each do |collection, (label, path)| %>
+    <% count = @library_tab_counts&.fetch(collection, nil) %>
+    <%= link_to path, aria: (current_page?(path) ? { current: "page" } : {}) do %><span><%= label %></span><b><%= count.nil? ? "—" : number_with_delimiter(count) %></b><% end %>
+  <% end %>
 </nav>

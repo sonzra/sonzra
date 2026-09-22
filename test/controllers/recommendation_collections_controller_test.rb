@@ -10,7 +10,7 @@ class RecommendationCollectionsControllerTest < ActionDispatch::IntegrationTest
   test "lists saved mixes and returns their playback snapshot" do
     get recommendation_collections_url
     assert_response :success
-    assert_select "h1", "Your mixes"
+    assert_select "h1", "Mixes"
 
     get recommendation_collection_url(@collection), headers: { "Accept" => "application/json" }
     payload = JSON.parse(response.body)
@@ -26,6 +26,26 @@ class RecommendationCollectionsControllerTest < ActionDispatch::IntegrationTest
     post events_recommendation_collection_url(@collection), params: { event_type: "started" }
     assert_response :created
     assert_equal "started", @collection.recommendation_collection_events.last.event_type
+  end
+
+  test "uses the standalone redesign layout for every saved mix" do
+    users(:one).update!(ui_variant: "redesign")
+    older_mix = RecommendationCollection.create!(user: users(:one), server_connection: @connection, strategy: "best_of_genre", period_date: Date.yesterday, title: "Yesterday's ambient", subtitle: "A previous session", generated_at: 1.day.ago)
+    older_mix.recommendation_tracks.create!(item_id: "track-2", position: 1, title: "Older track", artist: "Artist", artwork_item_id: "track-2")
+
+    get recommendation_collections_url
+
+    assert_response :success
+    assert_select ".redesign-library-heading h1", "Mixes"
+    assert_select ".redesign-topbar__link", "Mixes"
+    assert_select ".redesign-mix-card-grid .redesign-mix-card", 2
+    assert_select ".redesign-mix-card time", /Created /
+    assert_select ".redesign-mix-card", text: /Yesterday's ambient/
+
+    get recommendation_collection_url(@collection)
+
+    assert_response :success
+    assert_select ".redesign-discovery-detail .detail-hero h1", "Best of ambient"
   end
 
   test "does not expose a hidden artist from a previously generated mix" do

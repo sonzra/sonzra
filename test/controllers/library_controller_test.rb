@@ -72,6 +72,7 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "renders artists page with infinite scroll layout and alphabet sidebar for jellyfin connection" do
+    users(:one).update!(ui_variant: "redesign")
     ServerConnection.create!(
       media_server: MediaServer.create!(name: "Home", provider: :jellyfin, base_url: "https://example.com"),
       username: "bruno",
@@ -98,6 +99,12 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :success
+    assert_select ".redesign-library-page"
+    assert_select ".redesign-library-heading h1", "Library"
+    assert_select ".redesign-library-content__heading h2", "Artists"
+    assert_select ".redesign-library-layout"
+    assert_select ".redesign-library-tabs a", 6
+    assert_select ".redesign-library-tabs a[aria-current='page'] b", "100"
     assert_select ".library-page-layout--browsable[data-controller='library-pagination']"
     assert_select ".library-alphabet button.is-active", "B"
     assert_select ".listen-card h3 a", "Beatles"

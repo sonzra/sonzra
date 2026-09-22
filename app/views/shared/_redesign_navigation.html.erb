@@ -1,7 +1,7 @@
 <% offline_navigation = local_assigns.fetch(:offline, false) %>
 <% navigation_data = offline_navigation ? { action: "click->offline-connection#preventNavigation click->navigation#closeOnNavigation", offline_connection_target: "navigationLink" } : {} %>
 <% disabled_aria = offline_navigation ? { disabled: true } : {} %>
-<% primary_links = { "Home" => [ root_path, "house" ], "Library" => [ library_albums_path, "library" ], "Discover" => [ recommendation_collections_path, "sparkles" ] } %>
+<% primary_links = { "Home" => [ root_path, "house" ], "Library" => [ library_albums_path, "library" ], "Mixes" => [ recommendation_collections_path, "sparkles" ] } %>
 <% library_links = { "Artists" => [ library_artists_path, "mic-vocal" ], "Albums" => [ library_albums_path, "disc-3" ], "Playlists" => [ library_playlists_path, "list-music" ], "Audiobooks" => [ library_audiobooks_path, "book-open" ], "Podcasts" => [ library_podcasts_path, "podcast" ], "Sonic Map" => [ sonic_graph_path, "network" ], "Downloads" => [ offline_downloads_path, "download" ] } %>
 <header class="redesign-topbar" data-controller="navigation library-search" data-library-search-global-value="true">
   <%= link_to root_path, class: "redesign-brand", data: navigation_data, aria: { label: "Sonzra home" }.merge(disabled_aria) do %><%= image_tag "/brand/sonzra-mark.svg", alt: "", class: "redesign-brand__mark" %><span>sonzra</span><% end %>

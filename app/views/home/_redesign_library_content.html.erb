@@ -1,4 +1,4 @@
-<% continue_item = (content[:continue_podcasts] || []).first || (content[:continue_audiobooks] || []).first || (content[:recently_played] || []).first %>
+<% continue_item = (content[:recently_played] || []).first || (content[:continue_podcasts] || []).first || (content[:continue_audiobooks] || []).first %>
 <section class="redesign-home-heading">
   <div><p class="eyebrow">Your listening room</p><h1>Good evening, <%= current_user.email_address.split("@").first %>.</h1><p>Pick up where you left off or find something new.</p></div>
   <%= link_to root_path, class: "redesign-refresh", data: { turbo_frame: "home_content" } do %><%= lucide_icon "refresh-cw", aria: { hidden: true } %><span>Refresh library</span><% end %>

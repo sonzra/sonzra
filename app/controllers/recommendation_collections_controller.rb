@@ -3,7 +3,7 @@ class RecommendationCollectionsController < ApplicationController
     if current_server_connection
       RecommendationGenerator.ensure_all(user: current_user, connection: current_server_connection)
     end
-    @recommendation_collections = current_user.recommendation_collections.where(server_connection: current_server_connection).includes(:recommendation_tracks, :server_connection).order(generated_at: :desc).to_a.uniq(&:strategy)
+    @recommendation_collections = current_user.recommendation_collections.where(server_connection: current_server_connection).includes(:recommendation_tracks, :server_connection).order(generated_at: :desc).to_a
   end
 
   def show

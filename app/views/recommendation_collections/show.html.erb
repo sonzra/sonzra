@@ -1,4 +1,4 @@
-<main class="settings-shell detail-page">
+<main class="settings-shell detail-page <%= "redesign-discovery-detail" if redesign_enabled? %>">
   <% first_track = @tracks.first %>
   <% artwork_path = first_track&.artwork_item_id.present? ? artwork_server_connection_path(@collection.server_connection, first_track.artwork_item_id) : "/brand/sonzra-mark.svg" %>
   <section class="detail-hero">
