@@ -1,5 +1,6 @@
 Rails.application.routes.draw do
   resource :session
+  resource :interface_preference, only: :update
   resource :registration, only: %i[new create]
   namespace :admin do
     resource :registration_settings, only: %i[show update]

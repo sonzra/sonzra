@@ -1,0 +1,3 @@
+<nav class="redesign-library-tabs" aria-label="Library sections">
+  <% { "Albums" => library_albums_path, "Artists" => library_artists_path, "Playlists" => library_playlists_path, "Podcasts" => library_podcasts_path, "Audiobooks" => library_audiobooks_path, "Genres" => library_genres_path }.each do |label, path| %><%= link_to label, path, aria: (current_page?(path) ? { current: "page" } : {}) %><% end %>
+</nav>

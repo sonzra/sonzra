@@ -83,7 +83,7 @@ describe("offline service worker", () => {
     handlers.fetch(event)
 
     await expect(event.response).resolves.toBe(asset)
-    expect(caches.open).toHaveBeenCalledWith("sonzra-offline-assets-v1")
+    expect(caches.open).toHaveBeenCalledWith("sonzra-offline-assets-v2")
     expect(cache.put).toHaveBeenCalledWith(event.request, expect.any(Object))
 
     const offlineAsset = { offline: true }

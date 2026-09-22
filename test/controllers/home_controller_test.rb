@@ -51,4 +51,20 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "h1", "Connect a server to begin."
     assert_select "a[href='#{server_connections_path}'][data-turbo-frame='_top']", "Connect Jellyfin"
   end
+
+  test "renders the opt-in redesign shell without replacing the player contract" do
+    users(:one).update!(ui_variant: "redesign")
+
+    get root_url
+
+    assert_response :success
+    assert_select "body.redesign"
+    assert_select "link[rel='stylesheet'][href*='redesign']", minimum: 1
+    assert_select "header.redesign-topbar[data-controller~='navigation'][data-controller~='library-search']"
+    assert_select ".redesign-transition[data-transition-target='overlay'][aria-hidden='true']"
+    assert_select ".redesign-bottom-nav button[data-action='player#toggleQueue']"
+    assert_select "aside#player[data-turbo-permanent][data-player-target='shell']"
+    assert_select "aside#player .listen-player__timeline[data-player-target='timeline'][data-action='input->player#seek']"
+    assert_select "aside#player .listen-player__queue-button[data-action='player#toggleQueue']"
+  end
 end

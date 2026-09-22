@@ -2,7 +2,7 @@
   <% if @result.success? %>
     <% shelf_collection = @collection.in?([ :recently_played, :most_played_songs, :recently_added_albums ]) %>
     <% infinite_collection = @collection.in?([ :albums, :artists ]) %>
-    <section class="settings-intro library-page-intro <%= "library-page-intro--compact" if shelf_collection %>"><span class="eyebrow">Your library</span><div class="page-title"><%= link_to root_path, class: "back-link back-link--compact", aria: { label: "Back to home" }, title: "Back to home" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1><%= @title %></h1><%= render "shared/library_search", title: @title, path: request.path, query: @query, genre: @genre unless shelf_collection %></div></section>
+    <section class="settings-intro library-page-intro <%= "library-page-intro--compact" if shelf_collection %>"><span class="eyebrow">Your library</span><div class="page-title"><%= link_to root_path, class: "back-link back-link--compact", aria: { label: "Back to home" }, title: "Back to home" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1><%= @title %></h1><%= render "shared/library_search", title: @title, path: request.path, query: @query, genre: @genre unless shelf_collection %></div><%= render "shared/redesign_library_tabs" if redesign_enabled? && !shelf_collection %></section>
     <% if shelf_collection %>
       <%= render "music_shelf_collection" %>
     <% elsif infinite_collection %>
