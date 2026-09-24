@@ -79,7 +79,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select ".redesign-transition[data-transition-target='overlay'][aria-hidden='true']"
     assert_select "turbo-frame#home_content[data-transition-message='Getting your music ready…']"
     assert_select "turbo-frame#home_content .listen-loading", count: 0
-    assert_select ".redesign-bottom-nav button[data-action='player#toggleQueue']"
+    assert_select ".redesign-bottom-nav", count: 0
     assert_select "aside#player[data-turbo-permanent][data-player-target='shell']"
     assert_select "aside#player .listen-player__playing-mark[aria-hidden='true'] i", 3
     assert_select "aside#player .listen-player__timeline[data-player-target='timeline'][data-action='input->player#seek']"

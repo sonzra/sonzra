@@ -25,13 +25,13 @@ export default class extends Controller {
     this.offlineMode = this.offlineValue === true
     this.lyricsCache = new Map()
     this.lyricsFollowing = true
+    this.bindEventHandlers()
     this.relocateLegacyQueue()
     this.restoreVolume()
     this.restoreQueue()
     this.audioTarget.preload = "auto"
     this.audioTarget.playsInline = true
     this.configureAudioSession()
-    this.bindEventHandlers()
     this.audioTarget.addEventListener("timeupdate", this.boundUpdateTimeline)
     this.audioTarget.addEventListener("loadedmetadata", this.boundUpdateTimeline)
     this.audioTarget.addEventListener("durationchange", this.boundUpdateTimeline)
@@ -47,6 +47,7 @@ export default class extends Controller {
     window.addEventListener("pagehide", this.boundHandlePageHide)
     window.addEventListener("pageshow", this.boundReconcilePlayback)
     window.addEventListener("sonzra:native-media-command", this.boundHandleNativeMediaCommand)
+    window.addEventListener("resize", this.boundUpdateQueueScrollHint)
     document.addEventListener("visibilitychange", this.boundHandleVisibilityChange)
     document.addEventListener("turbo:load", this.boundSyncPageTrackControls)
     document.addEventListener("click", this.boundDismissQueueMenu)
@@ -77,6 +78,8 @@ export default class extends Controller {
     window.removeEventListener("pagehide", this.boundHandlePageHide)
     window.removeEventListener("pageshow", this.boundReconcilePlayback)
     window.removeEventListener("sonzra:native-media-command", this.boundHandleNativeMediaCommand)
+    window.removeEventListener("resize", this.boundUpdateQueueScrollHint)
+    if (this.hasQueueListTarget) this.queueListTarget.removeEventListener("scroll", this.boundUpdateQueueScrollHint)
     document.removeEventListener("visibilitychange", this.boundHandleVisibilityChange)
     document.removeEventListener("turbo:load", this.boundSyncPageTrackControls)
     document.removeEventListener("click", this.boundDismissQueueMenu)
@@ -641,6 +644,17 @@ export default class extends Controller {
       this.queueListTarget.appendChild(item)
     })
     if (this.queue.length === 0) this.queueListTarget.textContent = "Nothing queued"
+    this.queueListTarget.addEventListener("scroll", this.boundUpdateQueueScrollHint, { passive: true })
+    window.requestAnimationFrame(this.boundUpdateQueueScrollHint)
+  }
+
+  updateQueueScrollHint() {
+    if (!this.hasQueueListTarget || !this.hasQueueViewTarget) return
+
+    const { clientHeight, scrollHeight, scrollTop } = this.queueListTarget
+    const canScroll = clientHeight > 0 && scrollHeight - clientHeight > 1
+    const hasMoreBelow = canScroll && scrollTop + clientHeight < scrollHeight - 1
+    this.queueViewTarget.classList.toggle("has-scroll-hint", hasMoreBelow)
   }
 
   positionQueueMenu(toggle, menu) {
@@ -973,6 +987,7 @@ export default class extends Controller {
     this.queueTabTarget.setAttribute("aria-selected", String(!showLyrics))
     this.lyricsTabTarget.classList.toggle("is-active", showLyrics)
     this.lyricsTabTarget.setAttribute("aria-selected", String(showLyrics))
+    if (!showLyrics) window.requestAnimationFrame(this.boundUpdateQueueScrollHint)
   }
 
   async loadLyrics() {
@@ -1125,7 +1140,10 @@ export default class extends Controller {
     this.queuePanelTarget.hidden = false
     this.queuePanelTarget.classList.remove("is-closing")
     this.showQueueTab()
-    this.queueOpenFrame = window.requestAnimationFrame(() => this.queuePanelTarget.classList.add("is-open"))
+    this.queueOpenFrame = window.requestAnimationFrame(() => {
+      this.queuePanelTarget.classList.add("is-open")
+      this.updateQueueScrollHint()
+    })
     this.persistQueue({ force: true })
   }
 
@@ -1298,6 +1316,7 @@ export default class extends Controller {
     this.boundHandleNativeMediaCommand = this.handleNativeMediaCommand.bind(this)
     this.boundSyncPageTrackControls = this.syncPageTrackControls.bind(this)
     this.boundDismissQueueMenu = this.dismissQueueMenu.bind(this)
+    this.boundUpdateQueueScrollHint = this.updateQueueScrollHint.bind(this)
   }
 
   startProgressWatch() {

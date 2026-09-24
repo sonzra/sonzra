@@ -386,6 +386,24 @@ describe("player controller", () => {
     expect(document.querySelectorAll(".listen-queue__item-action")).toHaveLength(1)
   })
 
+  it("shows the queue scroll hint only while tracks remain below the viewport", () => {
+    document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", '<div data-player-target="queueView"><ol data-player-target="queueList"></ol></div>')
+    const queueView = document.querySelector("[data-player-target='queueView']")
+    const queueList = document.querySelector("[data-player-target='queueList']")
+    Object.defineProperties(queueList, {
+      clientHeight: { configurable: true, value: 100 },
+      scrollHeight: { configurable: true, value: 180 },
+      scrollTop: { configurable: true, value: 0, writable: true }
+    })
+
+    controller.updateQueueScrollHint()
+    expect(queueView.classList).toContain("has-scroll-hint")
+
+    queueList.scrollTop = 80
+    controller.updateQueueScrollHint()
+    expect(queueView.classList).not.toContain("has-scroll-hint")
+  })
+
   it("positions an open queue menu outside the scrollable queue list", async () => {
     document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", '<section data-player-target="queuePanel"><ol data-player-target="queueList"></ol></section>')
     controller.queue = [ { source: "/server_connections/1/audio/track-1.mp3", title: "A track", artist: "An artist" } ]

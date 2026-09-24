@@ -39,7 +39,7 @@ class RecommendationCollectionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".redesign-library-heading h1", "Mixes"
     assert_select ".redesign-topbar__link", "Mixes"
     assert_select ".redesign-topbar__link[href='#{offline_downloads_path}']", "Downloads"
-    assert_select ".redesign-bottom-nav a[href='#{offline_downloads_path}']", 0
+    assert_select ".redesign-bottom-nav", count: 0
     assert_select ".redesign-mix-card-grid .redesign-mix-card", 2
     assert_select ".redesign-mix-card time", /Created /
     assert_select ".redesign-mix-card", text: /Yesterday's ambient/

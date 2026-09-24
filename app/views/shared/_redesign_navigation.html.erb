@@ -2,7 +2,6 @@
 <% navigation_data = offline_navigation ? { action: "click->offline-connection#preventNavigation click->navigation#closeOnNavigation", offline_connection_target: "navigationLink" } : {} %>
 <% disabled_aria = offline_navigation ? { disabled: true } : {} %>
 <% primary_links = { "Home" => [ root_path, "house" ], "Library" => [ library_albums_path, "library" ], "Mixes" => [ recommendation_collections_path, "sparkles" ], "Downloads" => [ offline_downloads_path, "download" ] } %>
-<% mobile_primary_links = primary_links.except("Downloads") %>
 <% library_links = { "Artists" => [ library_artists_path, "mic-vocal" ], "Albums" => [ library_albums_path, "disc-3" ], "Playlists" => [ library_playlists_path, "list-music" ], "Audiobooks" => [ library_audiobooks_path, "book-open" ], "Podcasts" => [ library_podcasts_path, "podcast" ], "Sonic Map" => [ sonic_graph_path, "network" ], "Downloads" => [ offline_downloads_path, "download" ] } %>
 <header class="redesign-topbar" data-controller="navigation library-search" data-library-search-global-value="true">
   <%= link_to root_path, class: "redesign-brand", data: navigation_data, aria: { label: "Sonzra home" }.merge(disabled_aria) do %><%= image_tag "/brand/sonzra-mark.svg", alt: "", class: "redesign-brand__mark" %><span>sonzra</span><% end %>
@@ -41,4 +40,3 @@
   </dialog>
   <% if offline_navigation %><div class="offline-connection" role="status"><span data-offline-connection-target="status" data-state="checking">Checking connection…</span><button type="button" data-offline-connection-target="retry" data-action="offline-connection#check">Check again</button></div><% end %>
 </header>
-<nav class="redesign-bottom-nav" aria-label="Mobile navigation"><% mobile_primary_links.each do |label, (path, icon)| %><%= link_to path, data: navigation_data, aria: disabled_aria.merge(current_page?(path) ? { current: "page" } : {}) do %><%= lucide_icon icon, aria: { hidden: true } %><span><%= label %></span><% end %><% end %><button type="button" data-action="player#toggleQueue"><%= lucide_icon "list-music", aria: { hidden: true } %><span>Queue</span></button></nav>
