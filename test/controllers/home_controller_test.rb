@@ -52,6 +52,16 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[href='#{server_connections_path}'][data-turbo-frame='_top']", "Connect Jellyfin"
   end
 
+  test "uses the redesigned setup state when no server exists" do
+    users(:one).update!(ui_variant: "redesign")
+
+    get home_content_url
+
+    assert_response :success
+    assert_select ".redesign-state .listen-loading__mark[src='/brand/sonzra-mark.svg']"
+    assert_select ".redesign-state .eyebrow", "Welcome to Sonzra"
+  end
+
   test "renders the opt-in redesign shell without replacing the player contract" do
     users(:one).update!(ui_variant: "redesign")
 

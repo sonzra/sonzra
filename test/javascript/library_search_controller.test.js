@@ -29,5 +29,6 @@ describe("library search controller", () => {
 
     application.getControllerForElementAndIdentifier(document.querySelector("[data-controller]"), "library-search").close()
     expect(dialog.hasAttribute("open")).toBe(false)
+    expect(document.activeElement).toBe(trigger)
   })
 })

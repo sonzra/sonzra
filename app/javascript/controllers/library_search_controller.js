@@ -13,7 +13,9 @@ export default class extends Controller {
     document.removeEventListener("keydown", this.boundKeydown)
   }
 
-  open() {
+  open(event) {
+    this.lastFocusedElement = event?.currentTarget instanceof HTMLElement ? event.currentTarget : document.activeElement
+
     if (typeof this.dialogTarget.showModal === "function") {
       this.dialogTarget.showModal()
     } else {
@@ -29,6 +31,15 @@ export default class extends Controller {
     } else {
       this.dialogTarget.removeAttribute("open")
     }
+
+    const element = this.lastFocusedElement
+    this.lastFocusedElement = null
+    if (element instanceof HTMLElement) window.requestAnimationFrame(() => element.focus())
+  }
+
+  cancel(event) {
+    event.preventDefault()
+    this.close()
   }
 
   closeOnBackdrop(event) {

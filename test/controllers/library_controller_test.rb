@@ -9,6 +9,16 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[href='#{server_connections_path}']", "Connect Jellyfin"
   end
 
+  test "uses the redesigned collection setup state when no server exists" do
+    users(:one).update!(ui_variant: "redesign")
+
+    get library_audiobooks_url
+
+    assert_response :success
+    assert_select "main.redesign-utility-page .redesign-state"
+    assert_select ".redesign-state .eyebrow", "Your collection"
+  end
+
   test "renders the podcast library page" do
     get library_podcasts_url
 

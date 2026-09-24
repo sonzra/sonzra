@@ -582,3 +582,44 @@ html[data-turbo-preview] .redesign .listen-main:not(.listen-main--home), html[da
 /* Detail content sits directly on the application canvas. The ambient light
    can flow beyond the content width, while only cards and menus create layers. */
 .redesign .settings-shell.redesign-detail-page { background: transparent; overflow: visible; }
+
+/* Connections, account management, and setup are first-class redesign
+   surfaces rather than left-over settings forms. */
+.redesign .redesign-utility-page { width: min(100%, 1060px); padding-top: 56px; }
+.redesign .redesign-utility-page > .settings-header, .redesign .redesign-utility-page > .form-page > .page-title { position: relative; align-items: end; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid var(--rz-line); }
+.redesign .redesign-utility-page .page-title { display: flex; min-width: 0; align-items: center; gap: 13px; }
+.redesign .redesign-utility-page .page-title h1, .redesign .redesign-utility-page .connection-detail h1 { margin: 0; font-size: clamp(34px, 5vw, 54px); letter-spacing: -.055em; line-height: 1; }
+.redesign .redesign-utility-page .back-link { display: grid; width: 38px; height: 38px; flex: 0 0 auto; place-items: center; border: 1px solid var(--rz-line); border-radius: 11px; background: rgb(255 255 255 / 4%); color: var(--rz-text); }
+.redesign .redesign-utility-page .back-link:hover { background: rgb(255 255 255 / 10%); }
+.redesign .redesign-utility-page .connection-list { gap: 14px; }
+.redesign .redesign-utility-page .connection-card { min-height: 104px; padding: 22px; border: 1px solid var(--rz-line); background: linear-gradient(120deg, rgb(255 255 255 / 5%), rgb(255 255 255 / 2%)); transition: border-color .2s ease, background .2s ease, transform .2s ease; }
+.redesign .redesign-utility-page .connection-card:hover { border-color: rgb(155 130 255 / 46%); background: linear-gradient(120deg, rgb(122 90 248 / 11%), rgb(255 255 255 / 4%)); transform: translateY(-2px); }
+.redesign .redesign-utility-page .connection-card__provider { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 4px; font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.redesign .redesign-utility-page .connection-card__provider::before { width: 6px; height: 6px; border-radius: 50%; background: var(--rz-accent); box-shadow: 0 0 10px rgb(67 215 198 / 68%); content: ""; }
+.redesign .redesign-utility-page .connection-card h2 { font-size: 19px; letter-spacing: -.025em; }
+.redesign .redesign-utility-page .connection-card__actions { gap: 8px; }
+.redesign .redesign-utility-page .connection-card__edit { top: 16px; right: 16px; }
+.redesign .redesign-utility-page .form-page, .redesign .redesign-utility-page .connection-detail { width: min(100%, 760px); margin: 0; padding: clamp(24px, 4vw, 38px); border: 1px solid var(--rz-line); border-radius: 22px; background: linear-gradient(145deg, rgb(255 255 255 / 5%), rgb(255 255 255 / 2%)); box-shadow: 0 18px 48px rgb(0 0 0 / 18%); }
+.redesign .redesign-utility-page .form-page > .page-title { margin-bottom: 22px; }
+.redesign .redesign-utility-page .connection-form { gap: 20px; }
+.redesign .redesign-utility-page .field { gap: 8px; }
+.redesign .redesign-utility-page .field label { color: #dfddea; font-size: 12px; }
+.redesign .redesign-utility-page .field input, .redesign .redesign-utility-page .field select { min-height: 48px; border: 1px solid rgb(255 255 255 / 13%); background: rgb(8 8 14 / 62%); transition: border-color .18s ease, box-shadow .18s ease; }
+.redesign .redesign-utility-page .field input:focus, .redesign .redesign-utility-page .field select:focus { border-color: rgb(155 130 255 / 72%); box-shadow: 0 0 0 3px rgb(122 90 248 / 18%); outline: 0; }
+.redesign .redesign-utility-page .form-actions { margin-top: 8px; }
+.redesign .redesign-utility-page .empty-state { max-width: 590px; margin: 0 auto; padding: 58px 32px; border: 1px dashed rgb(155 130 255 / 34%); background: radial-gradient(circle at 50% 0, rgb(122 90 248 / 16%), transparent 58%), rgb(255 255 255 / 3%); }
+.redesign .redesign-state { max-width: 620px; min-height: min(56vh, 540px); margin: 0 auto; padding: 54px 34px; border: 1px dashed rgb(155 130 255 / 38%); border-radius: 24px; background: radial-gradient(circle at 50% 0, rgb(122 90 248 / 22%), transparent 48%), rgb(255 255 255 / 3%); box-shadow: 0 22px 65px rgb(0 0 0 / 22%); }
+.redesign .redesign-state .listen-loading__mark { width: 72px; margin-bottom: 2px; filter: drop-shadow(0 0 25px rgb(122 90 248 / 68%)); }
+.redesign .redesign-state .eyebrow { margin: 0; }.redesign .redesign-state h1 { max-width: 500px; }.redesign .redesign-state p:not(.eyebrow) { max-width: 440px; margin: 0; line-height: 1.6; }
+
+@media (max-width: 700px) {
+  .redesign .redesign-utility-page { padding-top: 32px; }
+  .redesign .redesign-utility-page > .settings-header, .redesign .redesign-utility-page > .form-page > .page-title { align-items: flex-start; flex-direction: column; gap: 17px; margin-bottom: 23px; padding-bottom: 17px; }
+  .redesign .redesign-utility-page .settings-header__actions, .redesign .redesign-utility-page .form-actions { width: 100%; }
+  .redesign .redesign-utility-page .settings-header__actions form { flex: 1; }
+  .redesign .redesign-utility-page .settings-header__actions .secondary-button, .redesign .redesign-utility-page .form-actions .primary-button, .redesign .redesign-utility-page .form-actions .secondary-button { flex: 1; }
+  .redesign .redesign-utility-page .connection-card { min-height: 0; padding: 18px; }.redesign .redesign-utility-page .connection-card:hover { transform: none; }
+  .redesign .redesign-utility-page .connection-card__actions > * { flex: 1; }.redesign .redesign-utility-page .connection-card__actions form button { width: 100%; }
+  .redesign .redesign-utility-page .form-page, .redesign .redesign-utility-page .connection-detail { padding: 23px 19px; border-radius: 18px; }
+  .redesign .redesign-state { min-height: min(56vh, 480px); padding: 42px 22px; border-radius: 20px; }
+}
