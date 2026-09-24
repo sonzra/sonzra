@@ -4,6 +4,22 @@
 
 No changes yet.
 
+## 0.0.19-alpha — 2026-09-24
+
+### Added
+
+- A redesign-only Favorites page that loads every favourite track from the active Jellyfin or Plex server, with desktop and PWA/mobile navigation entries.
+
+### Changed
+
+- Favourite tracks now use the redesigned full-width track list, with direct play, a favourite toggle, and queue/download actions in the overflow menu.
+- Favorite pages now reveal tracks with the redesign’s staggered card motion, while the heart animates only after a user action.
+- The PWA/mobile navigation remains focused on the hamburger menu, and queue scroll hints no longer block interaction with a single queued track.
+
+### Fixed
+
+- Removed legacy tooltip behavior from redesign screens so accessible control labels no longer appear in unexpected positions.
+
 ## 0.0.18-alpha — 2026-09-24
 
 ### Added
