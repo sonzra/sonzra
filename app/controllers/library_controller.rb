@@ -9,6 +9,26 @@ class LibraryController < ApplicationController
     render_collection(:albums, "Albums")
   end
 
+  def search
+    @query = params[:q].to_s.strip
+    return redirect_to(library_albums_path) if @query.blank?
+
+    @server_connection = current_server_connection
+    return render :no_server unless @server_connection
+
+    client = Integrations::Client.for(@server_connection)
+    @search_results = %i[artists albums songs].index_with do |collection|
+      ServerConnections::FetchLibraryCollection.new(
+        @server_connection, collection, user: current_user, query: @query, client:
+      ).call
+    end
+    result_with_token = @search_results.values.find { |result| result.access_token.present? }
+    if result_with_token
+      session[:server_access_tokens] = session.fetch(:server_access_tokens, {}).merge(@server_connection.id.to_s => result_with_token.access_token)
+    end
+    @search_error = @search_results.values.find { |result| !result.success? }&.message if @search_results.values.none?(&:success?)
+  end
+
   def audiobooks
     render_collection(:audiobooks, "Audiobooks")
   end

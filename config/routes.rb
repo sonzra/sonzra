@@ -19,6 +19,7 @@ Rails.application.routes.draw do
   get "home/content", to: "home#content", as: :home_content
   get "library/artists", to: "library#artists", as: :library_artists
   get "library/albums", to: "library#albums", as: :library_albums
+  get "library/search", to: "library#search", as: :library_search
   get "library/audiobooks", to: "library#audiobooks", as: :library_audiobooks
   get "library/podcasts", to: "library#podcasts", as: :library_podcasts
   get "library/playlists", to: "library#playlists", as: :library_playlists

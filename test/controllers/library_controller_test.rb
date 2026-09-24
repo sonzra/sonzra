@@ -155,6 +155,51 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
     assert_select ".redesign-genre-tile--1", "Jazz"
   end
 
+  test "searches artists, albums, and tracks from the global search route" do
+    users(:one).update!(ui_variant: "redesign")
+    connection = ServerConnection.create!(
+      media_server: MediaServer.create!(name: "Home", provider: :jellyfin, base_url: "https://example.com"),
+      username: "bruno",
+      password: "secret",
+      user: users(:one)
+    )
+    calls = []
+    results = {
+      artists: [ { "Id" => "artist-1", "Name" => "The Beatles", "Type" => "MusicArtist" } ],
+      albums: [ { "Id" => "album-1", "Name" => "Abbey Road", "Type" => "MusicAlbum", "AlbumArtist" => "The Beatles" } ],
+      songs: [ { "Id" => "track-1", "Name" => "Come Together", "Type" => "Audio", "AlbumArtist" => "The Beatles", "RunTimeTicks" => 30_000_000 } ]
+    }
+    client = Object.new
+    client.define_singleton_method(:library_collection) do |collection, page:, query:, **|
+      calls << [ collection, query ]
+      items = query == "Beatles" ? results.fetch(collection, []) : []
+      Integrations::Jellyfin::LibraryCollectionResponseData.new(content: items, total: items.size, access_token: "token")
+    end
+
+    client_class = Integrations::Jellyfin::Client
+    client_class.singleton_class.alias_method :new_before_global_search_test, :new
+    client_class.define_singleton_method(:new) { |**| client }
+    begin
+      get library_search_url(q: "Beatles")
+    ensure
+      client_class.singleton_class.alias_method :new, :new_before_global_search_test
+      client_class.singleton_class.remove_method :new_before_global_search_test
+    end
+
+    assert_response :success
+    assert_select ".redesign-search-page h1", "“Beatles”"
+    assert_select "#search-artists-title", "Artists"
+    assert_select ".redesign-search-section .listen-card h3 a", "The Beatles"
+    assert_select "#search-albums-title", "Albums"
+    assert_select ".redesign-search-track-list .library-media-list__details a", "Come Together"
+    assert_select ".redesign-search-track-list .library-media-list__play[aria-label='Play Come Together']"
+    assert_select ".redesign-search-track-list .listen-card__play[aria-label='Play Come Together']"
+    assert_select ".redesign-search-track-list .library-media-list__queue[aria-label='Add Come Together to queue']"
+    assert_select ".redesign-search-track-list .listen-card__options-toggle[aria-label='More options for Come Together']"
+    assert_equal %i[artists albums songs], calls.select { |_, query| query == "Beatles" }.map(&:first)
+    assert_equal connection.id.to_s, session[:server_access_tokens].keys.first
+  end
+
   test "renders turbo stream append response for infinite scroll request" do
     ServerConnection.create!(
       media_server: MediaServer.create!(name: "Home", provider: :jellyfin, base_url: "https://example.com"),

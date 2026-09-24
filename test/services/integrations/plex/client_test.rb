@@ -183,6 +183,21 @@ class Integrations::Plex::ClientTest < ActiveSupport::TestCase
     ENV["PLEX_CLIENT_ID"] = previous_value if previous_value
   end
 
+  test "searches music tracks from the music library" do
+    previous_value = ENV["PLEX_CLIENT_ID"]
+    ENV["PLEX_CLIENT_ID"] = "sonzra-installation-id"
+    sections = { MediaContainer: { Directory: [ { key: "1", type: "artist", title: "Music" } ] } }
+    track = { ratingKey: 17, type: "track", title: "Come Together", parentTitle: "Abbey Road", grandparentTitle: "The Beatles", duration: 260_000 }
+    http = FakeHttp.new([ response(sections), response(MediaContainer: { Metadata: [ track ], totalSize: 1 }) ])
+
+    tracks = Integrations::Plex::Client.new(base_url: "http://plex.example.test", access_token: "plex-token", http:).library_collection(:songs, page: 1, query: "Come")
+
+    assert_equal [ "Come Together" ], tracks.content.pluck("Name")
+    assert_equal "/library/sections/1/all?type=10&sort=titleSort&X-Plex-Container-Start=0&X-Plex-Container-Size=60&title=Come", http.requests.last.path
+  ensure
+    ENV["PLEX_CLIENT_ID"] = previous_value if previous_value
+  end
+
   test "returns a Plex long-form item with its resume position" do
     previous_value = ENV["PLEX_CLIENT_ID"]
     ENV["PLEX_CLIENT_ID"] = "sonzra-installation-id"

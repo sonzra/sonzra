@@ -74,6 +74,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
       assert_select "link[rel='stylesheet'][href*='#{legacy_asset}']", count: 0
     end
     assert_select "header.redesign-topbar[data-controller~='navigation'][data-controller~='library-search']"
+    assert_select ".redesign-search-dialog form[action='#{library_search_path}'] input[name='q'][required]"
     assert_select ".redesign-profile__menu[data-profile-menu-target='menu'][hidden]"
     assert_select ".redesign-transition[data-transition-target='overlay'][aria-hidden='true']"
     assert_select "turbo-frame#home_content[data-transition-message='Getting your music ready…']"
