@@ -17,4 +17,12 @@ class UserTest < ActiveSupport::TestCase
     assert_predicate first_user, :admin?
     assert_not_predicate later_user, :admin?
   end
+
+  test "defaults new users to the legacy interface and validates variants" do
+    user = User.new(email_address: "variant@example.com", password: "password", password_confirmation: "password")
+
+    assert_equal "legacy", user.ui_variant
+    user.ui_variant = "unknown"
+    assert_not_predicate user, :valid?
+  end
 end

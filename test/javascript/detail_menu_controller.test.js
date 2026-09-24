@@ -23,4 +23,26 @@ describe("detail menu controller", () => {
     expect(toggle.getAttribute("aria-expanded")).toBe("true")
     expect(menu.hidden).toBe(false)
   })
+
+  it("closes on Escape and returns focus to the menu control", () => {
+    const toggle = document.querySelector("button")
+    const menu = document.querySelector("div div")
+
+    toggle.click()
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))
+
+    expect(menu.hidden).toBe(true)
+    expect(toggle.getAttribute("aria-expanded")).toBe("false")
+    expect(document.activeElement).toBe(toggle)
+  })
+
+  it("closes when interaction moves outside the menu", () => {
+    const toggle = document.querySelector("button")
+    const menu = document.querySelector("div div")
+
+    toggle.click()
+    document.body.dispatchEvent(new MouseEvent("click", { bubbles: true }))
+
+    expect(menu.hidden).toBe(true)
+  })
 })

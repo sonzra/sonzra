@@ -543,6 +543,28 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     assert_equal "MusicAlbum", parameters["IncludeItemTypes"]
   end
 
+  test "searches music tracks without including podcast episodes" do
+    response = lambda do |body|
+      Net::HTTPOK.new("1.1", "200", "OK").tap do |http_response|
+        http_response.instance_variable_set(:@read, true)
+        http_response.body = body.to_json
+      end
+    end
+    http = FakeHttp.new([
+      response.call(AccessToken: "token", User: { Id: "user-id", Name: "Bruno" }),
+      response.call(Items: []),
+      response.call(Items: [ { Id: "track-1", Name: "Come Together", Type: "Audio" } ], TotalRecordCount: 1)
+    ])
+
+    tracks = Integrations::Jellyfin::Client.new(base_url: "https://example.com", username: "bruno", password: "secret", http: http).library_collection(:songs, page: 1, query: "Come")
+
+    parameters = URI.decode_www_form(URI.parse(http.last_request.path).query).to_h
+    assert_equal [ "Come Together" ], tracks.content.pluck("Name")
+    assert_equal "Audio", parameters["IncludeItemTypes"]
+    assert_equal "SortName", parameters["SortBy"]
+    assert_equal "Come", parameters["SearchTerm"]
+  end
+
   test "fetches podcast shows from the podcast library" do
     authentication_response = Net::HTTPOK.new("1.1", "200", "OK")
     authentication_response.instance_variable_set(:@read, true)

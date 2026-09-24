@@ -2,7 +2,7 @@ class ApplicationController < ActionController::Base
   include Authentication
   allow_browser versions: :modern
 
-  helper_method :registrations_enabled?, :current_server_connection
+  helper_method :registrations_enabled?, :current_server_connection, :redesign_enabled?
 
   private
 
@@ -18,5 +18,9 @@ class ApplicationController < ActionController::Base
     selected ||= connections.first
     session[:active_server_connection_id] = selected.id if selected
     selected
+  end
+
+  def redesign_enabled?
+    authenticated? && current_user.ui_variant == "redesign"
   end
 end

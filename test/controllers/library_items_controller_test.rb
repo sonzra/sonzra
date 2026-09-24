@@ -170,6 +170,7 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "shows a selected song within its album context" do
+    users(:one).update!(ui_variant: "redesign")
     result = ServerConnections::FetchLibraryItemDetailsResultData.new(
       details: {
         item: { "Id" => "song-id", "Name" => "Selected song", "Type" => "Audio", "AlbumId" => "album-id" },
@@ -190,7 +191,21 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     get library_item_server_connection_url(@server_connection, "song-id")
 
     assert_response :success
+    assert_select "header.redesign-topbar .redesign-brand", 1
+    assert_select "header.redesign-media-topbar", 0
+    assert_select ".settings-shell.redesign-detail-page"
+    assert_select "a.redesign-detail-back[href='#{library_albums_path}'][data-controller='history-back']", "Back"
+    assert_select ".redesign-detail-hero"
+    assert_select ".redesign-detail-tracks__heading"
     assert_select ".detail-hero h1", "Album name"
+    assert_select "button.detail-hero__album-play", 1
+    assert_select ".redesign-detail-actions .redesign-detail-action--play", "Play"
+    assert_select ".redesign-detail-actions .redesign-detail-action--queue", "Add to queue"
+    assert_select ".redesign-detail-actions [data-controller='detail-favorite']", 1
+    assert_select ".redesign-detail-tracks .listen-card__play", 2
+    assert_select ".redesign-detail-tracks .track-list__queue", 2
+    assert_select ".redesign-detail-tracks .detail-track__more", 2
+    assert_select ".redesign-detail-tracks .detail-track__menu-panel button", 2
     assert_select ".track-list li.is-selected strong", "Selected song"
     assert_select ".track-list li:not(.is-selected) strong", "Other song"
   ensure

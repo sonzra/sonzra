@@ -4,6 +4,25 @@
 
 No changes yet.
 
+## 0.0.18-alpha — 2026-09-24
+
+### Added
+
+- A complete responsive Sonzra redesign for web and installed PWA use, including the dashboard, library, mixes, genres, downloads, account surfaces, and connected-server setup.
+- A unified global search that returns matching artists, albums, and tracks from the active server.
+- Redesigned playback controls, queue, lyrics, and contextual track actions that stay touch-friendly on mobile.
+
+### Changed
+
+- The dashboard now uses the most recently played item as its default hero.
+- Library cards, detail pages, mixes, genre covers, download collections, and track lists now share the new spacing, typography, animation, and control system.
+- The persistent player now includes animated playback feedback, an optimistically updated favourite control, clearer volume progress, and mobile-specific actions.
+
+### Fixed
+
+- Track actions now remain aligned, fully visible, and usable across detail, search, web, and PWA layouts.
+- Queue and lyrics panels now keep their controls, metadata, scrolling affordances, and current-line shortcut within the available viewport.
+
 ## 0.0.17-alpha — 2026-09-11
 
 ### Added

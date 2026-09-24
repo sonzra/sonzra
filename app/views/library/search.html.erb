@@ -1,0 +1,35 @@
+<main class="redesign-library-page redesign-search-page">
+  <header class="redesign-library-heading redesign-search-page__heading">
+    <div>
+      <p class="eyebrow">Search results</p>
+      <h1>“<%= @query %>”</h1>
+      <p>Artists, albums, and tracks from your library.</p>
+    </div>
+    <%= link_to library_albums_path, class: "redesign-search-page__back" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><span>Library</span><% end %>
+  </header>
+
+  <% if @search_error.present? %>
+    <section class="listen-loading listen-loading--error"><h1>We couldn’t search your library.</h1><p><%= @search_error %></p></section>
+  <% elsif @search_results.values.all? { |result| result.items.empty? } %>
+    <section class="redesign-search-empty"><%= image_tag "/brand/sonzra-mark.svg", alt: "", class: "empty-state__mark" %><h2>No results for “<%= @query %>”</h2><p>Try a different spelling, artist, album, or track title.</p><%= link_to "Browse your library", library_albums_path, class: "secondary-button" %></section>
+  <% else %>
+    <div class="redesign-search-results">
+      <% { artists: [ "Artists", library_artists_path(q: @query), 5 ], albums: [ "Albums", library_albums_path(q: @query), 5 ] }.each do |collection, (title, path, limit)| %>
+        <% result = @search_results.fetch(collection); items = result.items.first(limit) %>
+        <% next if items.empty? %>
+        <section class="redesign-search-section" aria-labelledby="search-<%= collection %>-title">
+          <div class="redesign-search-section__heading"><div><p class="eyebrow"><%= pluralize(result.total, title.singularize.downcase) %></p><h2 id="search-<%= collection %>-title"><%= title %></h2></div><%= link_to "View all", path, class: "text-button" if result.total > items.size %></div>
+          <div class="library-grid redesign-library-grid redesign-search-grid"><%= render "grid_items", items: items, server_connection: @server_connection, collection: collection %></div>
+        </section>
+      <% end %>
+
+      <% songs = @search_results.fetch(:songs); song_items = songs.items.first(8) %>
+      <% if song_items.any? %>
+        <section class="redesign-search-section redesign-search-section--tracks" aria-labelledby="search-tracks-title">
+          <div class="redesign-search-section__heading"><div><p class="eyebrow"><%= pluralize(songs.total, "track") %></p><h2 id="search-tracks-title">Tracks</h2></div></div>
+          <%= render "music_shelf_collection", items: song_items, server_connection: @server_connection, title: "Tracks", class_name: "redesign-search-track-list" %>
+        </section>
+      <% end %>
+    </div>
+  <% end %>
+</main>

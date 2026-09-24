@@ -1,4 +1,4 @@
-<main class="settings-shell">
+<main class="settings-shell redesign-utility-page">
   <section class="form-page form-page--compact">
     <div class="page-title"><%= link_to @server_connection, class: "back-link back-link--compact", aria: { label: "Back to #{@server_connection.name}" }, title: "Back to #{@server_connection.name}" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1>Edit server</h1></div>
     <%= render "form", server_connection: @server_connection %>

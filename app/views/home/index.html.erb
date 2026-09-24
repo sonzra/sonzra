@@ -1,10 +1,14 @@
 <div class="listen-app">
   <main class="listen-main listen-main--home">
-    <turbo-frame id="home_content" src="<%= home_content_path %>" loading="lazy">
-      <section class="listen-loading" aria-live="polite">
-        <%= image_tag "/brand/sonzra-mark.svg", alt: "", class: "listen-loading__mark" %>
-        <div><p class="listen-kicker">Connecting to your library</p><h1>Getting your music ready…</h1><p>Fetching your recent listening and discovery picks.</p></div>
-      </section>
-    </turbo-frame>
+    <% if redesign_enabled? %>
+      <turbo-frame id="home_content" src="<%= home_content_path %>" loading="lazy" data-transition-message="Getting your music ready…"></turbo-frame>
+    <% else %>
+      <turbo-frame id="home_content" src="<%= home_content_path %>" loading="lazy">
+        <section class="listen-loading" aria-live="polite">
+          <%= image_tag "/brand/sonzra-mark.svg", alt: "", class: "listen-loading__mark" %>
+          <div><p class="listen-kicker">Connecting to your library</p><h1>Getting your music ready…</h1><p>Fetching your recent listening and discovery picks.</p></div>
+        </section>
+      </turbo-frame>
+    <% end %>
   </main>
 </div>

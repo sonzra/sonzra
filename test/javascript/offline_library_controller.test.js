@@ -49,6 +49,22 @@ describe("offline library controller", () => {
     expect(menu.querySelector("button").textContent).toBe("Remove")
   })
 
+  it("groups the redesign card controls inside its cover", () => {
+    document.body.classList.add("redesign")
+    const controller = Object.create(OfflineLibraryController.prototype)
+
+    try {
+      const card = controller.albumCard({ key: "album-1", title: "First album", artist: "Artist", tracks: [ {} ] })
+      const cover = card.querySelector(".offline-downloads__album-cover")
+
+      expect(cover).not.toBeNull()
+      expect(cover.querySelector(".offline-downloads__album-play")).not.toBeNull()
+      expect(cover.querySelector(".offline-downloads__album-options")).not.toBeNull()
+    } finally {
+      document.body.classList.remove("redesign")
+    }
+  })
+
   it("removes every track when removing a downloaded album", async () => {
     const controller = Object.create(OfflineLibraryController.prototype)
     const removeAll = vi.fn(async () => {})

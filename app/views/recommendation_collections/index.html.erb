@@ -1,4 +1,31 @@
-<main class="settings-shell">
-  <section class="settings-intro settings-intro--compact"><div class="page-title"><div><h1>Your mixes</h1><p>Saved daily and weekly listening sessions.</p></div></div></section>
-  <%= render "shared/recommendation_shelf", collections: @recommendation_collections %>
-</main>
+<% if redesign_enabled? %>
+  <main class="redesign-library-page redesign-mixes-page">
+    <header class="redesign-library-heading">
+      <div>
+        <p class="eyebrow">Made for you</p>
+        <h1>Mixes</h1>
+        <p>Daily and weekly listening sessions, built from your library.</p>
+      </div>
+    </header>
+
+    <% if @recommendation_collections.any? %>
+      <section class="redesign-library-content redesign-mixes-content" aria-labelledby="mixes-title">
+        <div class="redesign-library-content__heading">
+          <div><p class="eyebrow">Browse</p><h2 id="mixes-title">All mixes</h2></div>
+          <span class="redesign-mixes-content__total"><%= pluralize(@recommendation_collections.size, "mix") %></span>
+        </div>
+        <%= render "shared/recommendation_shelf", collections: @recommendation_collections, mixes: true %>
+      </section>
+    <% else %>
+      <div class="redesign-mixes-empty">
+        <p>Your first mix will appear once there is enough listening activity in this library.</p>
+        <%= link_to "Explore your library", library_albums_path, class: "primary-button" %>
+      </div>
+    <% end %>
+  </main>
+<% else %>
+  <main class="settings-shell">
+    <section class="settings-intro settings-intro--compact"><div class="page-title"><div><h1>Mixes</h1><p>Saved daily and weekly listening sessions.</p></div></div></section>
+    <%= render "shared/recommendation_shelf", collections: @recommendation_collections %>
+  </main>
+<% end %>

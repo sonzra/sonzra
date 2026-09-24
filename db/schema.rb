@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_06_121000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_22_000000) do
   create_table "application_settings", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.boolean "registrations_enabled", default: true, null: false
@@ -181,6 +181,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_06_121000) do
     t.string "email_address", null: false
     t.string "password_digest", null: false
     t.integer "preferred_server_connection_id"
+    t.string "ui_variant", default: "legacy", null: false
     t.datetime "updated_at", null: false
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
     t.index ["preferred_server_connection_id"], name: "index_users_on_preferred_server_connection_id"

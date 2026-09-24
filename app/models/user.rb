@@ -1,4 +1,6 @@
 class User < ApplicationRecord
+  UI_VARIANTS = %w[legacy redesign].freeze
+
   has_secure_password
   has_many :sessions, dependent: :destroy
   has_many :server_connections, dependent: :destroy
@@ -11,6 +13,7 @@ class User < ApplicationRecord
   normalizes :email_address, with: ->(e) { e.strip.downcase }
 
   validates :email_address, presence: true
+  validates :ui_variant, inclusion: { in: UI_VARIANTS }
 
   before_create :assign_administrator_role, if: :first_user?
 

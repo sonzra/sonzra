@@ -1,0 +1,6 @@
+<header class="redesign-media-topbar" data-media-header-target="bar">
+  <%= link_to @back_path, class: "redesign-media-topbar__back", aria: { label: "Back to #{@back_label}" }, data: { controller: "history-back", action: "click->history-back#go" } do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %>
+  <p><%= @media_detail_title %></p>
+  <span class="redesign-media-topbar__art" aria-hidden="true"><img data-media-header-target="thumbnail" alt=""></span>
+</header>
+<nav class="redesign-bottom-nav" aria-label="Mobile navigation"><%= link_to root_path do %><%= lucide_icon "house", aria: { hidden: true } %><span>Home</span><% end %><%= link_to library_albums_path do %><%= lucide_icon "library", aria: { hidden: true } %><span>Library</span><% end %><%= link_to recommendation_collections_path do %><%= lucide_icon "sparkles", aria: { hidden: true } %><span>Mixes</span><% end %><button type="button" data-action="player#toggleQueue"><%= lucide_icon "list-music", aria: { hidden: true } %><span>Queue</span></button></nav>

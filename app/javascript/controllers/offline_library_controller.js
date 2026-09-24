@@ -184,8 +184,19 @@ export default class extends Controller {
 
     menu.append(remove)
     options.append(toggle, menu)
-    item.append(open, play, options, details)
+    if (this.isRedesign()) {
+      const cover = document.createElement("div")
+      cover.className = "offline-downloads__album-cover"
+      cover.append(open, play, options)
+      item.append(cover, details)
+    } else {
+      item.append(open, play, options, details)
+    }
     return item
+  }
+
+  isRedesign() {
+    return document.body.classList.contains("redesign")
   }
 
   renderAlbumHero(album) {
@@ -231,7 +242,7 @@ export default class extends Controller {
     const details = document.createElement("div")
     const kind = document.createElement("p")
     kind.className = "detail-hero__kind"
-    kind.textContent = "Album"
+    kind.textContent = "Available offline"
     const title = document.createElement("div")
     title.className = "detail-hero__title"
     const heading = document.createElement("h1")
@@ -242,7 +253,7 @@ export default class extends Controller {
     artist.textContent = album.artist
     const release = document.createElement("p")
     release.className = "detail-hero__release"
-    release.textContent = album.tracks.length === 1 ? "1 track" : `${album.tracks.length} tracks`
+    release.textContent = album.tracks.length === 1 ? "1 downloaded track" : `${album.tracks.length} downloaded tracks`
     details.append(kind, title, artist, release)
     this.detailHeroTarget.append(artwork, details)
   }

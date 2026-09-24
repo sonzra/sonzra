@@ -107,6 +107,7 @@ module Integrations
         response = case collection
         when :artists then get("Artists", token, **parameters)
         when :albums then get("Users/#{user_id}/Items", token, **parameters.merge(Recursive: true, IncludeItemTypes: "MusicAlbum", SortBy: "SortName"))
+        when :songs then music_collection_response(user_id, token, parameters, IncludeItemTypes: "Audio", SortBy: "SortName", EnableUserData: true) { |items, podcast_ids| music_songs_without_podcasts(items, podcast_ids) }
         when :audiobooks then get("Users/#{user_id}/Items", token, **parameters.merge(Recursive: true, IncludeItemTypes: "AudioBook", SortBy: "SortName"))
         when :podcasts then podcast_shows(user_id, token, **parameters)
         when :playlists then get("Users/#{user_id}/Items", token, **parameters.merge(Recursive: true, IncludeItemTypes: "Playlist", SortBy: "SortName"))

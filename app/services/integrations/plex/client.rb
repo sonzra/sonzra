@@ -87,6 +87,7 @@ module Integrations
         type, sort = case collection
         when :artists then [ 8, "titleSort" ]
         when :albums, :recently_added_albums then [ 9, collection == :recently_added_albums ? "addedAt:desc" : "titleSort" ]
+        when :songs then [ 10, "titleSort" ]
         when :recently_played then [ 10, "lastViewedAt:desc" ]
         when :most_played_songs then [ 10, "viewCount:desc" ]
         when :genres

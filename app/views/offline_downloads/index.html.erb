@@ -1,22 +1,60 @@
-<main class="settings-shell offline-downloads" data-controller="offline-library">
-  <section class="settings-intro settings-intro--compact" data-offline-library-target="intro">
-    <div class="page-title">
-      <button type="button" class="offline-downloads__back" data-offline-library-target="back" data-action="offline-library#backToAlbums" aria-label="Back to downloads" hidden><%= lucide_icon "arrow-left", aria: { hidden: true } %></button>
-      <div><h1 data-offline-library-target="title">Downloads</h1><p data-offline-library-target="count">Loading downloads…</p></div>
-    </div>
-  </section>
-  <p class="offline-downloads__description" data-offline-library-target="description">Downloaded media is available on this device, even when your Jellyfin server is unavailable.</p>
-  <p class="offline-downloads__storage" data-offline-library-target="storage" hidden></p>
-  <ol class="offline-downloads__list" data-offline-library-target="list"></ol>
-  <button type="button" class="detail-back-link offline-downloads__detail-back" data-offline-library-target="detailBack" data-action="offline-library#backToAlbums" hidden><%= lucide_icon "arrow-left", aria: { hidden: true } %><span>Downloads</span></button>
-  <section class="detail-hero offline-downloads__detail-hero" data-offline-library-target="detailHero" hidden></section>
-  <section class="detail-section offline-downloads__track-section" data-offline-library-target="trackSection" hidden>
-    <h2>Tracks</h2>
-    <ol class="track-list" data-offline-library-target="trackList"></ol>
-  </section>
-  <section class="empty-state offline-downloads__empty" data-offline-library-target="empty" hidden>
-    <%= image_tag "/brand/sonzra-mark.svg", alt: "", class: "empty-state__mark" %>
-    <h2>No downloads yet</h2>
-    <p>Use an item’s menu to save it for offline playback.</p>
-  </section>
-</main>
+<% if redesign_enabled? %>
+  <main class="redesign-library-page redesign-downloads-page offline-downloads" data-controller="offline-library">
+    <section class="redesign-downloads-overview" data-offline-library-target="intro">
+      <header class="redesign-library-heading">
+        <div>
+          <p class="eyebrow">Available offline</p>
+          <div class="redesign-downloads-heading">
+            <button type="button" class="offline-downloads__back" data-offline-library-target="back" data-action="offline-library#backToAlbums" aria-label="Back to downloads" hidden><%= lucide_icon "arrow-left", aria: { hidden: true } %></button>
+            <h1 data-offline-library-target="title">Downloads</h1>
+          </div>
+          <p data-offline-library-target="count">Loading downloads…</p>
+        </div>
+      </header>
+
+      <div class="redesign-library-content__heading redesign-downloads-content-heading">
+        <div><p class="eyebrow">Stored on this device</p><h2>Downloaded albums</h2></div>
+        <span class="redesign-downloads-content-heading__icon" aria-hidden="true"><%= lucide_icon "download" %></span>
+      </div>
+      <p class="offline-downloads__description" data-offline-library-target="description">Your downloaded media is ready to play, even when your Jellyfin server is unavailable.</p>
+      <p class="offline-downloads__storage" data-offline-library-target="storage" hidden></p>
+    </section>
+
+    <ol class="offline-downloads__list" data-offline-library-target="list"></ol>
+    <button type="button" class="detail-back-link offline-downloads__detail-back" data-offline-library-target="detailBack" data-action="offline-library#backToAlbums" hidden><%= lucide_icon "arrow-left", aria: { hidden: true } %><span>Downloads</span></button>
+    <section class="detail-hero offline-downloads__detail-hero redesign-downloads-detail-hero" data-offline-library-target="detailHero" hidden></section>
+    <section class="detail-section offline-downloads__track-section redesign-downloads-track-section" data-offline-library-target="trackSection" hidden>
+      <div class="redesign-downloads-track-section__heading" aria-hidden="true"><span>Track</span><span>Duration</span><span>Actions</span></div>
+      <h2>Tracks</h2>
+      <ol class="track-list" data-offline-library-target="trackList"></ol>
+    </section>
+    <section class="empty-state offline-downloads__empty" data-offline-library-target="empty" hidden>
+      <%= image_tag "/brand/sonzra-mark.svg", alt: "", class: "empty-state__mark" %>
+      <h2>No downloads yet</h2>
+      <p>Use an item’s menu to save it for offline playback.</p>
+    </section>
+  </main>
+<% else %>
+  <main class="settings-shell offline-downloads" data-controller="offline-library">
+    <section class="settings-intro settings-intro--compact" data-offline-library-target="intro">
+      <div class="page-title">
+        <button type="button" class="offline-downloads__back" data-offline-library-target="back" data-action="offline-library#backToAlbums" aria-label="Back to downloads" hidden><%= lucide_icon "arrow-left", aria: { hidden: true } %></button>
+        <div><h1 data-offline-library-target="title">Downloads</h1><p data-offline-library-target="count">Loading downloads…</p></div>
+      </div>
+    </section>
+    <p class="offline-downloads__description" data-offline-library-target="description">Downloaded media is available on this device, even when your Jellyfin server is unavailable.</p>
+    <p class="offline-downloads__storage" data-offline-library-target="storage" hidden></p>
+    <ol class="offline-downloads__list" data-offline-library-target="list"></ol>
+    <button type="button" class="detail-back-link offline-downloads__detail-back" data-offline-library-target="detailBack" data-action="offline-library#backToAlbums" hidden><%= lucide_icon "arrow-left", aria: { hidden: true } %><span>Downloads</span></button>
+    <section class="detail-hero offline-downloads__detail-hero" data-offline-library-target="detailHero" hidden></section>
+    <section class="detail-section offline-downloads__track-section" data-offline-library-target="trackSection" hidden>
+      <h2>Tracks</h2>
+      <ol class="track-list" data-offline-library-target="trackList"></ol>
+    </section>
+    <section class="empty-state offline-downloads__empty" data-offline-library-target="empty" hidden>
+      <%= image_tag "/brand/sonzra-mark.svg", alt: "", class: "empty-state__mark" %>
+      <h2>No downloads yet</h2>
+      <p>Use an item’s menu to save it for offline playback.</p>
+    </section>
+  </main>
+<% end %>
