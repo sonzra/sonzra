@@ -110,6 +110,41 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
     assert_select ".listen-card h3 a", "Beatles"
   end
 
+  test "renders genre cards in the standalone redesign grid" do
+    users(:one).update!(ui_variant: "redesign")
+    ServerConnection.create!(
+      media_server: MediaServer.create!(name: "Home", provider: :jellyfin, base_url: "https://example.com"),
+      username: "bruno",
+      password: "secret",
+      user: users(:one)
+    )
+    response = Integrations::Jellyfin::LibraryCollectionResponseData.new(
+      content: [ { "Id" => "ambient", "Name" => "Ambient", "Type" => "MusicGenre" }, { "Id" => "jazz", "Name" => "Jazz", "Type" => "MusicGenre" } ],
+      total: 2,
+      access_token: "token"
+    )
+    client = Object.new
+    client.define_singleton_method(:library_collection) { |_, **| response }
+
+    client_class = Integrations::Jellyfin::Client
+    client_class.singleton_class.alias_method :new_before_redesign_genres_test, :new
+    client_class.define_singleton_method(:new) { |**| client }
+    begin
+      get library_genres_url
+    ensure
+      client_class.singleton_class.alias_method :new, :new_before_redesign_genres_test
+      client_class.singleton_class.remove_method :new_before_redesign_genres_test
+    end
+
+    assert_response :success
+    assert_select ".redesign-library-page"
+    assert_select ".redesign-library-heading h1", "Library"
+    assert_select ".redesign-library-content__heading h2", "All genres"
+    assert_select ".redesign-genre-directory .redesign-genre-tile", 2
+    assert_select ".redesign-genre-tile--0", "Ambient"
+    assert_select ".redesign-genre-tile--1", "Jazz"
+  end
+
   test "renders turbo stream append response for infinite scroll request" do
     ServerConnection.create!(
       media_server: MediaServer.create!(name: "Home", provider: :jellyfin, base_url: "https://example.com"),

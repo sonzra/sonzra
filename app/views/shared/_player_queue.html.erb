@@ -1,9 +1,16 @@
 <section id="player-queue" class="listen-queue" data-player-target="queuePanel" data-turbo-permanent hidden>
-  <button type="button" class="listen-queue__close" aria-label="Close queue" data-action="player#toggleQueue"><%= lucide_icon "x", aria: { hidden: true } %></button>
+  <% if redesign_enabled? %>
+    <header class="redesign-queue-header">
+      <div><p class="eyebrow">Up next</p><h2>Queue</h2></div>
+      <button type="button" class="listen-queue__close" aria-label="Close queue" data-action="player#toggleQueue"><%= lucide_icon "x", aria: { hidden: true } %></button>
+    </header>
+  <% else %>
+    <button type="button" class="listen-queue__close" aria-label="Close queue" data-action="player#toggleQueue"><%= lucide_icon "x", aria: { hidden: true } %></button>
+  <% end %>
   <div class="listen-queue__now-playing">
     <img data-player-target="expandedArtwork" src="/brand/sonzra-mark.svg" alt="">
-    <div><p data-player-target="expandedTitle">Choose something to play</p><span data-player-target="expandedArtist">Your player will stay here</span></div>
-    <div class="listen-queue__controls"><button type="button" aria-label="Previous track" data-action="player#previous"><%= lucide_icon "skip-back", aria: { hidden: true } %></button><button type="button" class="listen-queue__play" aria-label="Play" data-player-target="expandedToggle" data-action="player#toggle"><%= lucide_icon "play", aria: { hidden: true } %></button><button type="button" aria-label="Next track" data-action="player#next"><%= lucide_icon "skip-forward", aria: { hidden: true } %></button><button type="button" aria-label="Favorite track" title="Favorite track" data-player-target="favorite" data-action="player#toggleFavorite"><%= lucide_icon "heart", aria: { hidden: true } %></button></div>
+    <div class="listen-queue__now-playing-info"><p data-player-target="expandedTitle">Choose something to play</p><span data-player-target="expandedArtist">Your player will stay here</span></div>
+    <div class="listen-queue__controls" role="group" aria-label="Playback controls"><button type="button" class="listen-queue__radio-control" aria-label="Radio off" title="Radio off" data-player-target="radio" data-action="player#toggleRadio"><%= lucide_icon "radio", aria: { hidden: true } %></button><button type="button" aria-label="Previous track" data-action="player#previous"><%= lucide_icon "skip-back", aria: { hidden: true } %></button><button type="button" class="listen-queue__play" aria-label="Play" data-player-target="expandedToggle" data-action="player#toggle"><%= lucide_icon "play", aria: { hidden: true } %></button><button type="button" aria-label="Next track" data-action="player#next"><%= lucide_icon "skip-forward", aria: { hidden: true } %></button><button type="button" aria-label="Repeat off" title="Repeat off" data-player-target="repeat" data-action="player#toggleRepeat"><%= lucide_icon "repeat", aria: { hidden: true } %></button></div>
     <div class="listen-queue__progress"><time data-player-target="expandedElapsed">0:00</time><input data-player-target="expandedTimeline" data-action="input->player#seek" type="range" min="0" max="0" value="0" step="0.1" aria-label="Playback position"><time data-player-target="expandedDuration">0:00</time></div>
   </div>
   <div class="listen-queue__list">
@@ -14,7 +21,7 @@
     <div data-player-target="queueView">
       <div class="listen-queue__list-header">
         <p>Queue</p>
-        <div class="listen-queue__utility-controls"><button type="button" aria-label="Radio off" title="Radio off" data-player-target="radio" data-action="player#toggleRadio"><%= lucide_icon "radio", aria: { hidden: true } %></button><button type="button" aria-label="Repeat off" title="Repeat off" data-player-target="repeat" data-action="player#toggleRepeat"><%= lucide_icon "repeat", aria: { hidden: true } %></button><button type="button" class="listen-queue__clear" aria-label="Clear queue" title="Clear queue" data-action="player#promptClearQueue"><%= lucide_icon "brush-cleaning", aria: { hidden: true } %></button></div>
+        <div class="listen-queue__utility-controls" role="group" aria-label="Queue controls"><button type="button" aria-label="Radio off" title="Radio off" data-player-target="radio" data-action="player#toggleRadio"><%= lucide_icon "radio", aria: { hidden: true } %></button><button type="button" aria-label="Repeat off" title="Repeat off" data-player-target="repeat" data-action="player#toggleRepeat"><%= lucide_icon "repeat", aria: { hidden: true } %></button><button type="button" class="listen-queue__clear" aria-label="Clear queue" title="Clear queue" data-action="player#promptClearQueue"><%= lucide_icon "brush-cleaning", aria: { hidden: true } %></button></div>
       </div>
       <ol data-player-target="queueList"></ol>
     </div>

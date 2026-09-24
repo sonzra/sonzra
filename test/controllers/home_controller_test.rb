@@ -73,5 +73,10 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "aside#player .listen-player__playing-mark[aria-hidden='true'] i", 3
     assert_select "aside#player .listen-player__timeline[data-player-target='timeline'][data-action='input->player#seek']"
     assert_select "aside#player .listen-player__queue-button[data-action='player#toggleQueue']"
+    assert_select "#player-queue .redesign-queue-header h2", "Queue"
+    assert_select "#player-queue .redesign-queue-header .listen-queue__close[aria-label='Close queue']"
+    assert_select "#player-queue .listen-queue__controls[aria-label='Playback controls'] [data-player-target='radio']"
+    assert_select "#player-queue .listen-queue__controls[aria-label='Playback controls'] [data-player-target='repeat']"
+    assert_select "#player-queue .listen-queue__utility-controls[role='group'][aria-label='Queue controls']"
   end
 end

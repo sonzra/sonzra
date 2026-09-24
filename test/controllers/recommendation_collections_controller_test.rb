@@ -38,6 +38,8 @@ class RecommendationCollectionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select ".redesign-library-heading h1", "Mixes"
     assert_select ".redesign-topbar__link", "Mixes"
+    assert_select ".redesign-topbar__link[href='#{offline_downloads_path}']", "Downloads"
+    assert_select ".redesign-bottom-nav a[href='#{offline_downloads_path}']", 0
     assert_select ".redesign-mix-card-grid .redesign-mix-card", 2
     assert_select ".redesign-mix-card time", /Created /
     assert_select ".redesign-mix-card", text: /Yesterday's ambient/
@@ -45,7 +47,17 @@ class RecommendationCollectionsControllerTest < ActionDispatch::IntegrationTest
     get recommendation_collection_url(@collection)
 
     assert_response :success
+    assert_select "header.redesign-topbar .redesign-brand", 1
+    assert_select "header.redesign-media-topbar", 0
+    assert_select "a.redesign-detail-back[href='#{recommendation_collections_path}'][data-controller='history-back']", "Back"
     assert_select ".redesign-discovery-detail .detail-hero h1", "Best of ambient"
+    assert_select ".redesign-detail-actions .redesign-detail-action--play", "Play"
+    assert_select ".redesign-detail-actions .redesign-detail-action--queue", "Add to queue"
+    assert_select ".redesign-detail-tracks__heading", 1
+    assert_select ".redesign-detail-tracks .listen-card__play", 1
+    assert_select ".redesign-detail-tracks .track-list__queue", 1
+    assert_select ".redesign-detail-tracks .detail-track__more", 1
+    assert_select ".redesign-detail-tracks .detail-track__menu-panel button", 1
   end
 
   test "does not expose a hidden artist from a previously generated mix" do

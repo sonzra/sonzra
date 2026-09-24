@@ -1,14 +1,47 @@
-<main class="settings-shell">
-  <% if @result.success? %>
-    <% genres = music_genre_names(@result.items) %>
-    <section class="settings-intro library-page-intro">
-      <span class="eyebrow">Your library</span>
-      <div class="page-title"><%= link_to root_path, class: "back-link back-link--compact", aria: { label: "Back to home" }, title: "Back to home" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1>All genres</h1><%= render "shared/library_search", title: "Genres", path: library_genres_path, query: @query, genre: nil %></div><%= render "shared/redesign_library_tabs" if redesign_enabled? %>
-    </section>
-    <section class="genre-directory" aria-label="All music genres">
-      <% genres.each_with_index do |genre_name, index| %><%= link_to library_albums_path(genre: genre_name), class: "genre-tile genre-tile--#{index % 6}" do %><span><%= genre_name %></span><%= lucide_icon "arrow-up-right", aria: { hidden: true } %><% end %><% end %>
-    </section>
-  <% else %>
-    <section class="listen-loading listen-loading--error"><h1>We couldn’t load your genres.</h1><p><%= @result.message %></p></section>
-  <% end %>
-</main>
+<% if redesign_enabled? %>
+  <main class="redesign-library-page redesign-genres-page">
+    <% if @result.success? %>
+      <% genres = music_genre_names(@result.items) %>
+      <header class="redesign-library-heading">
+        <div>
+          <p class="eyebrow">Your collection</p>
+          <h1>Library</h1>
+          <p>Everything on your server, beautifully organized.</p>
+        </div>
+      </header>
+
+      <%= render "shared/redesign_library_tabs" %>
+
+      <section class="redesign-library-content" aria-labelledby="genres-title">
+        <div class="redesign-library-content__heading">
+          <div><p class="eyebrow">Browse</p><h2 id="genres-title">All genres</h2></div>
+          <%= render "shared/library_search", title: "Genres", path: library_genres_path, query: @query, genre: nil %>
+        </div>
+        <div class="redesign-genre-directory">
+          <% genres.each_with_index do |genre_name, index| %>
+            <%= link_to library_albums_path(genre: genre_name), class: "redesign-genre-tile redesign-genre-tile--#{index % 6}", data: { turbo_frame: "_top" } do %>
+              <span><%= genre_name %></span><%= lucide_icon "arrow-up-right", aria: { hidden: true } %>
+            <% end %>
+          <% end %>
+        </div>
+      </section>
+    <% else %>
+      <section class="listen-loading listen-loading--error"><h1>We couldn’t load your genres.</h1><p><%= @result.message %></p></section>
+    <% end %>
+  </main>
+<% else %>
+  <main class="settings-shell">
+    <% if @result.success? %>
+      <% genres = music_genre_names(@result.items) %>
+      <section class="settings-intro library-page-intro">
+        <span class="eyebrow">Your library</span>
+        <div class="page-title"><%= link_to root_path, class: "back-link back-link--compact", aria: { label: "Back to home" }, title: "Back to home" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1>All genres</h1><%= render "shared/library_search", title: "Genres", path: library_genres_path, query: @query, genre: nil %></div><%= render "shared/redesign_library_tabs" if redesign_enabled? %>
+      </section>
+      <section class="genre-directory" aria-label="All music genres">
+        <% genres.each_with_index do |genre_name, index| %><%= link_to library_albums_path(genre: genre_name), class: "genre-tile genre-tile--#{index % 6}" do %><span><%= genre_name %></span><%= lucide_icon "arrow-up-right", aria: { hidden: true } %><% end %><% end %>
+      </section>
+    <% else %>
+      <section class="listen-loading listen-loading--error"><h1>We couldn’t load your genres.</h1><p><%= @result.message %></p></section>
+    <% end %>
+  </main>
+<% end %>

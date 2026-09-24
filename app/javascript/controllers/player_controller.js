@@ -12,7 +12,7 @@ const MAX_PLAYBACK_RECOVERY_ATTEMPTS = 2
 const QUEUE_TRANSITION_DURATION = 320
 
 export default class extends Controller {
-  static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "favorite", "radio", "volume", "clearDialog", "queueView", "lyricsView", "queueTab", "lyricsTab", "lyricsStatus", "lyricsList", "lyricsFollow"]
+  static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "favorite", "radio", "volume", "clearDialog", "queueView", "lyricsView", "queueTab", "lyricsTab", "lyricsStatus", "lyricsList", "lyricsFollow", "visualizer"]
   static values = { radioEnabled: Boolean, preferencesUrl: String, offline: Boolean }
 
   connect() {
@@ -81,6 +81,7 @@ export default class extends Controller {
     document.removeEventListener("turbo:load", this.boundSyncPageTrackControls)
     document.removeEventListener("click", this.boundDismissQueueMenu)
     this.stopProgressWatch()
+    this.stopVisualizer()
     this.clearPlaybackRecovery()
     this.lyricsRequest?.abort()
     window.clearTimeout(this.lyricScrollTimeout)
@@ -155,7 +156,7 @@ export default class extends Controller {
     const volume = Math.min(1, Math.max(0, Number(event.currentTarget.value) || 0))
     this.audioTarget.volume = volume
     sessionStorage.setItem("sonzra:volume", String(volume))
-    this.volumeTargets.forEach((input) => { input.value = volume })
+    this.updateVolumeControls(volume)
   }
 
   toggleQueue() {
@@ -201,27 +202,33 @@ export default class extends Controller {
   async toggleRadio() {
     if (this.offlineMode) return
 
-    this.setRadioEnabled(!this.radioEnabled, { feedback: this.radioEnabled ? "Radio off" : "Radio on" })
+    this.setRadioEnabled(!this.radioEnabled)
     if (this.radioEnabled) await this.maybeExtendRadioQueue()
   }
 
-  async toggleFavorite() {
+  toggleFavorite() {
     if (this.offlineMode || !this.currentTrack?.source) return
 
-    const favorite = !this.currentTrack.favorite
-    const favoriteUrl = this.currentTrack.source.replace(/\/audio\/([^/?]+).*$/, "/favorites/$1")
-    const response = await fetch(favoriteUrl, {
+    const track = this.currentTrack
+    const queueTrack = this.queue[this.currentIndex]
+    const favorite = !this.favoriteState(track)
+    const favoriteUrl = track.source.replace(/\/audio\/([^/?]+).*$/, "/favorites/$1")
+    this.setOptimisticFavorite(track, favorite)
+    if (queueTrack && queueTrack !== track) this.setOptimisticFavorite(queueTrack, favorite)
+    this.updateFavoriteControls()
+    this.renderQueue()
+
+    void fetch(favoriteUrl, {
       method: "PATCH",
       headers: { Accept: "application/json", "Content-Type": "application/json", "X-CSRF-Token": document.querySelector("meta[name='csrf-token']")?.content },
       body: JSON.stringify({ favorite })
-    })
-    if (!response.ok) return
+    }).then((response) => {
+      if (!response.ok || track.optimisticFavorite !== favorite) return
 
-    this.currentTrack.favorite = favorite
-    this.queue[this.currentIndex].favorite = favorite
-    this.updateFavoriteControls()
-    this.renderQueue()
-    this.persistQueue({ force: true })
+      this.commitOptimisticFavorite(track, favorite)
+      if (queueTrack && queueTrack !== track) this.commitOptimisticFavorite(queueTrack, favorite)
+      this.persistQueue({ force: true })
+    }).catch(() => {})
   }
 
   updateTimeline() {
@@ -264,6 +271,7 @@ export default class extends Controller {
 
   handlePlay() {
     this.syncPlayingState()
+    this.startVisualizer()
     this.updateToggle()
     this.syncNativeMedia()
     this.syncBrowserMedia()
@@ -275,6 +283,7 @@ export default class extends Controller {
 
   handlePause() {
     this.syncPlayingState()
+    this.stopVisualizer()
     this.updateToggle()
     this.syncNativeMedia()
     this.syncBrowserMedia()
@@ -601,9 +610,10 @@ export default class extends Controller {
         const favoriteButton = document.createElement("button")
         favoriteButton.type = "button"
         favoriteButton.className = "listen-queue__item-menu-action listen-queue__item-favorite"
-        favoriteButton.classList.toggle("is-active", track.favorite === true)
-        favoriteButton.ariaLabel = track.favorite ? `Remove ${track.title} from favourites` : `Add ${track.title} to favourites`
-        favoriteButton.innerHTML = `${this.icon(track.favorite ? "heart-filled" : "heart")}<span>${track.favorite ? "Remove from favourites" : "Add to favourites"}</span>`
+        const favorite = this.favoriteState(track)
+        favoriteButton.classList.toggle("is-active", favorite)
+        favoriteButton.ariaLabel = favorite ? `Remove ${track.title} from favourites` : `Add ${track.title} to favourites`
+        favoriteButton.innerHTML = `${this.icon(favorite ? "heart-filled" : "heart")}<span>${favorite ? "Remove from favourites" : "Add to favourites"}</span>`
         favoriteButton.addEventListener("click", () => { closeMoreMenu(); this.toggleQueuedFavorite(queueIndex) })
         const playlistButton = document.createElement("button")
         playlistButton.type = "button"
@@ -672,7 +682,7 @@ export default class extends Controller {
   }
 
   updateFavoriteControls() {
-    const favorite = this.currentTrack?.favorite === true
+    const favorite = this.favoriteState(this.currentTrack)
     this.favoriteTargets.forEach((button) => {
       button.hidden = this.offlineMode
       button.classList.toggle("is-active", favorite)
@@ -681,36 +691,62 @@ export default class extends Controller {
     })
   }
 
+  favoriteState(track) {
+    return typeof track?.optimisticFavorite === "boolean" ? track.optimisticFavorite : track?.favorite === true
+  }
+
+  setOptimisticFavorite(track, favorite) {
+    Object.defineProperty(track, "optimisticFavorite", { configurable: true, value: favorite, writable: true })
+  }
+
+  commitOptimisticFavorite(track, favorite) {
+    track.favorite = favorite
+    delete track.optimisticFavorite
+  }
+
   updateRadioControls() {
     this.radioTargets.forEach((button) => {
-      const eligible = this.currentTrack?.radioEligible === true
-      button.hidden = this.offlineMode || !eligible
-      button.disabled = this.offlineMode || !eligible
+      const radioUrl = this.currentTrack?.radioUrl || this.fallbackRadioUrl(this.currentTrack || {})
+      const resumable = this.currentTrack?.resumable === true || this.currentTrack?.resumable === "true"
+      const eligible = this.currentTrack?.radioEligible === true || (Boolean(radioUrl) && !resumable)
+      if (eligible && this.currentTrack) {
+        this.currentTrack.radioEligible = true
+        this.currentTrack.radioUrl = radioUrl
+      }
+      const unavailable = this.offlineMode || !eligible
+      const mobileQueueControl = button.classList.contains("listen-queue__radio-control")
+      button.hidden = unavailable && !mobileQueueControl
+      button.disabled = unavailable
       button.classList.toggle("is-active", eligible && this.radioEnabled)
-      const label = this.radioEnabled ? "Radio on" : "Radio off"
+      const label = unavailable ? "Radio unavailable for this track" : (this.radioEnabled ? "Radio on" : "Radio off")
       button.setAttribute("aria-label", label)
+      button.title = label
       button.innerHTML = this.icon("radio")
     })
   }
 
-  async toggleQueuedFavorite(index) {
+  toggleQueuedFavorite(index) {
     if (this.offlineMode) return
     const track = this.queue[index]
     if (!track?.source) return
 
-    const favorite = !track.favorite
+    const favorite = !this.favoriteState(track)
     const favoriteUrl = track.source.replace(/\/audio\/([^/?]+).*$/, "/favorites/$1")
-    const response = await fetch(favoriteUrl, {
+    this.setOptimisticFavorite(track, favorite)
+    if (index === this.currentIndex) this.updateFavoriteControls()
+    this.renderQueue()
+
+    void fetch(favoriteUrl, {
       method: "PATCH",
       headers: { Accept: "application/json", "Content-Type": "application/json", "X-CSRF-Token": document.querySelector("meta[name='csrf-token']")?.content },
       body: JSON.stringify({ favorite })
-    })
-    if (!response.ok) return
+    }).then((response) => {
+      if (!response.ok || track.optimisticFavorite !== favorite) return
 
-    track.favorite = favorite
-    if (index === this.currentIndex) this.updateFavoriteControls()
-    this.persistQueue({ force: true })
-    this.renderQueue()
+      this.commitOptimisticFavorite(track, favorite)
+      if (index === this.currentIndex) this.updateFavoriteControls()
+      this.persistQueue({ force: true })
+    }).catch(() => {})
   }
 
   addQueuedTrackToPlaylist(index) {
@@ -857,6 +893,7 @@ export default class extends Controller {
 
   stopPlayback() {
     this.playbackRequested = false
+    this.stopVisualizer()
     this.clearPlaybackRecovery()
     this.persistQueue({ force: true })
     this.reportPlayback("stopped", { keepalive: true })
@@ -892,7 +929,15 @@ export default class extends Controller {
 
     const volume = sessionStorage.getItem("sonzra:volume") || "0.8"
     this.audioTarget.volume = volume
-    this.volumeTargets.forEach((input) => { input.value = volume })
+    this.updateVolumeControls(volume)
+  }
+
+  updateVolumeControls(volume) {
+    const percentage = `${Math.round(Number(volume) * 100)}%`
+    this.volumeTargets.forEach((input) => {
+      input.value = volume
+      input.style.setProperty("--volume-progress", percentage)
+    })
   }
 
   showPlayer() {
@@ -1004,12 +1049,10 @@ export default class extends Controller {
     lines.forEach((line, index) => {
       const item = document.createElement("li")
       item.className = "listen-queue__lyric-group"
-      line.text.split(/\r?\n/).filter(Boolean).forEach((textValue) => {
-        const text = document.createElement("span")
-        text.className = "listen-queue__lyric-line"
-        text.textContent = textValue
-        item.appendChild(text)
-      })
+      const text = document.createElement("span")
+      text.className = "listen-queue__lyric-line"
+      text.textContent = line.text.replace(/\s*\r?\n\s*/g, " ").trim()
+      item.appendChild(text)
       if (line.start !== null && line.start !== undefined && Number.isFinite(Number(line.start))) {
         item.classList.add("is-timed")
         item.tabIndex = 0
@@ -1181,20 +1224,25 @@ export default class extends Controller {
   }
 
   normalizeTrack(track) {
+    const radioUrl = track.radioUrl || this.fallbackRadioUrl(track)
+    const explicitlyIneligibleForRadio = track.radioEligible === false || track.radioEligible === "false"
+
     return {
       ...track,
+      itemId: track.itemId || track.item_id,
       favorite: track.favorite === true || track.favorite === "true",
-      radioEligible: track.radioEligible === true || track.radioEligible === "true",
-      radioUrl: track.radioUrl || this.fallbackRadioUrl(track),
+      radioEligible: !explicitlyIneligibleForRadio && Boolean(radioUrl),
+      radioUrl,
       resumable: track.resumable === true || track.resumable === "true"
     }
   }
 
   fallbackRadioUrl(track) {
-    if (!track.itemId || !track.source || track.resumable) return null
+    const itemId = track.itemId || track.item_id
+    if (!itemId || !track.source || track.resumable) return null
 
     const match = track.source.match(/^(\/server_connections\/[^/]+)\/audio\/[^/?]+/)
-    return match ? `${match[1]}/radio_tracks/${track.itemId}` : null
+    return match ? `${match[1]}/radio_tracks/${itemId}` : null
   }
 
   showFeedback(message) {
@@ -1277,6 +1325,77 @@ export default class extends Controller {
 
   syncPlayingState() {
     if (this.hasShellTarget) this.shellTarget.classList.toggle("is-playing", !this.audioTarget.paused && !this.audioTarget.ended)
+  }
+
+  startVisualizer() {
+    if (!this.hasVisualizerTarget || this.visualizerUnavailable || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return
+    if (!this.prepareVisualizer()) return
+
+    this.audioContext.resume?.().catch(() => {})
+    window.cancelAnimationFrame(this.visualizerFrame)
+    this.visualizerTarget.classList.add("is-reactive")
+
+    const render = () => {
+      if (!this.hasAudioTarget || this.audioTarget.paused || this.audioTarget.ended) {
+        this.stopVisualizer()
+        return
+      }
+
+      this.visualizerAnalyser.getByteFrequencyData(this.visualizerData)
+      const bars = this.visualizerTarget.querySelectorAll("i")
+      const lastBin = this.visualizerData.length - 1
+      bars.forEach((bar, index) => {
+        const bin = Math.min(lastBin, 2 + (index * 5))
+        const level = Math.max(.34, Math.min(1, .34 + (this.visualizerData[bin] / 255 * .66)))
+        bar.style.setProperty("--player-level", level.toFixed(3))
+      })
+      this.visualizerFrame = window.requestAnimationFrame(render)
+    }
+
+    render()
+  }
+
+  prepareVisualizer() {
+    if (this.visualizerAnalyser) return true
+
+    const AudioContext = window.AudioContext || window.webkitAudioContext
+    if (!AudioContext) return false
+
+    try {
+      const graph = this.audioTarget.__sonzraVisualizerGraph
+      if (graph) {
+        this.audioContext = graph.context
+        this.visualizerAnalyser = graph.analyser
+        this.visualizerData = graph.data
+        return true
+      }
+
+      const context = new AudioContext()
+      const analyser = context.createAnalyser()
+      analyser.fftSize = 64
+      analyser.smoothingTimeConstant = .72
+      const source = context.createMediaElementSource(this.audioTarget)
+      source.connect(analyser)
+      analyser.connect(context.destination)
+      const data = new Uint8Array(analyser.frequencyBinCount)
+      this.audioTarget.__sonzraVisualizerGraph = { context, analyser, data }
+      this.audioContext = context
+      this.visualizerAnalyser = analyser
+      this.visualizerData = data
+      return true
+    } catch (_) {
+      this.visualizerUnavailable = true
+      return false
+    }
+  }
+
+  stopVisualizer() {
+    window.cancelAnimationFrame(this.visualizerFrame)
+    this.visualizerFrame = null
+    if (!this.hasVisualizerTarget) return
+
+    this.visualizerTarget.classList.remove("is-reactive")
+    this.visualizerTarget.querySelectorAll("i").forEach((bar) => bar.style.removeProperty("--player-level"))
   }
 
   handlePageHide() {

@@ -111,6 +111,49 @@ describe("player controller", () => {
     expect(radio.getAttribute("aria-label")).toBe("Radio on")
   })
 
+  it("keeps the mobile queue radio control visible when radio is unavailable", () => {
+    const radio = document.querySelector("[data-player-target='radio']")
+    radio.classList.add("listen-queue__radio-control")
+    controller.currentTrack = { radioEligible: false }
+
+    controller.updateRadioControls()
+
+    expect(radio.hidden).toBe(false)
+    expect(radio.disabled).toBe(true)
+    expect(radio.getAttribute("aria-label")).toBe("Radio unavailable for this track")
+  })
+
+  it("enables radio for restored playable tracks with a fallback radio endpoint", () => {
+    const track = controller.normalizeTrack({
+      source: "/server_connections/1/audio/track-1.mp3",
+      itemId: "track-1",
+      title: "A track",
+      artist: "An artist"
+    })
+
+    expect(track.radioEligible).toBe(true)
+    expect(track.radioUrl).toBe("/server_connections/1/radio_tracks/track-1")
+  })
+
+  it("enables and retains radio state for the current legacy queue track", async () => {
+    const radio = document.querySelector("[data-player-target='radio']")
+    controller.currentTrack = {
+      source: "/server_connections/1/audio/track-1.mp3",
+      item_id: "track-1",
+      title: "A track",
+      artist: "An artist"
+    }
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ items: [] }) }))
+
+    controller.updateRadioControls()
+    await controller.toggleRadio()
+
+    expect(radio.disabled).toBe(false)
+    expect(radio.classList.contains("is-active")).toBe(true)
+    expect(radio.getAttribute("aria-label")).toBe("Radio on")
+    expect(controller.currentTrack.radioUrl).toBe("/server_connections/1/radio_tracks/track-1")
+  })
+
   it("keeps the minimized progress indicator in sync with playback", () => {
     controller.updateProgress(30, 120)
 
@@ -126,19 +169,24 @@ describe("player controller", () => {
 
     expect(controller.audioTarget.volume).toBeCloseTo(0.35)
     expect(sessionStorage.getItem("sonzra:volume")).toBe("0.35")
+    expect(volume.style.getPropertyValue("--volume-progress")).toBe("35%")
   })
 
   it("keeps the persistent player state in sync with playback", () => {
+    controller.startVisualizer = vi.fn()
+    controller.stopVisualizer = vi.fn()
     Object.defineProperty(controller.audioTarget, "paused", { configurable: true, value: false })
 
     controller.handlePlay()
 
     expect(document.querySelector("[data-player-target='shell']").classList).toContain("is-playing")
+    expect(controller.startVisualizer).toHaveBeenCalled()
 
     Object.defineProperty(controller.audioTarget, "paused", { configurable: true, value: true })
     controller.handlePause()
 
     expect(document.querySelector("[data-player-target='shell']").classList).not.toContain("is-playing")
+    expect(controller.stopVisualizer).toHaveBeenCalled()
   })
 
   it("keeps the queue mounted until its redesign transition finishes", () => {
@@ -185,7 +233,7 @@ describe("player controller", () => {
     expect(controller.audioTarget.currentTime).toBe(10)
   })
 
-  it("keeps grouped lyric text under one synchronized highlight", () => {
+  it("keeps multiline lyric text together under one synchronized highlight", () => {
     addLyricsTargets()
     controller.currentLyrics = { available: true, synchronized: true, lines: [ { text: "First line\nSecond line", start: 10 } ] }
     controller.audioTarget.currentTime = 11
@@ -195,7 +243,8 @@ describe("player controller", () => {
     const group = document.querySelector("[data-player-target='lyricsList'] li")
     expect(group.classList).toContain("listen-queue__lyric-group")
     expect(group.classList).toContain("is-current-lyric")
-    expect(group.querySelectorAll(".listen-queue__lyric-line")).toHaveLength(2)
+    expect(group.querySelectorAll(".listen-queue__lyric-line")).toHaveLength(1)
+    expect(group.textContent).toBe("First line Second line")
   })
 
   it("shows an unavailable message when the server has no usable lyrics", () => {
@@ -265,6 +314,18 @@ describe("player controller", () => {
 
     expect(controller.lyricsFollowing).toBe(true)
     expect(document.querySelector("[data-player-target='lyricsFollow']").hidden).toBe(true)
+  })
+
+  it("shows the follow action after manually scrolling synchronized lyrics", () => {
+    addLyricsTargets()
+    controller.currentLyrics = { available: true, synchronized: true, lines: [ { text: "A line", start: 10 } ] }
+    controller.lyricsFollowing = true
+    controller.followingLyricScroll = false
+
+    controller.pauseLyricsFollow()
+
+    expect(controller.lyricsFollowing).toBe(false)
+    expect(document.querySelector("[data-player-target='lyricsFollow']").hidden).toBe(false)
   })
 
   it("persists the current queue and playback position for a restored player", () => {
@@ -369,6 +430,21 @@ describe("player controller", () => {
 
     expect(document.querySelector(".listen-queue__item-favorite").classList).toContain("is-active")
     expect(document.querySelector(".listen-queue__item-favorite").getAttribute("aria-label")).toBe("Remove A track from favourites")
+  })
+
+  it("marks a favourite immediately while its request is still pending", () => {
+    document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", '<button data-player-target="favorite"></button>')
+    controller.queue = [ { source: "/server_connections/1/audio/track.mp3", title: "A track", artist: "An artist", favorite: false } ]
+    controller.currentIndex = 0
+    controller.currentTrack = controller.queue[0]
+    global.fetch = vi.fn(() => new Promise(() => {}))
+
+    controller.toggleFavorite()
+
+    expect(controller.favoriteState(controller.currentTrack)).toBe(true)
+    expect(document.querySelector("[data-player-target='favorite']").classList).toContain("is-active")
+    controller.persistQueue({ force: true })
+    expect(JSON.parse(localStorage.getItem("sonzra:player-state")).queue[0].favorite).toBe(false)
   })
 
   it("shows pause for the playing queue item and toggles it without restarting", async () => {
@@ -522,7 +598,7 @@ describe("player controller", () => {
     expect(controller.radioEnabled).toBe(true)
     expect(global.fetch).toHaveBeenCalledWith("/player_preferences", expect.objectContaining({ method: "PATCH" }))
     expect(document.querySelector("[data-player-target='radio']").getAttribute("aria-label")).toBe("Radio on")
-    expect(document.querySelector("[data-player-target='queueFeedback']").textContent).toBe("Radio on")
+    expect(document.querySelector("[data-player-target='queueFeedback']").hidden).toBe(true)
   })
 
   it("does not append more radio tracks when re-enabling with enough queue ahead", async () => {
