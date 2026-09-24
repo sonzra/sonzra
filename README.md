@@ -23,7 +23,7 @@ The short version is to create `docker-compose.yml`:
 ```yaml
 services:
   sonzra:
-    image: ghcr.io/sonzra/sonzra:0.0.13-alpha
+    image: ghcr.io/sonzra/sonzra:0.0.19-alpha
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -56,7 +56,8 @@ encrypted credentials, cache, and the installation secret.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and pull
 request expectations. The architecture and UI conventions are in
-[docs/ENGINEERING.md](docs/ENGINEERING.md).
+[docs/ENGINEERING.md](docs/ENGINEERING.md); maintainers should follow the
+[release procedure](docs/RELEASING.md).
 
 ```bash
 bundle install
