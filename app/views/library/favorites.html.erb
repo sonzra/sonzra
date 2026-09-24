@@ -1,0 +1,29 @@
+<main class="redesign-library-page redesign-favorites-page">
+  <header class="redesign-library-heading redesign-search-page__heading">
+    <div>
+      <p class="eyebrow">Your collection</p>
+      <h1>Favorites</h1>
+      <p>Every track you’ve marked to come back to.</p>
+    </div>
+  </header>
+
+  <% if @result.success? %>
+    <% if @result.items.empty? %>
+      <section class="redesign-search-empty redesign-favorites-empty">
+        <%= image_tag "/brand/sonzra-mark.svg", alt: "", class: "empty-state__mark" %>
+        <h2>No favorite tracks yet</h2>
+        <p>Use the heart on a track to keep it here for later.</p>
+        <%= link_to "Browse your library", library_albums_path, class: "secondary-button" %>
+      </section>
+    <% else %>
+      <section class="redesign-search-section redesign-search-section--tracks" aria-labelledby="favorite-tracks-title">
+        <div class="redesign-search-section__heading">
+          <div><p class="eyebrow"><%= pluralize(@result.total, "track") %></p><h2 id="favorite-tracks-title">Favorite tracks</h2></div>
+        </div>
+        <%= render "favorite_tracks", items: @result.items, server_connection: @server_connection %>
+      </section>
+    <% end %>
+  <% else %>
+    <section class="listen-loading listen-loading--error"><h1>We couldn’t load your favorite tracks.</h1><p><%= @result.message %></p></section>
+  <% end %>
+</main>

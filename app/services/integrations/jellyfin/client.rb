@@ -108,6 +108,7 @@ module Integrations
         when :artists then get("Artists", token, **parameters)
         when :albums then get("Users/#{user_id}/Items", token, **parameters.merge(Recursive: true, IncludeItemTypes: "MusicAlbum", SortBy: "SortName"))
         when :songs then music_collection_response(user_id, token, parameters, IncludeItemTypes: "Audio", SortBy: "SortName", EnableUserData: true) { |items, podcast_ids| music_songs_without_podcasts(items, podcast_ids) }
+        when :favorite_tracks then favorite_tracks_collection(user_id, token)
         when :audiobooks then get("Users/#{user_id}/Items", token, **parameters.merge(Recursive: true, IncludeItemTypes: "AudioBook", SortBy: "SortName"))
         when :podcasts then podcast_shows(user_id, token, **parameters)
         when :playlists then get("Users/#{user_id}/Items", token, **parameters.merge(Recursive: true, IncludeItemTypes: "Playlist", SortBy: "SortName"))
@@ -666,6 +667,25 @@ module Integrations
 
       def music_songs_without_podcasts(songs, podcast_album_ids)
         songs.reject { |song| podcast_album_ids.include?(song["AlbumId"]) }
+      end
+
+      def favorite_tracks_collection(user_id, token)
+        podcast_view = podcast_library(user_id, token)
+        podcast_ids = podcast_view ? podcast_album_ids(user_id, token, podcast_view) : []
+        tracks = music_songs_without_podcasts(
+          all_items(
+            user_id, token,
+            IncludeItemTypes: "Audio",
+            IsFavorite: true,
+            SortBy: "SortName",
+            EnableImages: true,
+            EnableUserData: true,
+            sort_order: "Ascending"
+          ),
+          podcast_ids
+        ).sort_by { |track| track["SortName"].presence || track["Name"].to_s }
+
+        { "Items" => tracks, "TotalRecordCount" => tracks.size }
       end
 
       def music_collection_response(user_id, token, parameters, **collection_parameters)

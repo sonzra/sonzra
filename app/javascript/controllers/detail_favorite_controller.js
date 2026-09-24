@@ -12,7 +12,7 @@ export default class extends Controller {
     if (!this.hasUrlValue) return
 
     this.favoritedValue = !this.favoritedValue
-    this.render()
+    this.render({ animate: true })
 
     try {
       await fetch(this.urlValue, {
@@ -30,9 +30,15 @@ export default class extends Controller {
     }
   }
 
-  render() {
+  render({ animate = false } = {}) {
     this.element.classList.toggle("is-active", this.favoritedValue)
     this.element.setAttribute("aria-label", this.favoritedValue ? "Remove from favourites" : "Add to favourites")
-    this.element.setAttribute("title", this.favoritedValue ? "Remove from favourites" : "Add to favourites")
+    this.element.removeAttribute("title")
+
+    if (animate) {
+      this.element.classList.remove("is-animating")
+      void this.element.offsetWidth
+      this.element.classList.add("is-animating")
+    }
   }
 }

@@ -84,6 +84,11 @@ module Integrations
         end
 
         section = music_section
+        if collection == :favorite_tracks
+          items = favorite_tracks(section)
+          return collection_response(items.map { |item| normalize_item(item) }, page:, total: items.size)
+        end
+
         type, sort = case collection
         when :artists then [ 8, "titleSort" ]
         when :albums, :recently_added_albums then [ 9, collection == :recently_added_albums ? "addedAt:desc" : "titleSort" ]
@@ -95,7 +100,15 @@ module Integrations
           return collection_response(items, page:, total: items.size)
         else raise ArgumentError, "Unsupported collection: #{collection}"
         end
-        response = section_response(section, type:, sort:, page:, query:, genre:)
+        response = section_response(
+          section,
+          type:,
+          sort:,
+          page:,
+          query:,
+          genre:,
+          limit: Library::Pagination::PAGE_SIZE
+        )
         collection_response(response.fetch("Metadata", []).map { |item| normalize_item(item) }, page:, total: response.fetch("totalSize", 0))
       end
 
@@ -347,16 +360,33 @@ module Integrations
         item.dig("UserData", "PlaybackPositionTicks").to_i
       end
 
-      def section_response(section, type:, sort:, page:, query: nil, genre: nil, limit: Library::Pagination::PAGE_SIZE)
+      def section_response(section, type:, sort:, page:, query: nil, genre: nil, limit: Library::Pagination::PAGE_SIZE, user_rating: nil)
         parameters = {
           type:,
           sort:,
           "X-Plex-Container-Start" => (page - 1) * limit,
           "X-Plex-Container-Size" => limit,
           title: query.presence,
-          genre: genre.presence
+          genre: genre.presence,
+          userRating: user_rating
         }.compact
         media_container("/library/sections/#{section.fetch("key")}/all", parameters)
+      end
+
+      def favorite_tracks(section)
+        page = 1
+        tracks = []
+
+        loop do
+          response = section_response(section, type: 10, sort: "titleSort", page:, limit: 1_000, user_rating: 10)
+          batch = response.fetch("Metadata", [])
+          tracks.concat(batch)
+          break if batch.empty? || tracks.size >= response.fetch("totalSize", 0)
+
+          page += 1
+        end
+
+        tracks
       end
 
       def recommendation_tracks_for(section, sort:, limit:, genre: nil, artist_id: nil)

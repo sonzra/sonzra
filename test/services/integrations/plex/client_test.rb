@@ -198,6 +198,25 @@ class Integrations::Plex::ClientTest < ActiveSupport::TestCase
     ENV["PLEX_CLIENT_ID"] = previous_value if previous_value
   end
 
+  test "fetches every favorite track from the music library" do
+    previous_value = ENV["PLEX_CLIENT_ID"]
+    ENV["PLEX_CLIENT_ID"] = "sonzra-installation-id"
+    sections = { MediaContainer: { Directory: [ { key: "1", type: "artist", title: "Music" } ] } }
+    first_track = { ratingKey: 17, type: "track", title: "Come Together", parentTitle: "Abbey Road", grandparentTitle: "The Beatles", duration: 260_000, userRating: 10 }
+    first_batch = [ first_track, *Array.new(999) { |number| { ratingKey: number + 20, type: "track", title: "Track #{number}", duration: 120_000, userRating: 10 } } ]
+    last_track = { ratingKey: 18, type: "track", title: "Yesterday", parentTitle: "Help!", grandparentTitle: "The Beatles", duration: 125_000, userRating: 10 }
+    http = FakeHttp.new([ response(sections), response(MediaContainer: { Metadata: first_batch, totalSize: 1_001 }), response(MediaContainer: { Metadata: [ last_track ], totalSize: 1_001 }) ])
+
+    tracks = Integrations::Plex::Client.new(base_url: "http://plex.example.test", access_token: "plex-token", http:).library_collection(:favorite_tracks, page: 1, query: nil)
+
+    assert_equal 1_001, tracks.content.size
+    assert_equal [ "Come Together", "Yesterday" ], [ tracks.content.first, tracks.content.last ].pluck("Name")
+    assert_equal "/library/sections/1/all?type=10&sort=titleSort&X-Plex-Container-Start=0&X-Plex-Container-Size=1000&userRating=10", http.requests[1].path
+    assert_equal "/library/sections/1/all?type=10&sort=titleSort&X-Plex-Container-Start=1000&X-Plex-Container-Size=1000&userRating=10", http.requests[2].path
+  ensure
+    ENV["PLEX_CLIENT_ID"] = previous_value if previous_value
+  end
+
   test "returns a Plex long-form item with its resume position" do
     previous_value = ENV["PLEX_CLIENT_ID"]
     ENV["PLEX_CLIENT_ID"] = "sonzra-installation-id"

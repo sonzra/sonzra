@@ -53,7 +53,7 @@
     <% end %>
     <%= javascript_importmap_tags %>
   </head>
-  <% if authenticated? %><body class="authenticated-body <%= "media-detail-body" if @media_detail_header %> <%= "offline-shell" if @offline_shell %> <%= "redesign" if redesign_enabled? %>" data-controller="card-options media-header offline-media tooltip <%= "offline-connection" if @offline_shell %> <%= "transition" if redesign_enabled? %>" data-offline-media-scope-value="<%= current_user.id %>"><% else %><body><% end %>
+  <% if authenticated? %><body class="authenticated-body <%= "media-detail-body" if @media_detail_header %> <%= "offline-shell" if @offline_shell %> <%= "redesign" if redesign_enabled? %>" data-controller="card-options media-header offline-media <%= "tooltip" unless redesign_enabled? %> <%= "offline-connection" if @offline_shell %> <%= "transition" if redesign_enabled? %>" data-offline-media-scope-value="<%= current_user.id %>"><% else %><body><% end %>
     <% if authenticated? %><% if redesign_enabled? %><%= render "shared/redesign_navigation", offline: @offline_shell == true %><%= render "shared/transition" %><% else %><%= @offline_shell ? render("shared/navigation", offline: true) : render(@media_detail_header ? "shared/media_navigation" : "shared/navigation") %><% end %><% end %>
     <%= yield %>
     <% if authenticated? %><%= render "shared/player" %><p id="player-feedback" class="listen-player__feedback" data-player-target="queueFeedback" data-turbo-permanent role="status" aria-live="polite" hidden></p><%= render "shared/player_queue" %><%= render "shared/card_options_sheet" %><% end %>

@@ -1,5 +1,5 @@
 class LibraryController < ApplicationController
-  before_action :load_redesign_library_tab_counts
+  before_action :load_redesign_library_tab_counts, except: :favorites
 
   def artists
     render_collection(:artists, "Artists")
@@ -27,6 +27,20 @@ class LibraryController < ApplicationController
       session[:server_access_tokens] = session.fetch(:server_access_tokens, {}).merge(@server_connection.id.to_s => result_with_token.access_token)
     end
     @search_error = @search_results.values.find { |result| !result.success? }&.message if @search_results.values.none?(&:success?)
+  end
+
+  def favorites
+    return redirect_to(root_path) unless redesign_enabled?
+
+    @server_connection = current_server_connection
+    return render :no_server unless @server_connection
+
+    @result = ServerConnections::FetchLibraryCollection.new(
+      @server_connection, :favorite_tracks, user: current_user
+    ).call
+    if @result.success?
+      session[:server_access_tokens] = session.fetch(:server_access_tokens, {}).merge(@server_connection.id.to_s => @result.access_token)
+    end
   end
 
   def audiobooks

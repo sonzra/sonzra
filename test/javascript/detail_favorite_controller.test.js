@@ -25,7 +25,20 @@ describe("detail favorite controller", () => {
     await Promise.resolve()
 
     expect(button.classList).toContain("is-active")
+    expect(button.classList).toContain("is-animating")
     expect(button.getAttribute("aria-label")).toBe("Remove from favourites")
+    expect(button.hasAttribute("title")).toBe(false)
     expect(fetch).toHaveBeenCalledWith("/favorites/album-1", expect.objectContaining({ method: "PATCH", body: JSON.stringify({ favorite: true }) }))
+  })
+
+  it("does not animate a favorite rendered on page load", async () => {
+    const button = document.querySelector("button")
+    const controller = application.getControllerForElementAndIdentifier(button, "detail-favorite")
+
+    controller.favoritedValue = true
+    controller.render()
+
+    expect(button.classList).toContain("is-active")
+    expect(button.classList).not.toContain("is-animating")
   })
 })

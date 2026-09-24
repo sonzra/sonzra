@@ -1,8 +1,8 @@
 <% offline_navigation = local_assigns.fetch(:offline, false) %>
 <% navigation_data = offline_navigation ? { action: "click->offline-connection#preventNavigation click->navigation#closeOnNavigation", offline_connection_target: "navigationLink" } : {} %>
 <% disabled_aria = offline_navigation ? { disabled: true } : {} %>
-<% primary_links = { "Home" => [ root_path, "house" ], "Library" => [ library_albums_path, "library" ], "Mixes" => [ recommendation_collections_path, "sparkles" ], "Downloads" => [ offline_downloads_path, "download" ] } %>
-<% library_links = { "Artists" => [ library_artists_path, "mic-vocal" ], "Albums" => [ library_albums_path, "disc-3" ], "Playlists" => [ library_playlists_path, "list-music" ], "Audiobooks" => [ library_audiobooks_path, "book-open" ], "Podcasts" => [ library_podcasts_path, "podcast" ], "Sonic Map" => [ sonic_graph_path, "network" ], "Downloads" => [ offline_downloads_path, "download" ] } %>
+<% primary_links = { "Home" => [ root_path, "house" ], "Library" => [ library_albums_path, "library" ], "Favorites" => [ favorites_path, "heart" ], "Mixes" => [ recommendation_collections_path, "sparkles" ], "Downloads" => [ offline_downloads_path, "download" ] } %>
+<% library_links = { "Artists" => [ library_artists_path, "mic-vocal" ], "Albums" => [ library_albums_path, "disc-3" ], "Favorites" => [ favorites_path, "heart" ], "Playlists" => [ library_playlists_path, "list-music" ], "Audiobooks" => [ library_audiobooks_path, "book-open" ], "Podcasts" => [ library_podcasts_path, "podcast" ], "Sonic Map" => [ sonic_graph_path, "network" ], "Downloads" => [ offline_downloads_path, "download" ] } %>
 <header class="redesign-topbar" data-controller="navigation library-search" data-library-search-global-value="true">
   <%= link_to root_path, class: "redesign-brand", data: navigation_data, aria: { label: "Sonzra home" }.merge(disabled_aria) do %><%= image_tag "/brand/sonzra-mark.svg", alt: "", class: "redesign-brand__mark" %><span>sonzra</span><% end %>
   <nav class="redesign-topbar__primary" aria-label="Primary navigation">
@@ -10,7 +10,7 @@
   </nav>
   <div class="redesign-topbar__actions">
     <button type="button" class="redesign-icon-button redesign-search-trigger" aria-label="Search your library" data-action="library-search#open"><%= lucide_icon "search", aria: { hidden: true } %><kbd>⌘ K</kbd></button>
-    <% if current_server_connection %><span class="redesign-server-pill" title="Connected to <%= current_server_connection.name %>"><i></i><span><%= current_server_connection.name %></span></span><% end %>
+    <% if current_server_connection %><span class="redesign-server-pill"><i></i><span><%= current_server_connection.name %></span></span><% end %>
     <div class="redesign-profile" data-controller="profile-menu">
       <button type="button" class="redesign-profile__toggle" aria-label="Open profile menu" aria-expanded="false" data-profile-menu-target="toggle" data-action="profile-menu#toggle"><%= lucide_icon "circle-user-round", aria: { hidden: true } %><span><%= current_user.email_address.split("@").first %></span></button>
       <div class="redesign-profile__menu" data-profile-menu-target="menu" data-action="click->profile-menu#closeOnAction" hidden>

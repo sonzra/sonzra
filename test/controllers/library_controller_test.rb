@@ -200,6 +200,57 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
     assert_equal connection.id.to_s, session[:server_access_tokens].keys.first
   end
 
+  test "renders all favorite tracks with redesign actions" do
+    users(:one).update!(ui_variant: "redesign")
+    connection = ServerConnection.create!(
+      media_server: MediaServer.create!(name: "Home", provider: :jellyfin, base_url: "https://example.com"),
+      username: "bruno",
+      password: "secret",
+      user: users(:one)
+    )
+    response = Integrations::Jellyfin::LibraryCollectionResponseData.new(
+      content: [ { "Id" => "track-1", "Name" => "Come Together", "Type" => "Audio", "AlbumArtist" => "The Beatles", "RunTimeTicks" => 30_000_000, "UserData" => { "IsFavorite" => true } } ],
+      total: 1,
+      access_token: "token"
+    )
+    calls = []
+    client = Object.new
+    client.define_singleton_method(:library_collection) do |collection, **|
+      calls << collection
+      response
+    end
+
+    client_class = Integrations::Jellyfin::Client
+    client_class.singleton_class.alias_method :new_before_favorites_template_test, :new
+    client_class.define_singleton_method(:new) { |**| client }
+    begin
+      get favorites_url
+    ensure
+      client_class.singleton_class.alias_method :new, :new_before_favorites_template_test
+      client_class.singleton_class.remove_method :new_before_favorites_template_test
+    end
+
+    assert_response :success
+    assert_select ".redesign-favorites-page h1", "Favorites"
+    assert_select ".redesign-favorite-track-list .library-media-list__details a", "Come Together"
+    assert_select ".redesign-favorite-track-list .favorites-track__favorite[data-detail-favorite-favorited-value='true']"
+    assert_select ".redesign-favorite-track-list .library-media-list__play[aria-label='Play Come Together']"
+    assert_select ".redesign-favorite-track-list .library-media-list__queue", 0
+    assert_select ".redesign-favorite-track-list .listen-card__options-toggle[aria-label='More options for Come Together']"
+    assert_select "#card-options-sheet [data-card-options-target='queueAction']", "Add to queue"
+    assert_select ".redesign-topbar__link[href='#{favorites_path}']", "Favorites"
+    assert_select ".redesign-mobile-menu a[href='#{favorites_path}']", "Favorites"
+    assert_select "body[data-controller~='tooltip']", 0
+    assert_equal [ :favorite_tracks ], calls
+    assert_equal connection.id.to_s, session[:server_access_tokens].keys.first
+  end
+
+  test "keeps the favorites route exclusive to the redesign" do
+    get favorites_url
+
+    assert_redirected_to root_url
+  end
+
   test "renders turbo stream append response for infinite scroll request" do
     ServerConnection.create!(
       media_server: MediaServer.create!(name: "Home", provider: :jellyfin, base_url: "https://example.com"),

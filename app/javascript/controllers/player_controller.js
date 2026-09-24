@@ -734,7 +734,7 @@ export default class extends Controller {
       button.classList.toggle("is-active", eligible && this.radioEnabled)
       const label = unavailable ? "Radio unavailable for this track" : (this.radioEnabled ? "Radio on" : "Radio off")
       button.setAttribute("aria-label", label)
-      button.title = label
+      button.removeAttribute("title")
       button.innerHTML = this.icon("radio")
     })
   }
