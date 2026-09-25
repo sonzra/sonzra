@@ -8,7 +8,8 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  quality:
+    name: Quality
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
