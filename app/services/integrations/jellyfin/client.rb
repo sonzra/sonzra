@@ -364,6 +364,13 @@ module Integrations
         JSON.parse(response.body).fetch("Id")
       end
 
+      def artist_track_ids(artist_id)
+        session = authentication
+        user_id = session.fetch("User").fetch("Id")
+        token = session.fetch("AccessToken")
+        all_items(user_id, token, sort_order: "Ascending", IncludeItemTypes: "Audio", ArtistIds: artist_id).map { |item| item["Id"] }
+      end
+
       def add_to_playlist(playlist_id:, item_ids: nil, item_id: nil)
         session = authentication
         token = session.fetch("AccessToken")

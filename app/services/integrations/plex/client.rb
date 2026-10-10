@@ -227,6 +227,10 @@ module Integrations
         created_playlist_id(response, name) || raise(ConnectionError, "Plex created the playlist but did not return its ID.")
       end
 
+      def artist_track_ids(artist_id)
+        artist_albums(artist_id).flat_map { |album| children(album.fetch("Id"), type: 10) }.map { |item| item["Id"] }
+      end
+
       def add_to_playlist(playlist_id:, item_ids: nil, item_id: nil)
         ids = Array(item_ids || item_id)
         return if ids.empty?

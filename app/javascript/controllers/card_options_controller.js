@@ -242,10 +242,37 @@ export default class extends Controller {
     }
   }
 
-  async openPlaylistPicker() {
+  openPlaylistPickerForItem({ playlistsUrl, itemId, itemType = "Audio", defaultName = "" }) {
+    if (!playlistsUrl || !itemId) return false
+
+    this.playlistActionTarget.dataset.cardOptionsPlaylistsUrl = playlistsUrl
+    this.playlistActionTarget.dataset.cardOptionsItemId = itemId
+    this.playlistActionTarget.dataset.cardOptionsItemType = itemType
+    this.playlistActionTarget.hidden = false
+    this.openPlaylistPicker(defaultName)
+    return true
+  }
+
+  openPlaylistPickerFromButton(event) {
+    event.preventDefault()
+    event.stopPropagation()
+    const button = event.currentTarget
+    const playlistsUrl = button.dataset.cardOptionsPlaylistsUrlParam || button.dataset.cardOptionsPlaylistsUrl
+    const itemId = button.dataset.cardOptionsItemIdParam || button.dataset.cardOptionsItemId
+    const itemType = button.dataset.cardOptionsItemTypeParam || button.dataset.cardOptionsItemType || "Audio"
+    const defaultName = button.dataset.cardOptionsDefaultNameParam || button.dataset.cardOptionsDefaultName || ""
+
+    this.openPlaylistPickerForItem({ playlistsUrl, itemId, itemType, defaultName })
+  }
+
+  closePlaylistPicker() {
+    if (this.playlistDialogTarget.open) this.playlistDialogTarget.close()
+  }
+
+  async openPlaylistPicker(defaultName = "") {
     this.playlistListTarget.textContent = ""
     this.playlistFeedbackTarget.textContent = ""
-    this.playlistNameTarget.value = ""
+    this.playlistNameTarget.value = defaultName
     this.close()
     this.playlistDialogTarget.showModal()
     this.renderPlaylistLoadingState()
@@ -266,21 +293,6 @@ export default class extends Controller {
     this.renderPlaylists(this.playlistsCache)
   }
 
-  openPlaylistPickerForItem({ playlistsUrl, itemId, itemType = "Audio" }) {
-    if (!playlistsUrl || !itemId) return false
-
-    this.playlistActionTarget.dataset.cardOptionsPlaylistsUrl = playlistsUrl
-    this.playlistActionTarget.dataset.cardOptionsItemId = itemId
-    this.playlistActionTarget.dataset.cardOptionsItemType = itemType
-    this.playlistActionTarget.hidden = false
-    this.openPlaylistPicker()
-    return true
-  }
-
-  closePlaylistPicker() {
-    if (this.playlistDialogTarget.open) this.playlistDialogTarget.close()
-  }
-
   async createPlaylist(event) {
     event.preventDefault()
     this.showLoader("Creating playlist…")
@@ -297,7 +309,7 @@ export default class extends Controller {
     if (playlist.item_included) {
       this.closePlaylistPicker()
       this.hideLoader()
-      this.playerController()?.showFeedback(itemType === "MusicAlbum" ? "Playlist created and album added" : "Playlist created and track added")
+      this.playerController()?.showFeedback(this.playlistCreatedMessage(itemType))
       return
     }
 
@@ -312,16 +324,44 @@ export default class extends Controller {
       return
     }
 
+    const itemType = this.playlistActionTarget.dataset.cardOptionsItemType
     const url = `${this.playlistActionTarget.dataset.cardOptionsPlaylistsUrl}/${normalizedPlaylistId}/items`
     this.closePlaylistPicker()
-    const response = await fetch(url, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", "X-CSRF-Token": document.querySelector("meta[name='csrf-token']")?.content }, body: JSON.stringify({ item_id: this.playlistActionTarget.dataset.cardOptionsItemId, item_type: this.playlistActionTarget.dataset.cardOptionsItemType }) })
+    const response = await fetch(url, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", "X-CSRF-Token": document.querySelector("meta[name='csrf-token']")?.content }, body: JSON.stringify({ item_id: this.playlistActionTarget.dataset.cardOptionsItemId, item_type: itemType }) })
     if (!response.ok) {
       this.hideLoader()
-      this.playerController()?.showFeedback(this.playlistActionTarget.dataset.cardOptionsItemType === "MusicAlbum" ? "Couldn’t add this album to the playlist" : "Couldn’t add this track to the playlist")
+      this.playerController()?.showFeedback(this.playlistAddErrorMessage(itemType))
       return
     }
     this.hideLoader()
-    this.playerController()?.showFeedback(this.playlistActionTarget.dataset.cardOptionsItemType === "MusicAlbum" ? "Album added to playlist" : "Track added to playlist")
+    this.playerController()?.showFeedback(this.playlistAddedMessage(itemType))
+  }
+
+  playlistAddedMessage(itemType) {
+    switch (itemType) {
+      case "MusicAlbum": return "Album added to playlist"
+      case "MusicArtist": return "Artist discography added to playlist"
+      case "RecommendationCollection": return "Mix added to playlist"
+      default: return "Track added to playlist"
+    }
+  }
+
+  playlistCreatedMessage(itemType) {
+    switch (itemType) {
+      case "MusicAlbum": return "Playlist created and album added"
+      case "MusicArtist": return "Playlist created and discography added"
+      case "RecommendationCollection": return "Playlist created and mix added"
+      default: return "Playlist created and track added"
+    }
+  }
+
+  playlistAddErrorMessage(itemType) {
+    switch (itemType) {
+      case "MusicAlbum": return "Couldn’t add this album to the playlist"
+      case "MusicArtist": return "Couldn’t add this discography to the playlist"
+      case "RecommendationCollection": return "Couldn’t add this mix to the playlist"
+      default: return "Couldn’t add this track to the playlist"
+    }
   }
 
   playerController() {
