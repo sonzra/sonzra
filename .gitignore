@@ -17,3 +17,5 @@ after-release-issues.md
 
 sonzra-redesign
 sonzra-mobile-redesign
+playwright-report/
+test-results/
