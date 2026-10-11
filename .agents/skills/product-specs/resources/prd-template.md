@@ -30,9 +30,19 @@
 ## 2. Functional Requirements & Scope
 
 ### In-Scope Functional Capabilities
-- **FR-1:** [User-facing behavior / requirement]
-- **FR-2:** [User-facing behavior / requirement]
-- **FR-3:** [Business rule / state transition]
+- **FR-1: [Feature Capability Name]**
+  - **Description:** [User-facing behavior / requirement]
+  - **Observable Acceptance Criteria:**
+    - Given [user context/state], when [user performs action], then [expected observable UI result / visual feedback].
+    - Given [alternative or error condition], when [user triggers action], then [expected feedback].
+- **FR-2: [Feature Capability Name]**
+  - **Description:** [User-facing behavior / requirement]
+  - **Observable Acceptance Criteria:**
+    - [Specific observable behavior 1]
+    - [Specific observable behavior 2]
+- **FR-3: [Business rule / state transition]**
+  - **Observable Acceptance Criteria:**
+    - [Specific observable behavior / constraint]
 
 ### Edge Cases & Handling
 - **EC-1:** [e.g. What happens if the network drops while the feature is active?]

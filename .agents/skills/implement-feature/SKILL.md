@@ -19,21 +19,33 @@ Verification (linting, test suite execution, coverage verification, quality gate
 ```mermaid
 flowchart TD
     TechSpec["specs/<issue-number>/tech-spec-epic-*.md\n(Approved Tech Spec)"] --> ReadChunks["Read Implementation Chunks (1..N)"]
-    ReadChunks --> ChunkLoop["Iterate Through Chunks"]
+    ReadChunks --> ChunkLoop["Iterate Through Chunks (Models, Services, Controllers, Views, Stimulus, E2E)"]
     
-    subgraph ChunkExecution["Chunk Implementation"]
-        Prep["1. Review Chunk Touchpoints & Schemas"] --> CheckTradeoff{"Ambiguity or\nTrade-off Arises?"}
-        CheckTradeoff -->|Yes: Architectural| ConsultArch["Consult architect_advisor"]
-        CheckTradeoff -->|Yes: UI/UX| ConsultUI["Consult ui_ux_advisor"]
-        CheckTradeoff -->|No| BuildCode["2. Implement Code & Baseline Tests\n(Models, Services, Controllers, Views, Stimulus)"]
-        ConsultArch --> BuildCode
-        ConsultUI --> BuildCode
+    subgraph ImplementationPhase["implement-feature: Construction"]
+        ChunkLoop --> BuildCode["Implement Code & Test Slices\n(Consult architect_advisor / ui_ux_advisor if trade-offs arise)"]
+        BuildCode --> ChunksDone{"All Chunks Built\n(including E2E spec)?"}
+        ChunksDone -->|No| ChunkLoop
     end
     
-    ChunkLoop --> ChunkExecution
-    BuildCode --> NextChunk{"More Chunks Remaining?"}
-    NextChunk -->|Yes| ChunkLoop
-    NextChunk -->|No: Implementation Complete| Handoff["Hand off to verify-implementation skill\n(Linting, Tests, >90% Coverage, Commit)"]
+    ChunksDone -->|Yes| CallVerify["Invoke verify-implementation"]
+    
+    subgraph VerificationGate["verify-implementation: Verification & Quality Gate"]
+        CallVerify --> AuditDeliverables["1. Deliverable Completeness Audit\n(E2E spec present? Route mocking verified?)"]
+        AuditDeliverables --> RunSuites["2. Run Suites & Quality Gate\n(RuboCop, Rails, Vitest, E2E, bin/quality)"]
+        RunSuites --> AuditCoverage["3. Code Coverage Audit (>90%)"]
+        AuditCoverage --> GateDecision{"All Gates Pass?"}
+        GateDecision -->|Yes| CommitWork["Git Commit & Mark Tech Spec Completed"]
+    end
+    
+    GateDecision -->|No: Failures / Gaps / Missing Deliverables| ReturnFailure["Return Failure Diagnostics to implement-feature"]
+    
+    subgraph RemediationLoop["implement-feature: Remediation Loop"]
+        ReturnFailure --> AnalyzeDiagnostics["implement-feature Resumes Control:\nAnalyze Failure Trace & Missing Criteria"]
+        AnalyzeDiagnostics --> FixDefects["Fix Code / Add Missing Tests / Resolve Coverage Gaps"]
+        FixDefects --> CallVerify
+    end
+    
+    CommitWork --> Complete["implement-feature: Declare Feature Implementation Complete"]
 ```
 
 ---
@@ -87,6 +99,11 @@ Iterate sequentially through each implementation chunk defined in Section 4 of t
    - Implement lightweight Stimulus controllers; extract complex business/storage logic into pure JS classes.
    - Write accompanying Stimulus tests in `test/javascript/` using Vitest and JSDOM.
 
+5. **End-to-End Playwright Tests (Chunk 5 - Mandatory for UI Epics)**:
+   - Create `test/e2e/<feature>.spec.js` mapping all PRD Observable Acceptance Criteria.
+   - **Strict Route Mocking**: Intercept backend and media server routes with `page.route` via test helpers (`test/e2e/support/helpers.js`). Never connect to a live Jellyfin or media server instance.
+   - Verify complete user journeys on both desktop and mobile viewports.
+
 ---
 
 ## 4. Advisor Consultation During Implementation
@@ -101,8 +118,23 @@ When unforeseen ambiguities or trade-offs occur while coding:
 
 ---
 
-## 5. Completion & Handoff to `verify-implementation`
+## 5. Verification Dependency & Remediation Loop
 
-Once all chunks from the technical specification are coded and baseline tests are written:
-1. Provide a summary of all files created and modified.
-2. Hand off the working directory to the [`verify-implementation`](file:///home/bruno/Projects/sonzra/.agents/skills/verify-implementation/SKILL.md) skill to execute linting, full test suite validation, code coverage auditing (>90%), quality gate verification (`bin/quality`), and git committing.
+`implement-feature` is **strictly dependent** on `verify-implementation` and must never declare itself complete without a successful verification run.
+
+### The Verification Loop:
+1. **Trigger Verification:** Once all chunks (including Chunk 5: E2E Playwright tests) have been constructed, `implement-feature` triggers the `verify-implementation` procedure.
+2. **Handle Verification Failures:** If `verify-implementation` fails at any gate:
+   - **Missing Deliverables:** (e.g. `test/e2e/<feature>.spec.js` was omitted or lacks required user journey scenarios)
+   - **Test Failures:** (Rails, Vitest, or Playwright assertions failed)
+   - **Lint Offenses:** (RuboCop offenses detected)
+   - **Coverage Gaps:** (New code has <90% test coverage or untested error branches)
+   
+   👉 **`implement-feature` immediately takes control back**, parses the failure diagnostics, patches the application or test code, and re-invokes `verify-implementation`.
+3. **Termination Condition:** The loop only terminates when `verify-implementation` reports:
+   - Deliverables audit passed.
+   - All tests green across all viewports.
+   - Coverage >90%.
+   - `bin/quality` passed.
+   - Changes committed to git.
+4. Only when `verify-implementation` completes successfully with a commit does `implement-feature` declare the feature implementation complete.
