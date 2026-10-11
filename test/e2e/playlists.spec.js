@@ -58,8 +58,11 @@ test.describe("Playlists addition flow", () => {
 
     if (await redesignMenuToggle.isVisible()) {
       await redesignMenuToggle.click()
-      await page.locator(".detail-track__menu-panel button", { hasText: "Add to playlist" }).click()
+      const menuAddBtn = page.locator(".detail-track__menu-panel button", { hasText: "Add to playlist" })
+      await expect(menuAddBtn).toBeVisible()
+      await menuAddBtn.click()
     } else {
+      await expect(classicBtn).toBeVisible()
       await classicBtn.click()
     }
 
@@ -70,6 +73,9 @@ test.describe("Playlists addition flow", () => {
     // Playlist choice is rendered from mock
     const playlistChoice = dialog.locator(".playlist-picker__choice", { hasText: "Late Night Beats" })
     await expect(playlistChoice).toBeVisible()
+
+    // Take screenshot with modal dialog open
+    await page.screenshot({ path: "test-results/playlist-modal-track.png" })
 
     // Click the playlist
     await playlistChoice.click()
@@ -133,6 +139,9 @@ test.describe("Playlists addition flow", () => {
     // Pre-filled playlist name should match collection title
     const nameInput = dialog.locator("input[data-card-options-target='playlistName']")
     await expect(nameInput).toHaveValue("Weekend Discovery")
+
+    // Take screenshot with create playlist dialog open and pre-filled
+    await page.screenshot({ path: "test-results/playlist-modal-create.png" })
 
     // Submit form to create playlist
     await dialog.locator("form.playlist-picker__create button[type='submit']").click()
