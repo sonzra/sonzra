@@ -313,10 +313,10 @@ export default class extends Controller {
       return
     }
 
-    await this.addToPlaylist(playlist)
+    await this.addToPlaylist(playlist, { isCreated: true })
   }
 
-  async addToPlaylist(playlistId) {
+  async addToPlaylist(playlistId, { isCreated = false } = {}) {
     const normalizedPlaylistId = this.normalizePlaylistId(playlistId)
     if (!normalizedPlaylistId) {
       this.hideLoader()
@@ -334,7 +334,8 @@ export default class extends Controller {
       return
     }
     this.hideLoader()
-    this.playerController()?.showFeedback(this.playlistAddedMessage(itemType))
+    const message = isCreated ? this.playlistCreatedMessage(itemType) : this.playlistAddedMessage(itemType)
+    this.playerController()?.showFeedback(message)
   }
 
   playlistAddedMessage(itemType) {
