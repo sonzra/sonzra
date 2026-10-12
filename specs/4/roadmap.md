@@ -227,3 +227,4 @@ Add "Add to playlist" actions to detail hero headers for:
   - [x] `bundle exec rubocop` clean
   - [x] `bin/rails db:prepare` & `bin/rails test` clean
   - [x] `npm run test:javascript` clean
+  - [x] `npm run test:e2e` clean (mocked browser routes)
