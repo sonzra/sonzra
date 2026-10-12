@@ -8,10 +8,6 @@ test.describe("Playlists addition flow", () => {
     seeded = seedTestLibrary()
   })
 
-  test.afterAll(() => {
-    cleanTestLibrary()
-  })
-
   test("adds a single track from a mix to a playlist with mocked server response", async ({ page }) => {
     // Intercept playlist API requests in browser so no real Jellyfin connection is needed
     await page.route(`**/server_connections/${seeded.connectionId}/playlists`, async (route) => {
