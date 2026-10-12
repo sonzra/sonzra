@@ -163,6 +163,26 @@ describe("card options controller", () => {
     expect(fetchMock).toHaveBeenCalledWith("/server_connections/1/playlists", { headers: { Accept: "application/json" } })
   })
 
+  it("opens the playlist modal from button event and pre-fills defaultName", async () => {
+    const button = document.createElement("button")
+    button.dataset.cardOptionsPlaylistsUrlParam = "/server_connections/1/playlists"
+    button.dataset.cardOptionsItemIdParam = "mix-1"
+    button.dataset.cardOptionsItemTypeParam = "RecommendationCollection"
+    button.dataset.cardOptionsDefaultNameParam = "Friday Rediscovery"
+
+    cardOptionsController.openPlaylistPickerFromButton({
+      preventDefault() {},
+      stopPropagation() {},
+      currentTarget: button
+    })
+    await Promise.resolve()
+
+    expect(document.querySelector("[data-card-options-target='playlistDialog']").open).toBe(true)
+    expect(document.querySelector("[data-card-options-target='playlistAction']").dataset.cardOptionsItemId).toBe("mix-1")
+    expect(document.querySelector("[data-card-options-target='playlistAction']").dataset.cardOptionsItemType).toBe("RecommendationCollection")
+    expect(document.querySelector("[data-card-options-target='playlistName']").value).toBe("Friday Rediscovery")
+  })
+
   it("adds a whole album to a playlist", async () => {
     document.querySelector("[data-card-options-target='playlistAction']").dataset.cardOptionsItemId = "album-1"
     document.querySelector("[data-card-options-target='playlistAction']").dataset.cardOptionsItemType = "MusicAlbum"

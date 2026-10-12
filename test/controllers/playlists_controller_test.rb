@@ -54,6 +54,56 @@ class PlaylistsControllerTest < ActionDispatch::IntegrationTest
     assert_equal({ playlist_id: "playlist-1", item_ids: [ "track-1", "track-2" ], item_id: nil }, captured_arguments)
   end
 
+  test "adds all artist discography tracks to a playlist" do
+    client = Object.new
+    captured_arguments = nil
+    requested_artist_id = nil
+    client.define_singleton_method(:artist_track_ids) do |artist_id|
+      requested_artist_id = artist_id
+      [ "artist-track-1", "artist-track-2", "artist-track-3" ]
+    end
+    client.define_singleton_method(:add_to_playlist) do |playlist_id:, item_ids: nil, item_id: nil|
+      captured_arguments = { playlist_id:, item_ids:, item_id: }
+    end
+
+    with_jellyfin_client(client) do
+      post playlist_items_server_connection_url(@server_connection, playlist_id: "playlist-1"),
+        params: { item_id: "artist-42", item_type: "MusicArtist" },
+        as: :json
+    end
+
+    assert_response :no_content
+    assert_equal "artist-42", requested_artist_id
+    assert_equal({ playlist_id: "playlist-1", item_ids: [ "artist-track-1", "artist-track-2", "artist-track-3" ], item_id: nil }, captured_arguments)
+  end
+
+  test "adds all recommendation collection tracks to a playlist" do
+    client = Object.new
+    captured_arguments = nil
+    client.define_singleton_method(:add_to_playlist) do |playlist_id:, item_ids: nil, item_id: nil|
+      captured_arguments = { playlist_id:, item_ids:, item_id: }
+    end
+    collection = users(:one).recommendation_collections.create!(
+      server_connection: @server_connection,
+      strategy: :friday_rediscovery,
+      title: "Friday Discovery",
+      subtitle: "Weekly mix",
+      period_date: Date.current,
+      generated_at: Time.current
+    )
+    collection.recommendation_tracks.create!(item_id: "rec-track-1", title: "Song 1", artist: "Artist 1", position: 1)
+    collection.recommendation_tracks.create!(item_id: "rec-track-2", title: "Song 2", artist: "Artist 2", position: 2)
+
+    with_jellyfin_client(client) do
+      post playlist_items_server_connection_url(@server_connection, playlist_id: "playlist-1"),
+        params: { item_id: collection.id, item_type: "RecommendationCollection" },
+        as: :json
+    end
+
+    assert_response :no_content
+    assert_equal({ playlist_id: "playlist-1", item_ids: [ "rec-track-1", "rec-track-2" ], item_id: nil }, captured_arguments)
+  end
+
   test "creates a playlist and returns its id as json" do
     client = Object.new
     client.define_singleton_method(:create_playlist) { |name| "playlist-9" if name == "Road trip" }

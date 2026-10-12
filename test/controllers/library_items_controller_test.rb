@@ -205,7 +205,7 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".redesign-detail-tracks .listen-card__play", 2
     assert_select ".redesign-detail-tracks .track-list__queue", 2
     assert_select ".redesign-detail-tracks .detail-track__more", 2
-    assert_select ".redesign-detail-tracks .detail-track__menu-panel button", 2
+    assert_select ".redesign-detail-tracks .detail-track__menu-panel button", 4
     assert_select ".track-list li.is-selected strong", "Selected song"
     assert_select ".track-list li:not(.is-selected) strong", "Other song"
   ensure

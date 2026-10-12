@@ -53,11 +53,12 @@ class RecommendationCollectionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".redesign-discovery-detail .detail-hero h1", "Best of ambient"
     assert_select ".redesign-detail-actions .redesign-detail-action--play", "Play"
     assert_select ".redesign-detail-actions .redesign-detail-action--queue", "Add to queue"
+    assert_select ".redesign-detail-actions .redesign-detail-action--playlist", "Add to playlist"
     assert_select ".redesign-detail-tracks__heading", 1
     assert_select ".redesign-detail-tracks .listen-card__play", 1
     assert_select ".redesign-detail-tracks .track-list__queue", 1
     assert_select ".redesign-detail-tracks .detail-track__more", 1
-    assert_select ".redesign-detail-tracks .detail-track__menu-panel button", 1
+    assert_select ".redesign-detail-tracks .detail-track__menu-panel button", 2
   end
 
   test "does not expose a hidden artist from a previously generated mix" do

@@ -74,8 +74,15 @@ class PlaylistsController < ApplicationController
   end
 
   def playlist_item_ids
-    return [ params.expect(:item_id) ] unless params[:item_type] == "MusicAlbum"
-
-    client.playback_queue(params.expect(:item_id)).items.pluck("Id")
+    case params[:item_type]
+    when "MusicAlbum"
+      client.playback_queue(params.expect(:item_id)).items.pluck("Id")
+    when "MusicArtist"
+      client.artist_track_ids(params.expect(:item_id))
+    when "RecommendationCollection"
+      current_user.recommendation_collections.find(params.expect(:item_id)).recommendation_tracks.map(&:item_id)
+    else
+      [ params.expect(:item_id) ]
+    end
   end
 end
