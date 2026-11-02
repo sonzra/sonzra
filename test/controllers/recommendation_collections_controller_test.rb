@@ -67,4 +67,23 @@ class RecommendationCollectionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_equal [], JSON.parse(response.body).fetch("items")
   end
+
+  test "does not expose tracks from hidden genres in a previously generated mix" do
+    @collection.recommendation_tracks.create!(item_id: "track-holiday", position: 2, title: "Noel", artist: "Singer", genre: "Holiday", artwork_item_id: "track-holiday")
+    HiddenGenre.create!(user: users(:one), server_connection: @connection, name: "Holiday")
+
+    get recommendation_collection_url(@collection), headers: { "Accept" => "application/json" }
+
+    items = JSON.parse(response.body).fetch("items")
+    assert_equal [ "track-1" ], items.pluck("item_id")
+  end
+
+  test "suppresses mix collections whose primary genre is hidden from mixes index" do
+    HiddenGenre.create!(user: users(:one), server_connection: @connection, name: "ambient")
+
+    get recommendation_collections_url
+
+    assert_response :success
+    assert_select ".connection-card h2", text: /Best of ambient/, count: 0
+  end
 end
