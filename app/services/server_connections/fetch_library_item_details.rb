@@ -26,13 +26,14 @@ module ServerConnections
     def filtered_details(details)
       return details unless @user
 
-      filter = HiddenArtists::Filter.new(@user, @server_connection)
-      return nil if filter.hidden?(details[:item])
+      artist_filter = HiddenArtists::Filter.new(@user, @server_connection)
+      genre_filter = HiddenGenres::Filter.new(@user, @server_connection)
+      return nil if artist_filter.hidden?(details[:item]) || genre_filter.hidden?(details[:item])
 
       details.merge(
-        tracks: filter.items(details.fetch(:tracks, [])),
-        other_albums: filter.items(details.fetch(:other_albums, [])),
-        similar_albums: filter.items(details.fetch(:similar_albums, []))
+        tracks: genre_filter.items(artist_filter.items(details.fetch(:tracks, []))),
+        other_albums: genre_filter.items(artist_filter.items(details.fetch(:other_albums, []))),
+        similar_albums: genre_filter.items(artist_filter.items(details.fetch(:similar_albums, [])))
       )
     end
   end

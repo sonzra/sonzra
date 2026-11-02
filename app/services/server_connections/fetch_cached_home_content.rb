@@ -43,8 +43,9 @@ module ServerConnections
     def filter_result(result)
       return result unless result.success? && @user
 
-      filter = HiddenArtists::Filter.new(@user, server_connection)
-      content = result.content.transform_values { |value| value.is_a?(Array) ? filter.items(value) : value }
+      artist_filter = HiddenArtists::Filter.new(@user, server_connection)
+      genre_filter = HiddenGenres::Filter.new(@user, server_connection)
+      content = result.content.transform_values { |value| value.is_a?(Array) ? genre_filter.items(artist_filter.items(value)) : value }
       FetchHomeContentResultData.new(content:, access_token: result.access_token, message: result.message)
     end
   end

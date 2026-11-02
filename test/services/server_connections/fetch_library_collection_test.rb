@@ -56,6 +56,26 @@ class ServerConnections::FetchLibraryCollectionTest < ActiveSupport::TestCase
     assert_equal [ { "Name" => "Track" } ], result.items
   end
 
+  test "filters out albums and songs with hidden genres" do
+    connection = ServerConnection.create!(name: "Home", provider: :jellyfin, base_url: "https://example.com", username: "bruno", password: "secret", user: users(:one))
+    HiddenGenre.create!(user: users(:one), server_connection: connection, name: "Holiday")
+
+    response = Integrations::Jellyfin::LibraryCollectionResponseData.new(
+      content: [
+        { "Id" => "album-1", "Name" => "Xmas Album", "Genres" => [ "Holiday" ] },
+        { "Id" => "album-2", "Name" => "Rock Album", "Genres" => [ "Rock" ] }
+      ],
+      total: 2,
+      access_token: "token"
+    )
+    client = Object.new
+    client.define_singleton_method(:library_collection) { |_, **| response }
+
+    result = ServerConnections::FetchLibraryCollection.new(connection, :albums, user: users(:one), client:).call
+
+    assert_equal [ "album-2" ], result.items.pluck("Id")
+  end
+
   private
 
   def server_connection
