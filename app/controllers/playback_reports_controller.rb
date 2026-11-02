@@ -20,6 +20,26 @@ class PlaybackReportsController < ApplicationController
     head :no_content
   end
 
+  def batch
+    events_data = params[:events] || params[:_json] || []
+    events_data = events_data.map { |e| e.respond_to?(:to_unsafe_h) ? e.to_unsafe_h : e } if events_data.respond_to?(:map)
+
+    result = ServerConnections::ReportPlaybackBatch.new(
+      server_connection,
+      events: events_data,
+      user: current_user,
+      access_token: session.dig(:server_access_tokens, server_connection.id.to_s)
+    ).call
+
+    return render json: { error: result.message }, status: :bad_gateway unless result.success?
+
+    if result.access_token.present?
+      session[:server_access_tokens] = session.fetch(:server_access_tokens, {}).merge(server_connection.id.to_s => result.access_token)
+    end
+
+    head :no_content
+  end
+
   private
 
   def event

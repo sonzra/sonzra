@@ -44,4 +44,28 @@ class PlaybackReportsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
   end
+
+  test "accepts batched playback reports" do
+    client_class = Integrations::Jellyfin::Client
+    original_new = client_class.method(:new)
+    client_class.define_singleton_method(:new) { |**_attributes| FakeClient.new }
+
+    occurred_at = 2.hours.ago.change(usec: 0).iso8601
+
+    begin
+      assert_difference "ListeningEvent.count", 1 do
+        post batch_playback_reports_server_connection_url(@server_connection), params: {
+          events: [
+            { event: "started", item_id: "batch-track", position_ticks: 0, paused: false, occurred_at: occurred_at },
+            { event: "stopped", item_id: "batch-track", position_ticks: 1000, paused: false, occurred_at: occurred_at }
+          ]
+        }, as: :json
+      end
+    ensure
+      client_class.define_singleton_method(:new, original_new)
+    end
+
+    assert_response :no_content
+    assert_equal "batch-track", ListeningEvent.last.item_id
+  end
 end
