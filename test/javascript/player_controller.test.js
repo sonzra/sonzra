@@ -92,6 +92,88 @@ describe("player controller", () => {
     expect(global.fetch).not.toHaveBeenCalled()
   })
 
+  it("enqueues playback events to the offline outbox while operating offline", async () => {
+    controller.offlineMode = true
+    controller.currentTrack = { itemId: "track-1", reportingUrl: "/server_connections/1/playback_reports" }
+    controller.outbox = { enqueue: vi.fn(async () => 1) }
+    global.fetch = vi.fn()
+
+    controller.reportPlayback("progress")
+
+    expect(global.fetch).not.toHaveBeenCalled()
+    expect(controller.outbox.enqueue).toHaveBeenCalledWith(expect.objectContaining({
+      event: "progress",
+      itemId: "track-1",
+      occurredAt: expect.any(String)
+    }))
+  })
+
+  it("captures transient online fetch failures to the offline outbox", async () => {
+    controller.offlineMode = false
+    controller.currentTrack = { itemId: "track-1", reportingUrl: "/server_connections/1/playback_reports" }
+    controller.outbox = { enqueue: vi.fn(async () => 1) }
+    global.fetch = vi.fn().mockRejectedValue(new Error("Network failed"))
+
+    controller.reportPlayback("started")
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(controller.outbox.enqueue).toHaveBeenCalledWith(expect.objectContaining({
+      event: "started",
+      itemId: "track-1",
+      occurredAt: expect.any(String)
+    }))
+  })
+
+  it("flushes queued events to the batch endpoint upon reconnection and displays a confirmation toast", async () => {
+    const pendingEvents = [
+      { id: 1, event: "started", itemId: "track-1", serverConnectionId: "1", positionTicks: 0, occurredAt: "2026-11-02T14:00:00Z" },
+      { id: 2, event: "progress", itemId: "track-1", serverConnectionId: "1", positionTicks: 1000, occurredAt: "2026-11-02T14:01:00Z" }
+    ]
+    controller.outbox = {
+      supported: () => true,
+      pendingEvents: vi.fn(async () => pendingEvents),
+      clearEvents: vi.fn(async () => {})
+    }
+    global.fetch = vi.fn(async () => ({ ok: true, status: 204 }))
+
+    await controller.flushOutbox()
+
+    expect(global.fetch).toHaveBeenCalledWith("/server_connections/1/playback_reports/batch", expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({
+        events: [
+          { event: "started", item_id: "track-1", position_ticks: 0, duration_ticks: 0, paused: undefined, resumable: false, occurred_at: "2026-11-02T14:00:00Z" },
+          { event: "progress", item_id: "track-1", position_ticks: 1000, duration_ticks: 0, paused: undefined, resumable: false, occurred_at: "2026-11-02T14:01:00Z" }
+        ]
+      })
+    }))
+    expect(controller.outbox.clearEvents).toHaveBeenCalledWith([ 1, 2 ])
+
+    const toast = document.querySelector(".flash.flash--notice")
+    expect(toast).not.toBeNull()
+    expect(toast.textContent).toContain("Synced 2 offline plays")
+  })
+
+  it("schedules exponential retry without clearing the queue when batch reporting fails", async () => {
+    vi.useFakeTimers()
+    const pendingEvents = [
+      { id: 1, event: "started", itemId: "track-1", serverConnectionId: "1", positionTicks: 0, occurredAt: "2026-11-02T14:00:00Z" }
+    ]
+    controller.outbox = {
+      supported: () => true,
+      pendingEvents: vi.fn(async () => pendingEvents),
+      clearEvents: vi.fn(async () => {})
+    }
+    global.fetch = vi.fn().mockRejectedValue(new Error("Server offline"))
+
+    await controller.flushOutbox()
+
+    expect(controller.outbox.clearEvents).not.toHaveBeenCalled()
+    expect(controller.syncRetryAttempts).toBe(1)
+    expect(controller.syncRetryTimeout).not.toBeNull()
+  })
+
   it("enables radio for a recommendation session queue", async () => {
     controller.tracksFor = vi.fn(async () => [ { source: "/audio/track-1", title: "Mix track" } ])
     controller.setRadioEnabled = vi.fn()
