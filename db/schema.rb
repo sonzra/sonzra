@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_22_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_02_200500) do
   create_table "application_settings", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.boolean "registrations_enabled", default: true, null: false
@@ -27,6 +27,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_22_000000) do
     t.index ["server_connection_id"], name: "index_hidden_artists_on_server_connection_id"
     t.index ["user_id", "server_connection_id", "artist_id"], name: "index_hidden_artists_on_connection_and_artist", unique: true
     t.index ["user_id"], name: "index_hidden_artists_on_user_id"
+  end
+
+  create_table "hidden_genres", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.integer "server_connection_id", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["server_connection_id"], name: "index_hidden_genres_on_server_connection_id"
+    t.index ["user_id", "server_connection_id", "name"], name: "index_hidden_genres_on_connection_and_name", unique: true
+    t.index ["user_id"], name: "index_hidden_genres_on_user_id"
   end
 
   create_table "listening_events", force: :cascade do |t|
@@ -189,6 +200,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_22_000000) do
 
   add_foreign_key "hidden_artists", "server_connections"
   add_foreign_key "hidden_artists", "users"
+  add_foreign_key "hidden_genres", "server_connections"
+  add_foreign_key "hidden_genres", "users"
   add_foreign_key "listening_events", "server_connections"
   add_foreign_key "listening_events", "users"
   add_foreign_key "recommendation_collection_events", "recommendation_collections"
