@@ -143,8 +143,14 @@ export class OfflineOutbox {
       }
 
       request.onsuccess = (e) => resolve(e.target.result)
-      request.onerror = () => reject(request.error)
-      request.onblocked = () => reject(new Error("IndexedDB open blocked."))
+      request.onerror = () => {
+        this._dbPromise = null
+        reject(request.error)
+      }
+      request.onblocked = () => {
+        this._dbPromise = null
+        reject(new Error("IndexedDB open blocked."))
+      }
     })
 
     return this._dbPromise

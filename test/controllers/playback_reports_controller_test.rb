@@ -68,4 +68,16 @@ class PlaybackReportsControllerTest < ActionDispatch::IntegrationTest
     assert_response :no_content
     assert_equal "batch-track", ListeningEvent.last.item_id
   end
+
+  test "rejects batch reports exceeding maximum batch size" do
+    large_events = Array.new(101) do |i|
+      { event: "started", item_id: "track-#{i}", position_ticks: 0, paused: false, occurred_at: Time.current.iso8601 }
+    end
+
+    post batch_playback_reports_server_connection_url(@server_connection), params: {
+      events: large_events
+    }, as: :json
+
+    assert_response :unprocessable_entity
+  end
 end

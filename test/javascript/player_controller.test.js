@@ -174,6 +174,27 @@ describe("player controller", () => {
     expect(controller.syncRetryTimeout).not.toBeNull()
   })
 
+  it("clears events for successful connections even if a subsequent connection fails", async () => {
+    const pendingEvents = [
+      { id: 1, event: "started", itemId: "track-1", serverConnectionId: "conn-1", positionTicks: 0, occurredAt: "2026-11-02T14:00:00Z" },
+      { id: 2, event: "started", itemId: "track-2", serverConnectionId: "conn-2", positionTicks: 0, occurredAt: "2026-11-02T14:00:00Z" }
+    ]
+    controller.outbox = {
+      supported: () => true,
+      pendingEvents: vi.fn(async () => pendingEvents),
+      clearEvents: vi.fn(async () => {})
+    }
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 204 })
+      .mockRejectedValueOnce(new Error("Conn 2 unreachable"))
+
+    await controller.flushOutbox()
+
+    expect(controller.outbox.clearEvents).toHaveBeenCalledWith([ 1 ])
+    expect(controller.outbox.clearEvents).not.toHaveBeenCalledWith([ 2 ])
+    expect(controller.syncRetryAttempts).toBe(1)
+  })
+
   it("enables radio for a recommendation session queue", async () => {
     controller.tracksFor = vi.fn(async () => [ { source: "/audio/track-1", title: "Mix track" } ])
     controller.setRadioEnabled = vi.fn()

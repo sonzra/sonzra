@@ -993,12 +993,13 @@ export default class extends Controller {
     if (this.isFlushingOutbox || !this.outbox || !this.outbox.supported()) return
     if (this.offlineMode || (typeof navigator !== "undefined" && navigator.onLine === false)) return
 
-    const pending = await this.outbox.pendingEvents().catch(() => [])
-    if (!pending || pending.length === 0) return
-
     this.isFlushingOutbox = true
+    let totalSynced = 0
 
     try {
+      const pending = await this.outbox.pendingEvents().catch(() => [])
+      if (!pending || pending.length === 0) return
+
       const eventsByConnection = new Map()
       for (const ev of pending) {
         const connId = ev.serverConnectionId || this.extractServerConnectionId(ev)
@@ -1006,9 +1007,6 @@ export default class extends Controller {
         if (!eventsByConnection.has(connId)) eventsByConnection.set(connId, [])
         eventsByConnection.get(connId).push(ev)
       }
-
-      let totalSynced = 0
-      const successfullySyncedIds = []
 
       for (const [ connId, events ] of eventsByConnection.entries()) {
         const batchUrl = `/server_connections/${connId}/playback_reports/batch`
@@ -1034,15 +1032,14 @@ export default class extends Controller {
         })
 
         if (response && response.ok) {
-          successfullySyncedIds.push(...events.map((e) => e.id))
+          await this.outbox.clearEvents(events.map((e) => e.id))
           totalSynced += events.length
         } else {
           throw new Error(`Batch reporting failed: ${response?.status}`)
         }
       }
 
-      if (successfullySyncedIds.length > 0) {
-        await this.outbox.clearEvents(successfullySyncedIds)
+      if (totalSynced > 0) {
         this.syncRetryAttempts = 0
         this.clearSyncRetry()
         this.showSyncToast(totalSynced)

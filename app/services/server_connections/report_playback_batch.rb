@@ -2,6 +2,17 @@ module ServerConnections
   class ReportPlaybackBatch
     class BatchReportError < StandardError; end
 
+    class CachingClientWrapper < SimpleDelegator
+      def initialize(target_client)
+        super(target_client)
+        @details_cache = {}
+      end
+
+      def library_item_details(item_id)
+        @details_cache[item_id] ||= __getobj__.library_item_details(item_id)
+      end
+    end
+
     Result = Struct.new(:success?, :synced_count, :access_token, :message, keyword_init: true)
 
     def initialize(server_connection, events:, user: nil, access_token: nil, client: nil)
@@ -18,51 +29,52 @@ module ServerConnections
       current_token = access_token
       synced = 0
       has_stopped = false
+      cached_client = item_cache_client
 
-      ActiveRecord::Base.transaction do
-        events.each do |raw_event|
-          ev = normalize_event(raw_event)
-          next unless ServerConnections::ReportPlayback::EVENTS.include?(ev[:event])
-          next if ev[:item_id].blank?
+      events.each do |raw_event|
+        ev = normalize_event(raw_event)
+        next unless ServerConnections::ReportPlayback::EVENTS.include?(ev[:event])
+        next if ev[:item_id].blank?
 
-          if ev[:event] == "started"
-            create_listening_event_if_missing(ev)
-          end
-
-          has_stopped = true if ev[:event] == "stopped"
-
-          report_result = ServerConnections::ReportPlayback.new(
-            server_connection,
-            event: ev[:event],
-            item_id: ev[:item_id],
-            position_ticks: ev[:position_ticks],
-            paused: ev[:paused],
-            duration_ticks: ev[:duration_ticks],
-            resumable: ev[:resumable],
-            access_token: current_token,
-            client_occurred_at: ev[:occurred_at],
-            client: client
-          ).call
-
-          unless report_result.success?
-            raise BatchReportError, report_result.message
-          end
-
-          current_token = report_result.access_token if report_result.access_token.present?
-          synced += 1
+        if ev[:event] == "started"
+          create_listening_event_if_missing(ev)
         end
 
-        ServerConnections::FetchCachedHomeContent.invalidate(server_connection) if has_stopped
+        has_stopped = true if ev[:event] == "stopped"
+
+        report_result = ServerConnections::ReportPlayback.new(
+          server_connection,
+          event: ev[:event],
+          item_id: ev[:item_id],
+          position_ticks: ev[:position_ticks],
+          paused: ev[:paused],
+          duration_ticks: ev[:duration_ticks],
+          resumable: ev[:resumable],
+          access_token: current_token,
+          client_occurred_at: ev[:occurred_at],
+          client: cached_client
+        ).call
+
+        unless report_result.success?
+          return Result.new(success?: false, synced_count: synced, access_token: current_token, message: report_result.message)
+        end
+
+        current_token = report_result.access_token if report_result.access_token.present?
+        synced += 1
       end
 
+      ServerConnections::FetchCachedHomeContent.invalidate(server_connection) if has_stopped
       Result.new(success?: true, synced_count: synced, access_token: current_token, message: nil)
-    rescue BatchReportError => error
-      Result.new(success?: false, synced_count: 0, access_token: current_token, message: error.message)
     end
 
     private
 
     attr_reader :server_connection, :events, :user, :access_token, :client
+
+    def item_cache_client
+      target = client || Integrations::Client.for(server_connection)
+      CachingClientWrapper.new(target)
+    end
 
     def normalize_event(event)
       h = event.is_a?(Hash) ? event.with_indifferent_access : {}

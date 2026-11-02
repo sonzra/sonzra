@@ -145,5 +145,23 @@ module ServerConnections
       assert result.success?
       assert_empty client.updated_positions
     end
+
+    test "memoizes library_item_details across events with the same item_id" do
+      client = FakeClient.new(remote_last_played_date: 3.hours.ago.iso8601)
+      call_count = 0
+      client.define_singleton_method(:library_item_details) do |item_id|
+        call_count += 1
+        super(item_id)
+      end
+
+      events = [
+        { event: "progress", item_id: "audiobook-memo", position_ticks: 1000, occurred_at: 1.hour.ago.iso8601, paused: false, resumable: true },
+        { event: "progress", item_id: "audiobook-memo", position_ticks: 2000, occurred_at: 50.minutes.ago.iso8601, paused: false, resumable: true }
+      ]
+
+      result = ReportPlaybackBatch.new(@server_connection, events: events, user: @user, client: client).call
+      assert result.success?
+      assert_equal 1, call_count
+    end
   end
 end

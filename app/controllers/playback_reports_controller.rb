@@ -1,4 +1,6 @@
 class PlaybackReportsController < ApplicationController
+  MAX_BATCH_SIZE = 100
+
   def create
     return head :unprocessable_entity unless ServerConnections::ReportPlayback::EVENTS.include?(event)
 
@@ -23,6 +25,8 @@ class PlaybackReportsController < ApplicationController
   def batch
     events_data = params[:events] || params[:_json] || []
     events_data = events_data.map { |e| e.respond_to?(:to_unsafe_h) ? e.to_unsafe_h : e } if events_data.respond_to?(:map)
+
+    return head :unprocessable_entity if events_data.size > MAX_BATCH_SIZE
 
     result = ServerConnections::ReportPlaybackBatch.new(
       server_connection,

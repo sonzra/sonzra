@@ -192,4 +192,39 @@ describe("OfflineOutbox", () => {
     expect(pending[0].occurredAt).toBe("2026-11-02T14:00:00.000Z")
     expect(pending[1].occurredAt).toBe("2026-11-02T15:00:00.000Z")
   })
+
+  it("resets _dbPromise on open error to allow subsequent connection retry", async () => {
+    let failOpen = true
+    const mockIndexedDB = {
+      open: () => {
+        const req = {}
+        setTimeout(() => {
+          if (failOpen) {
+            req.error = new Error("Mock DB failure")
+            req.onerror()
+          } else {
+            req.result = {
+              transaction: () => ({
+                objectStore: () => ({
+                  count: () => {
+                    const r = { result: 0 }
+                    setTimeout(() => r.onsuccess(), 0)
+                    return r
+                  }
+                })
+              })
+            }
+            req.onsuccess({ target: req })
+          }
+        }, 0)
+        return req
+      }
+    }
+
+    const testOutbox = new OfflineOutbox({ indexedDB: mockIndexedDB })
+    await expect(testOutbox.count()).rejects.toThrow("Mock DB failure")
+
+    failOpen = false
+    await expect(testOutbox.count()).resolves.toBe(0)
+  })
 })
