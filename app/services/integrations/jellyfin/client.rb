@@ -141,7 +141,7 @@ module Integrations
         PlaybackQueueResponseData.new(items: items, access_token: token)
       end
 
-      def recommendation_tracks(strategy, period_date)
+      def recommendation_tracks(strategy, period_date, excluded_genres: [])
         session = authentication
         user_id = session.fetch("User").fetch("Id")
         token = session.fetch("AccessToken")
@@ -157,8 +157,12 @@ module Integrations
           tracks = music_songs_without_podcasts(items(user_id, token, limit: 200, IncludeItemTypes: "Audio", SortBy: "Random", EnableUserData: true, Fields: fields), podcast_ids) if tracks.empty?
           tracks
         when "best_of_genre"
+          excluded_set = Array(excluded_genres).map { |g| g.to_s.strip.downcase }.to_set
           played = items(user_id, token, limit: 100, IncludeItemTypes: "Audio", SortBy: "PlayCount", SortOrder: "Descending", EnableUserData: true, Fields: fields)
-          genre = music_songs_without_podcasts(played, podcast_ids).flat_map { |item| item["Genres"] || [] }.tally.max_by { |_, count| count }&.first
+          genre = music_songs_without_podcasts(played, podcast_ids)
+            .flat_map { |item| item["Genres"] || [] }
+            .reject { |g| excluded_set.include?(g.to_s.strip.downcase) }
+            .tally.max_by { |_, count| count }&.first
           if genre
             music_songs_without_podcasts(items(user_id, token, limit: 200, IncludeItemTypes: "Audio", Genres: genre, SortBy: "PlayCount", SortOrder: "Descending", EnableUserData: true, Fields: fields), podcast_ids)
           else
