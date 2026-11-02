@@ -54,6 +54,7 @@ describe("card options controller", () => {
         <button data-card-options-target="favoriteAction"></button>
         <button data-card-options-target="offlineAction"></button>
         <button data-card-options-target="deletePlaylistAction" data-card-options-delete-playlist-url="/server_connections/1/playlists/playlist-7"></button>
+        <button data-card-options-target="hideGenreAction" hidden></button>
         <span data-card-options-target="favoriteLabel"></span>
         <span data-card-options-target="offlineLabel"></span>
         <div data-card-options-target="loader" hidden></div>
@@ -301,5 +302,45 @@ describe("card options controller", () => {
 
   it("reports an unexpected offline download error with useful detail", () => {
     expect(cardOptionsController.offlineDownloadErrorMessage(new TypeError("downloadAll is not a function"))).toBe("Sonzra couldn’t download this item: downloadAll is not a function")
+  })
+
+  it("configures and triggers hide genre action", async () => {
+    const visitMock = vi.fn()
+    window.Turbo = { visit: visitMock }
+
+    const card = document.createElement("article")
+    card.className = "listen-card"
+    const playButton = document.createElement("button")
+    playButton.className = "listen-card__play"
+    card.append(playButton)
+
+    const options = document.createElement("div")
+    options.className = "listen-card__options"
+    options.dataset.cardOptionsHideGenreUrl = "/hidden_genres"
+    options.dataset.cardOptionsHideGenreName = "Holiday"
+    options.dataset.cardOptionsHideGenreServerConnectionId = "1"
+    card.append(options)
+    document.body.append(card)
+
+    cardOptionsController.configureQueueAction(playButton)
+
+    const hideGenreBtn = document.querySelector("[data-card-options-target='hideGenreAction']")
+    expect(hideGenreBtn.hidden).toBe(false)
+    expect(hideGenreBtn.dataset.cardOptionsHideGenreName).toBe("Holiday")
+
+    await cardOptionsController.hideGenre({
+      type: "click",
+      preventDefault: vi.fn(),
+      currentTarget: hideGenreBtn
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/hidden_genres",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ name: "Holiday", server_connection_id: "1" })
+      })
+    )
+    expect(visitMock).toHaveBeenCalledWith(window.location.href)
   })
 })

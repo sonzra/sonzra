@@ -12,6 +12,7 @@ Rails.application.routes.draw do
   resources :offline_downloads, only: :index
   resource :active_server_connection, only: :update
   resources :hidden_artists, only: %i[index create destroy]
+  resources :hidden_genres, only: %i[index create destroy]
   resources :media_servers, only: %i[index destroy]
   resources :recommendation_collections, only: %i[index show] do
     post :events, on: :member

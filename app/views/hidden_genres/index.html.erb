@@ -1,0 +1,43 @@
+<main class="settings-shell redesign-utility-page">
+  <header class="settings-header settings-header--page"><div class="page-title"><%= link_to root_path, class: "back-link back-link--compact", aria: { label: "Back to home" } do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1>Hidden genres</h1></div></header>
+
+  <% if @server_connections.any? %>
+    <section class="settings-form-section">
+      <%= form_with url: hidden_genres_path, method: :post, class: "settings-form" do |f| %>
+        <div class="settings-field">
+          <%= f.label :name, "Genre name" %>
+          <%= f.text_field :name, placeholder: "e.g. Holiday, Ambient", required: true, class: "text-input" %>
+        </div>
+        <% if @server_connections.size > 1 %>
+          <div class="settings-field">
+            <%= f.label :server_connection_id, "Server" %>
+            <%= f.collection_select :server_connection_id, @server_connections, :id, :name, {}, class: "select-input" %>
+          </div>
+        <% else %>
+          <%= f.hidden_field :server_connection_id, value: @server_connections.first.id %>
+        <% end %>
+        <%= f.submit "Hide genre", class: "primary-button" %>
+      <% end %>
+    </section>
+  <% end %>
+
+  <% if @hidden_genres.any? %>
+    <section class="connection-list">
+      <% @hidden_genres.each do |genre| %>
+        <article class="connection-card">
+          <div>
+            <p class="connection-card__provider"><%= genre.server_connection.name %></p>
+            <h2><%= genre.name %></h2>
+          </div>
+          <%= button_to "Unhide", hidden_genre_path(genre), method: :delete, class: "secondary-button" %>
+        </article>
+      <% end %>
+    </section>
+  <% else %>
+    <section class="empty-state">
+      <%= image_tag "/brand/sonzra-mark.svg", alt: "", class: "empty-state__mark" %>
+      <h2>No hidden genres</h2>
+      <p>Genres you hide will appear here.</p>
+    </section>
+  <% end %>
+</main>
