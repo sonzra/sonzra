@@ -2,21 +2,23 @@
   <header class="settings-header settings-header--page"><div class="page-title"><%= link_to root_path, class: "back-link back-link--compact", aria: { label: "Back to home" } do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1>Hidden genres</h1></div></header>
 
   <% if @server_connections.any? %>
-    <section class="settings-form-section">
-      <%= form_with url: hidden_genres_path, method: :post, class: "settings-form" do |f| %>
-        <div class="settings-field">
+    <section class="connection-card hidden-genres-form-card">
+      <%= form_with url: hidden_genres_path, method: :post, class: "connection-form hidden-genres-form #{@server_connections.size > 1 ? "hidden-genres-form--multi" : ""}" do |f| %>
+        <div class="field">
           <%= f.label :name, "Genre name" %>
-          <%= f.text_field :name, placeholder: "e.g. Holiday, Ambient", required: true, class: "text-input" %>
+          <%= f.text_field :name, placeholder: "e.g. Holiday, Ambient", required: true %>
         </div>
         <% if @server_connections.size > 1 %>
-          <div class="settings-field">
+          <div class="field">
             <%= f.label :server_connection_id, "Server" %>
-            <%= f.collection_select :server_connection_id, @server_connections, :id, :name, {}, class: "select-input" %>
+            <%= f.collection_select :server_connection_id, @server_connections, :id, :name, {}, required: true %>
           </div>
         <% else %>
           <%= f.hidden_field :server_connection_id, value: @server_connections.first.id %>
         <% end %>
-        <%= f.submit "Hide genre", class: "primary-button" %>
+        <div class="form-actions">
+          <%= f.submit "Hide genre", class: "primary-button" %>
+        </div>
       <% end %>
     </section>
   <% end %>

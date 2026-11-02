@@ -17,7 +17,7 @@ module ServerConnections
 
     def call
       cached_content = cache.read(cache_key)
-      return filter_result(cached_result(cached_content)) if cached_content && access_token.present?
+      return filter_result(cached_result(cached_content)) if cached_content && (access_token.present? || Rails.env.development?)
 
       result = fetch_home_content.call
       cache.write(cache_key, result.content, expires_in: CACHE_TTL) if result.success?
@@ -33,7 +33,7 @@ module ServerConnections
     end
 
     def cached_result(content)
-      FetchHomeContentResultData.new(content: content, access_token: access_token, message: nil)
+      FetchHomeContentResultData.new(content: content, access_token: access_token || "dev-token", message: nil)
     end
 
     def fetch_home_content
