@@ -19,7 +19,7 @@
       <% genres.first(8).each_with_index do |genre_name, index| %>
         <div id="genre_tile_<%= genre_name.parameterize %>" class="genre-tile-item">
           <%= link_to library_albums_path(genre: genre_name), class: "genre-tile genre-tile--#{index % 6}", data: { turbo_frame: "_top" } do %>
-            <span><%= genre_name %></span><%= lucide_icon "arrow-up-right", aria: { hidden: true } %>
+            <span><%= genre_name %></span>
           <% end %>
           <% if @server_connection %>
             <%= button_to hidden_genres_path, params: { server_connection_id: @server_connection.id, name: genre_name }, method: :post, class: "genre-tile__hide-button", aria: { label: "Hide genre #{genre_name}" }, title: "Hide #{genre_name}" do %>
