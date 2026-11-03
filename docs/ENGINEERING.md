@@ -62,6 +62,8 @@ jobs, and rendering; application behaviour is organised around the domain.
 
 Sonzra is browser-first but will also be delivered through Hotwire Native.
 Every user-facing change must work at narrow mobile widths as well as desktop.
+For token specifications, component scales, and redesign patterns, consult
+[DESIGN_SYSTEM.md](../DESIGN_SYSTEM.md).
 
 - Build mobile-first layouts. Use responsive CSS to enhance larger screens;
   do not make mobile navigation or primary playback actions unreachable.

@@ -2,21 +2,24 @@
 
 This document establishes the canonical design system specification for Sonzra's modern interface (`ui_variant: "redesign"`). All new views, components, and interactive surfaces must strictly follow these tokens, layout rules, and component patterns.
 
+> [!NOTE]
+> This guide is also maintained at the root of the repository as [`DESIGN_SYSTEM.md`](../../DESIGN_SYSTEM.md).
+
 ---
 
 ## 1. Core Principles
 
 1. **Quiet Listening Room:** Interface chrome yields prominence to album art and typography. Surfaces rest on atmospheric deep-space backgrounds (`#09090F`, `#12121C`) accented with subtle cyan and purple glows.
-2. **Unified Geometric Rhythm:** Consistent sizing scales: 34px circular corner actions, 48px baseline form inputs, 16px/18px container radii.
-3. **Touch-First Ergonomics:** All tappable surfaces provide `>=44px` touch hitboxes. Compact visible controls use invisible `::before` expansions rather than visual bloat.
-4. **Media-First Simplicity:** Avoid redundant visual indicators. Interactive cards with hover lifts do not need directional arrow glyphs.
+2. **Unified Geometric Rhythm:** Consistent sizing scales: 34px circular corner actions, 48px baseline form inputs, 14px/18px/22px container radii.
+3. **Touch-First Ergonomics:** All tappable surfaces provide `>=44px` touch hitboxes. Compact visible controls use invisible `::before` expansions (`inset: -5px`) rather than visual bloat.
+4. **Media-First Simplicity:** Avoid redundant visual indicators. Interactive cards with hover lifts do not need directional arrow glyphs (`arrow-up-right`), reserving corner space for primary actions.
 5. **Hotwire Playback Continuity:** Audio playback is never interrupted by navigation (`data-turbo-permanent`). Corner actions update the DOM optimistically via Turbo Streams and audio feedback toasts without full-page reloads.
 
 ---
 
 ## 2. Design Tokens
 
-All tokens are scoped under `.redesign`:
+All redesign styling is scoped under the `.redesign` class on the `<body>` element.
 
 ### Color Palette
 
@@ -98,6 +101,8 @@ Standardized circular button used for secondary corner interactions on cards and
 }
 ```
 
+*Implementation rule:* When wrapping in Rails `button_to`, apply `display: contents;` to the enclosing form so CSS Grid/Flex alignment and absolute placement bind directly to the button element.
+
 ### 2. Form System (`.form-page--compact`, `.connection-form`)
 Forms for settings, preferences, and utilities follow a compact, baseline-aligned grid layout.
 
@@ -146,6 +151,7 @@ Transient feedback alerts for async operations (e.g. "Hidden Ambient from mixes"
 - Border radius: `999px` fully rounded pill.
 - Background: `rgb(24 20 42 / 95%)` with cyan/purple border glow.
 - Accessible ARIA live region (`role="status" aria-live="polite"`).
+- Hotwire integration: Rendered via Turbo Streams to update `#player_feedback` without page refreshes.
 
 ---
 
@@ -165,6 +171,7 @@ When building new features under the Redesign system, verify:
 
 - [ ] All colors reference `--rz-*` tokens; zero raw color literals.
 - [ ] Circular corner action badges use `34px × 34px` with `::before { inset: -5px; }` for 44px touch compliance.
+- [ ] Action badge icons are perfectly centered (`offset: 0px`).
 - [ ] Form inputs and submit buttons share a `48px` baseline height.
 - [ ] Safe-area insets (`env(safe-area-inset-*)`) are present on all edge-anchored elements.
 - [ ] No redundant directional arrows on interactive discovery tiles.
