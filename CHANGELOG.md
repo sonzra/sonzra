@@ -4,6 +4,23 @@
 
 No changes yet.
 
+## 0.0.20-alpha — 2026-11-03
+
+### Added
+
+- Per-server genre exclusion (`HiddenGenre` model and migrations) to hide unwanted genres from discovery shelves, mixes, recommendation generators, radio queues, and library browsing (Albums, Songs, and Genres directory).
+- Dedicated `/hidden_genres` management interface with asynchronous Hotwire Turbo Stream support to add and unhide genres dynamically without full-page reloads.
+- Contextual quick-hide actions on mixes (optimistically removing card with audio player feedback toast) and exploration tiles.
+- Canonical Sonzra Redesign Design System specification at `DESIGN_SYSTEM.md` and `docs/guidelines/design_system.md`.
+- End-to-end testing suite with Playwright and comprehensive guidelines for agentic development.
+
+### Changed
+
+- Standardized quick-hide buttons on discovery tiles to 34px × 34px circular controls with centered icons and 44px mobile touch hitboxes (`::before { inset: -5px }`).
+- Removed redundant directional arrows from exploration tiles for a clean, media-first presentation.
+- Streamlined layout spacing on `/hidden_genres` for desktop and mobile viewports.
+- Updated recommendation generators and media server adapters (Jellyfin and Plex) to respect excluded genres.
+
 ## 0.0.19-alpha — 2026-09-24
 
 ### Added
