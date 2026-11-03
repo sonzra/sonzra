@@ -136,9 +136,10 @@ body.redesign { margin: 0; overflow-x: hidden; }
 .redesign .genre-tile-item { position: relative; width: 100%; height: 100%; min-height: 86px; }
 .redesign .genre-explorer__grid .genre-tile-item .genre-tile { width: 100%; height: 100%; min-height: 86px; box-sizing: border-box; }
 .redesign .genre-tile-item form.button_to { display: contents; }
-.redesign .genre-tile-item .genre-tile__hide-button { position: absolute; z-index: 2; top: 10px; right: 10px; display: grid; width: 44px; height: 44px; min-width: 44px; min-height: 44px; place-items: center; margin: 0; padding: 0; border: 1px solid var(--rz-line); border-radius: 50%; background: rgb(10 9 18 / 82%); color: var(--rz-text); backdrop-filter: blur(8px); cursor: pointer; transition: border-color .18s ease, background .18s ease, transform .18s ease; }
+.redesign .genre-tile-item .genre-tile__hide-button { position: absolute; z-index: 2; top: 10px; right: 10px; display: grid; width: 34px; height: 34px; min-width: 34px; min-height: 34px; place-items: center; margin: 0; padding: 0; border: 1px solid var(--rz-line); border-radius: 50%; background: rgb(9 9 15 / 80%); color: var(--rz-text); backdrop-filter: blur(8px); cursor: pointer; transition: border-color .18s ease, background .18s ease, transform .18s ease; }
+.redesign .genre-tile-item .genre-tile__hide-button::before { content: ""; position: absolute; inset: -5px; }
 .redesign .genre-tile-item .genre-tile__hide-button:hover, .redesign .genre-tile-item .genre-tile__hide-button:focus-visible { border-color: rgb(155 130 255 / 55%); background: var(--rz-hover); outline: 0; transform: scale(1.06); }
-.redesign .genre-tile-item .genre-tile__hide-button svg { display: block; width: 16px; height: 16px; margin: 0; pointer-events: none; }
+.redesign .genre-tile-item .genre-tile__hide-button svg { display: block; width: 15px; height: 15px; margin: 0; pointer-events: none; }
 .redesign .listen-section { margin-top: 50px; }.redesign .listen-section__heading { align-items: end; margin-bottom: 17px; }.redesign .listen-section__heading h2 { font-size: 25px; }.redesign .listen-kicker, .redesign .eyebrow { color: var(--rz-primary-light); font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
 .redesign .listen-text-button { color: var(--rz-primary-light); font-size: 12px; text-decoration: none; }
 .redesign .listen-shelf { grid-auto-flow: initial; grid-template-columns: repeat(5, minmax(0, 1fr)); grid-auto-columns: unset; gap: 18px; overflow: visible; padding: 0; }
