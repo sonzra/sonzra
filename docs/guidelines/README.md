@@ -3,6 +3,7 @@
 This directory contains technical, architectural, and user interface guidelines for Sonzra:
 
 - **[Architectural Guidelines](file:///home/bruno/Projects/sonzra/docs/guidelines/architecture.md)**: System topology, hexagonal integration adapters, service object patterns, Active Record encryption and models, Hotwire/Turbo persistent audio architecture, caching, and testing standards.
+- **[Design System (New Design)](file:///home/bruno/Projects/sonzra/docs/guidelines/design_system.md)**: Foundational tokens, 34px corner badges, 48px baseline form controls, discovery tiles, compact card rows, utility shells, and touch ergonomics for the modern redesign interface.
 - **[UI & UX Guidelines](file:///home/bruno/Projects/sonzra/docs/guidelines/ui_ux.md)**: Design tokens, typography and color palette, dynamic logo states, responsive layout tiers, component patterns (player, cards, shelves, sheets), motion system, and Hotwire Native/PWA ergonomics.
 
 ## Automated Review Agents & Customizations
