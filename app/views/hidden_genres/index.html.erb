@@ -2,11 +2,11 @@
   <header class="settings-header settings-header--page"><div class="page-title"><%= link_to root_path, class: "back-link back-link--compact", aria: { label: "Back to home" } do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1>Hidden genres</h1></div></header>
 
   <% if @server_connections.any? %>
-    <section class="connection-card hidden-genres-form-card">
+    <section class="form-page form-page--compact hidden-genres-form-page">
       <%= form_with url: hidden_genres_path, method: :post, class: "connection-form hidden-genres-form #{@server_connections.size > 1 ? "hidden-genres-form--multi" : ""}" do |f| %>
         <div class="field">
           <%= f.label :name, "Genre name" %>
-          <%= f.text_field :name, placeholder: "e.g. Holiday, Ambient", required: true %>
+          <%= f.text_field :name, placeholder: "e.g. Holiday, Ambient", required: true, id: "hidden_genre_name_input" %>
         </div>
         <% if @server_connections.size > 1 %>
           <div class="field">
@@ -23,23 +23,13 @@
     </section>
   <% end %>
 
-  <% if @hidden_genres.any? %>
-    <section class="connection-list">
-      <% @hidden_genres.each do |genre| %>
-        <article class="connection-card">
-          <div>
-            <p class="connection-card__provider"><%= genre.server_connection.name %></p>
-            <h2><%= genre.name %></h2>
-          </div>
-          <%= button_to "Unhide", hidden_genre_path(genre), method: :delete, class: "secondary-button" %>
-        </article>
-      <% end %>
-    </section>
-  <% else %>
-    <section class="empty-state">
-      <%= image_tag "/brand/sonzra-mark.svg", alt: "", class: "empty-state__mark" %>
-      <h2>No hidden genres</h2>
-      <p>Genres you hide will appear here.</p>
-    </section>
-  <% end %>
+  <div id="hidden_genres_container">
+    <% if @hidden_genres.any? %>
+      <section id="hidden_genres_list" class="connection-list">
+        <%= render partial: "hidden_genres/hidden_genre", collection: @hidden_genres, as: :genre %>
+      </section>
+    <% else %>
+      <%= render "hidden_genres/empty_state" %>
+    <% end %>
+  </div>
 </main>

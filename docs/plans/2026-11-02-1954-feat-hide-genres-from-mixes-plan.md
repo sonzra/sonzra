@@ -4,7 +4,7 @@ artifact_contract: ce-unified-plan/v1
 product_contract_source: ce-plan-bootstrap
 execution: code
 created_at: 2026-11-02T19:54:00Z
-last_updated: 2026-11-02T19:54:00Z
+last_updated: 2026-11-03T11:00:00Z
 ---
 
 # Exclude Hidden Genres from Mixes and Discovery
@@ -34,7 +34,10 @@ Sonzra currently provides artist-level exclusion through `HiddenArtist` and `Hid
 - **KD2: Dual impact on mix generation.** *(session-settled: user-directed — chosen over mix-only or queue-only exclusion)* Hiding a genre prevents dedicated *Best of <Genre>* creation for that genre and actively excludes individual tracks carrying that genre tag from all other mix strategies and radio tracks. Governs R3, R4, R5.
 - **KD3: Case-insensitive name matching.** *(session-settled: user-directed — chosen over strict provider ID matching)* Unlike artists with stable upstream GUIDs, genres across Jellyfin and Plex are string-based taxonomy tags; filtering normalizes genre strings case-insensitively. Governs R3, R4.
 - **KD4: Dynamic filtering on rendered mixes.** *(session-settled: user-directed — chosen over deleting or regenerating historical records)* Existing generated mixes dynamically filter out tracks matching newly hidden genres when loaded via `RecommendationCollectionsController#visible_tracks`. Governs R6.
-- **KD5: Settings management page plus library quick-actions.** *(session-settled: user-directed — chosen over settings-only entry point)* Provide a `/hidden_genres` management screen under settings matching `/hidden_artists`, and expose "Hide genre" actions in library genre cards and options sheets. Governs R7, R8.
+- **KD5: Settings management page plus library quick-actions.** *(session-settled: user-directed — chosen over settings-only entry point)* Provide a `/hidden_genres` management screen under settings matching `/hidden_artists`, and expose "Hide genre" actions in library genre cards and options sheets. Governs R7, R8, R9.
+- **KD6: Hotwire Turbo Stream DOM removals and additions.** *(session-settled: user-directed)* Both `HiddenGenresController#destroy` and `#create` respond to `format.turbo_stream`, removing items instantly on unhide/hide with `turbo_stream.remove` and gracefully handling empty state switches without full page reloads. Governs R10.
+- **KD7: Async Dashboard card removal without media provider refetch.** *(session-settled: user-directed)* Hiding a genre from the dashboard options menu or explore tiles operates purely asynchronously via JSON/Turbo Stream, removing the targeted mix card or genre tile from the DOM immediately and showing feedback toast via `playerController#showFeedback`, completely eliminating full dashboard reloads and duplicate calls to media providers. Governs R11.
+- **KD8: Redesign Design System fidelity.** *(session-settled: user-directed)* All views and components adapt to Sonzra's modern redesign tokens (`var(--rz-line)`, `var(--rz-raised)`, `var(--rz-accent)`), utilizing `.form-page.form-page--compact` on `/hidden_genres`, seamless card hover behavior, and tailored card options positioning on `.redesign-mix-card`. Governs R12.
 
 ### Requirements
 
@@ -55,6 +58,9 @@ Sonzra currently provides artist-level exclusion through `HiddenArtist` and `Hid
 - R7. The application must provide a `/hidden_genres` utility page displaying all hidden genres grouped by server connection with an "Unhide" button, an empty state when none are hidden, and a simple form to hide a genre by name.
 - R8. Navigation sidebars and redesign drawer navigation must include a "Hidden genres" link with the Lucide `tag` or `eye-off` icon under the settings section.
 - R9. Library genre cards and detail sheets must offer a quick-action button to hide the genre, issuing an asynchronous Turbo Stream/JSON request that updates the UI immediately.
+- R10. `HiddenGenresController#destroy` and `#create` must support `format.turbo_stream` for Hotwire-driven asynchronous updates: `destroy` removes the targeted card with `turbo_stream.remove` and updates the empty state if none remain; `create` appends new cards or removes hidden tiles without full page reloads.
+- R11. Hiding a genre from the dashboard must never cause a full-page reload or re-query media providers: `card_options_controller#hideGenre` removes the mix card from the DOM with smooth transition and displays toast feedback, while dashboard genre tiles remove their DOM nodes via Turbo Streams.
+- R12. All hidden genres views and controls must comply with Sonzra's redesign layout system when `redesign_enabled?` is active, utilizing `.form-page.form-page--compact`, glassmorphic cards, and redesign CSS variables (`--rz-line`, `--rz-raised`, `--rz-accent`).
 
 ### Key Flows
 
@@ -252,6 +258,58 @@ flowchart TD
   - Triggering `hideGenre` from `card_options_controller` posts to `/hidden_genres` with CSRF headers.
   - UI provides immediate feedback or updates the card upon successful hide.
 
+### U7. Hotwire Turbo Stream Asynchronous Unhide and Create
+
+- **Goal:** Implement Turbo Stream responses in `HiddenGenresController#destroy` and `#create` to remove/add elements instantly on the client without full-page reloads.
+- **Files:**
+  - `app/controllers/hidden_genres_controller.rb`
+  - `app/views/hidden_genres/destroy.turbo_stream.erb`
+  - `app/views/hidden_genres/create.turbo_stream.erb`
+  - `app/views/hidden_genres/_hidden_genre.html.erb`
+  - `app/views/hidden_genres/index.html.erb`
+  - `test/controllers/hidden_genres_controller_test.rb`
+- **Requirements Covered:** R10.
+- **Key Decisions:** KD6.
+- **Test Scenarios:**
+  - `DELETE /hidden_genres/:id` with Turbo Stream format removes `dom_id(genre)` from `#hidden_genres_list`.
+  - When the last hidden genre is destroyed, Turbo Stream renders the `.empty-state` replacement into `#hidden_genres_container`.
+  - `POST /hidden_genres` with Turbo Stream format appends the new genre card into `#hidden_genres_list`, clears the input field, and dismisses any empty state.
+
+### U8. Async Dashboard Hiding & Media Provider Isolation
+
+- **Goal:** Eliminate full-page reloads and redundant media provider calls when hiding genres from dashboard mix cards and genre explorer tiles.
+- **Files:**
+  - `app/javascript/controllers/card_options_controller.js`
+  - `app/views/home/_library_content.html.erb`
+  - `app/views/home/_redesign_library_content.html.erb`
+  - `app/controllers/hidden_genres_controller.rb`
+  - `test/javascript/card_options_controller.test.js`
+  - `test/controllers/hidden_genres_controller_test.rb`
+- **Requirements Covered:** R11.
+- **Key Decisions:** KD7.
+- **Test Scenarios:**
+  - `card_options_controller#hideGenre` removes `activeCard` smoothly from the DOM and does not invoke `Turbo.visit`.
+  - `card_options_controller#hideGenre` invokes `playerController#showFeedback` with `Hidden [Genre] from mixes`.
+  - Quick-hide buttons on the dashboard explore grid submit via Turbo Stream and remove the targeted `.genre-tile-item` without refreshing `home_content` or querying upstream media servers.
+
+### U9. Redesign Layout Design System Compliance
+
+- **Goal:** Align `/hidden_genres` settings view and dashboard genre/mix controls with Sonzra's modern redesign layout system.
+- **Files:**
+  - `app/views/hidden_genres/index.html.erb`
+  - `app/assets/stylesheets/redesign.css`
+  - `app/assets/stylesheets/settings.css`
+  - `app/assets/stylesheets/genre_links.css`
+  - `app/views/shared/_recommendation_shelf.html.erb`
+  - `test/controllers/hidden_genres_controller_test.rb`
+- **Requirements Covered:** R12.
+- **Key Decisions:** KD8.
+- **Test Scenarios:**
+  - `/hidden_genres` uses `.form-page.form-page--compact` structure and redesign tokens (`--rz-line`, `--rz-raised`, `--rz-accent`) when `redesign_enabled?` is true.
+  - Form card hover state does not trigger jarring translateY shifts meant for clickable connection cards.
+  - Mix card options toggle on `.redesign-mix-card` is positioned cleanly with appropriate z-index and `>=44px` touch targets.
+  - Dashboard explore grid tiles and quick-hide buttons seamlessly respect redesign spacing, 86px tile height, and visual hierarchy.
+
 ---
 
 ## Verification Contract
@@ -268,7 +326,7 @@ flowchart TD
   ```
 - **JavaScript & Stimulus Tests:**
   ```bash
-  npm test test/javascript/card_options_controller.test.js
+  npm run test:javascript
   ```
 - **Full Verification & Quality Gates:**
   ```bash
@@ -280,7 +338,7 @@ flowchart TD
 
 ## Definition of Done
 
-- [ ] All 6 Implementation Units (U1-U6) are complete with passing tests.
+- [ ] All 9 Implementation Units (U1-U9) are complete with passing tests.
 - [ ] Database schema is updated and migrations run cleanly with `bin/rails db:migrate`.
 - [ ] No regression in existing `HiddenArtist` or recommendation tests.
 - [ ] Mobile touch targets for all unhide and hide buttons satisfy >=44px guidelines.

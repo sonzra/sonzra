@@ -304,7 +304,7 @@ describe("card options controller", () => {
     expect(cardOptionsController.offlineDownloadErrorMessage(new TypeError("downloadAll is not a function"))).toBe("Sonzra couldn’t download this item: downloadAll is not a function")
   })
 
-  it("configures and triggers hide genre action", async () => {
+  it("configures and triggers hide genre action without full page reload", async () => {
     const visitMock = vi.fn()
     window.Turbo = { visit: visitMock }
 
@@ -328,9 +328,13 @@ describe("card options controller", () => {
     expect(hideGenreBtn.hidden).toBe(false)
     expect(hideGenreBtn.dataset.cardOptionsHideGenreName).toBe("Holiday")
 
+    const showFeedbackMock = vi.fn()
+    cardOptionsController.playerController = vi.fn(() => ({ showFeedback: showFeedbackMock }))
+
     await cardOptionsController.hideGenre({
       type: "click",
       preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
       currentTarget: hideGenreBtn
     })
 
@@ -341,6 +345,7 @@ describe("card options controller", () => {
         body: JSON.stringify({ name: "Holiday", server_connection_id: "1" })
       })
     )
-    expect(visitMock).toHaveBeenCalledWith(window.location.href)
+    expect(showFeedbackMock).toHaveBeenCalledWith("Hidden Holiday from mixes")
+    expect(visitMock).not.toHaveBeenCalled()
   })
 })

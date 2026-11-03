@@ -19,7 +19,7 @@
         </div>
         <div class="redesign-genre-directory">
           <% genres.each_with_index do |genre_name, index| %>
-            <div class="genre-tile-item">
+            <div id="genre_tile_<%= genre_name.parameterize %>" class="genre-tile-item">
               <%= link_to library_albums_path(genre: genre_name), class: "redesign-genre-tile redesign-genre-tile--#{index % 6}", data: { turbo_frame: "_top" } do %>
                 <span><%= genre_name %></span><%= lucide_icon "arrow-up-right", aria: { hidden: true } %>
               <% end %>
@@ -46,7 +46,7 @@
       </section>
       <section class="genre-directory" aria-label="All music genres">
         <% genres.each_with_index do |genre_name, index| %>
-          <div class="genre-tile-item">
+          <div id="genre_tile_<%= genre_name.parameterize %>" class="genre-tile-item">
             <%= link_to library_albums_path(genre: genre_name), class: "genre-tile genre-tile--#{index % 6}" do %>
               <span><%= genre_name %></span><%= lucide_icon "arrow-up-right", aria: { hidden: true } %>
             <% end %>

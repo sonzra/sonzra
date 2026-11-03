@@ -186,10 +186,11 @@
   }
 }
 
-.hidden-genres-form-card {
+.hidden-genres-form-page {
   display: block;
   margin-top: 24px;
   margin-bottom: 24px;
+  width: 100%;
 }
 
 .hidden-genres-form {
