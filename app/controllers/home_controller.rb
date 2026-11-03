@@ -10,7 +10,13 @@ class HomeController < ApplicationController
       access_token: current_access_token,
       user: current_user
     ).call
-    @recommendation_collections = current_user.recommendation_collections.where(server_connection: @server_connection).includes(:recommendation_tracks, :server_connection).order(generated_at: :desc).to_a.uniq(&:strategy) if @result.success?
+    if @result.success?
+      collections = current_user.recommendation_collections.where(server_connection: @server_connection).includes(:recommendation_tracks, :server_connection).order(generated_at: :desc).to_a.uniq(&:strategy)
+      genre_filter = HiddenGenres::Filter.new(current_user, @server_connection)
+      @recommendation_collections = collections.reject do |collection|
+        collection.strategy == "best_of_genre" && genre_filter.hidden?(collection.title.delete_prefix("Best of ").strip)
+      end
+    end
     store_access_token if @result.success?
   end
 

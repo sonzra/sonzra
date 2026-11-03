@@ -20,6 +20,7 @@
         <p>Account</p>
         <%= link_to server_connections_path, data: navigation_data, aria: disabled_aria do %><%= lucide_icon "server", aria: { hidden: true } %><span>Server connections</span><% end %>
         <%= link_to hidden_artists_path, data: navigation_data, aria: disabled_aria do %><%= lucide_icon "eye-off", aria: { hidden: true } %><span>Hidden artists</span><% end %>
+        <%= link_to hidden_genres_path, data: navigation_data, aria: disabled_aria do %><%= lucide_icon "tag", aria: { hidden: true } %><span>Hidden genres</span><% end %>
         <% if current_user.admin? %><%= link_to admin_users_path, data: navigation_data, aria: disabled_aria do %><%= lucide_icon "users", aria: { hidden: true } %><span>Users</span><% end %><%= link_to admin_registration_settings_path, data: navigation_data, aria: disabled_aria do %><%= lucide_icon "shield-check", aria: { hidden: true } %><span>Administration</span><% end %><% end %>
         <%= button_to interface_preference_path, method: :patch, params: { ui_variant: "legacy" }, form: { data: { turbo: false } } do %><%= lucide_icon "monitor-up", aria: { hidden: true } %><span>Use classic interface</span><% end %>
         <% if offline_navigation %><button type="button" disabled><%= lucide_icon "log-out", aria: { hidden: true } %><span>Sign out</span></button><% else %><%= button_to session_path, method: :delete, form: { data: { turbo: false } } do %><%= lucide_icon "log-out", aria: { hidden: true } %><span>Sign out</span><% end %><% end %>
@@ -32,6 +33,7 @@
     <% library_links.each do |label, (path, icon)| %><%= link_to path, data: navigation_data, aria: disabled_aria do %><%= lucide_icon icon, aria: { hidden: true } %><span><%= label %></span><% end %><% end %>
     <%= link_to server_connections_path, data: navigation_data, aria: disabled_aria do %><%= lucide_icon "server", aria: { hidden: true } %><span>Server connections</span><% end %>
     <%= link_to hidden_artists_path, data: navigation_data, aria: disabled_aria do %><%= lucide_icon "eye-off", aria: { hidden: true } %><span>Hidden artists</span><% end %>
+    <%= link_to hidden_genres_path, data: navigation_data, aria: disabled_aria do %><%= lucide_icon "tag", aria: { hidden: true } %><span>Hidden genres</span><% end %>
     <% if current_user.admin? %><%= link_to admin_users_path, data: navigation_data, aria: disabled_aria do %><%= lucide_icon "users", aria: { hidden: true } %><span>Users</span><% end %><%= link_to admin_registration_settings_path, data: navigation_data, aria: disabled_aria do %><%= lucide_icon "shield-check", aria: { hidden: true } %><span>Administration</span><% end %><% end %>
     <%= button_to interface_preference_path, method: :patch, params: { ui_variant: "legacy" }, form: { data: { turbo: false } } do %><%= lucide_icon "monitor-up", aria: { hidden: true } %><span>Use classic interface</span><% end %>
   </div>

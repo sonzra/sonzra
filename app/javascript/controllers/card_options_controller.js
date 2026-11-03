@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 import { OfflineMediaStore, OfflineMediaStoreError } from "offline_media_store"
 
 export default class extends Controller {
-  static targets = ["sheet", "queueAction", "resetAction", "favoriteAction", "favoriteLabel", "playlistAction", "offlineAction", "offlineLabel", "deletePlaylistAction", "hideArtistAction", "playlistDialog", "playlistList", "playlistName", "playlistFeedback", "panel", "loader", "loaderMessage", "loaderCancel"]
+  static targets = ["sheet", "queueAction", "resetAction", "favoriteAction", "favoriteLabel", "playlistAction", "offlineAction", "offlineLabel", "deletePlaylistAction", "hideArtistAction", "hideGenreAction", "playlistDialog", "playlistList", "playlistName", "playlistFeedback", "panel", "loader", "loaderMessage", "loaderCancel"]
 
   connect() {
     this.boundCloseOnOutsideClick = this.closeOnOutsideClick.bind(this)
@@ -82,8 +82,8 @@ export default class extends Controller {
     if (event?.type === "touchend") this.ignoreNextSheetClick()
     if (event?.type === "click" && this.shouldIgnoreSheetClick) return
 
-    event?.preventDefault()
-    event?.stopPropagation()
+    event?.preventDefault?.()
+    event?.stopPropagation?.()
 
     if (!this.hasSheetTarget || this.sheetTarget.hidden) return
 
@@ -149,6 +149,12 @@ export default class extends Controller {
       this.hideArtistActionTarget.dataset.cardOptionsHideName = options?.dataset.cardOptionsHideName || ""
       this.hideArtistActionTarget.dataset.cardOptionsHideServerConnectionId = options?.dataset.cardOptionsHideServerConnectionId || ""
     }
+    if (this.hasHideGenreActionTarget) {
+      this.hideGenreActionTarget.hidden = !options?.dataset.cardOptionsHideGenreUrl
+      this.hideGenreActionTarget.dataset.cardOptionsHideGenreUrl = options?.dataset.cardOptionsHideGenreUrl || ""
+      this.hideGenreActionTarget.dataset.cardOptionsHideGenreName = options?.dataset.cardOptionsHideGenreName || ""
+      this.hideGenreActionTarget.dataset.cardOptionsHideGenreServerConnectionId = options?.dataset.cardOptionsHideGenreServerConnectionId || ""
+    }
   }
 
   async hideArtist(event) {
@@ -166,6 +172,36 @@ export default class extends Controller {
     if (response.ok) {
       await this.offlineStore().removeByArtist(name)
       window.Turbo?.visit(window.location.href)
+    }
+  }
+
+  async hideGenre(event) {
+    if (event?.type === "touchend") this.ignoreNextSheetClick()
+    if (event?.type === "click" && this.shouldIgnoreSheetClick) return
+
+    event.preventDefault()
+    const action = event.currentTarget
+    const hideUrl = action.dataset.cardOptionsHideGenreUrl || this.hideGenreActionTarget?.dataset.cardOptionsHideGenreUrl
+    const name = action.dataset.cardOptionsHideGenreName || this.hideGenreActionTarget?.dataset.cardOptionsHideGenreName
+    const serverConnectionId = action.dataset.cardOptionsHideGenreServerConnectionId || this.hideGenreActionTarget?.dataset.cardOptionsHideGenreServerConnectionId
+    if (!hideUrl || !name) return
+
+    const card = this.activeCard
+    this.close(event)
+
+    const response = await fetch(hideUrl, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json", "X-CSRF-Token": document.querySelector("meta[name='csrf-token']")?.content },
+      body: JSON.stringify({ name, server_connection_id: serverConnectionId })
+    })
+    if (response.ok) {
+      if (card) {
+        card.style.transition = "opacity 0.25s ease, transform 0.25s ease"
+        card.style.opacity = "0"
+        card.style.transform = "scale(0.9)"
+        setTimeout(() => card.remove(), 250)
+      }
+      this.playerController()?.showFeedback(`Hidden ${name} from mixes`)
     }
   }
 

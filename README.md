@@ -52,12 +52,15 @@ encrypted credentials, cache, and the installation secret.
 - Plex libraries named exactly `Audiobooks` and `Podcasts` are shown in their
   dedicated Sonzra sections; name matching is case-insensitive.
 
-## Contributing
+## Contributing and Architecture
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and pull
-request expectations. The architecture and UI conventions are in
-[docs/ENGINEERING.md](docs/ENGINEERING.md); maintainers should follow the
-[release procedure](docs/RELEASING.md).
+request expectations. Key guides and references:
+
+- **[Design System](DESIGN_SYSTEM.md)**: Tokens, component specifications, 34px corner badges, 48px baseline controls, and touch ergonomics for the modern redesign interface.
+- **[Engineering Principles](docs/ENGINEERING.md)**: Modular monolith architecture, hexagonal integration boundaries, and testing guidelines.
+- **[Guidelines Directory](docs/guidelines/README.md)**: Detailed architecture, UI/UX, and agent specifications.
+- **[Release Procedure](docs/RELEASING.md)**: Maintainer deployment and release checklist.
 
 ```bash
 bundle install

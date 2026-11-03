@@ -127,4 +127,38 @@ class RecommendationGeneratorTest < ActiveSupport::TestCase
     assert_includes strategies, "friday_rediscovery"
     assert_includes strategies, "best_of_genre"
   end
+
+  test "excludes tracks with hidden genres from mixes" do
+    HiddenGenre.create!(user: users(:one), server_connection: @connection, name: "Holiday")
+
+    items = [
+      { "Id" => "holiday-song", "Name" => "Jingle Bells", "AlbumArtist" => "Artist", "AlbumId" => "album-1", "Genres" => [ "Holiday" ], "RunTimeTicks" => 1_800_000_000 },
+      { "Id" => "rock-song", "Name" => "Rock Anthem", "AlbumArtist" => "Artist", "AlbumId" => "album-2", "Genres" => [ "Rock" ], "RunTimeTicks" => 1_800_000_000 }
+    ]
+    client = Object.new
+    client.define_singleton_method(:recommendation_tracks) { |_, _, **_| items }
+
+    collection = RecommendationGenerator.new(user: users(:one), strategy: "friday_rediscovery", period_date: Date.new(2026, 8, 14), client:).call
+
+    assert_equal [ "rock-song" ], collection.recommendation_tracks.pluck(:item_id)
+  end
+
+  test "best_of_genre passes excluded_genres to client and titles collection with unhidden genre" do
+    HiddenGenre.create!(user: users(:one), server_connection: @connection, name: "Holiday")
+
+    captured_excluded = nil
+    items = [
+      { "Id" => "post-rock-song", "Name" => "Post Rock Song", "AlbumArtist" => "Artist", "AlbumId" => "album-1", "Genres" => [ "Post-Rock" ], "RunTimeTicks" => 1_800_000_000 }
+    ]
+    client = Object.new
+    client.define_singleton_method(:recommendation_tracks) do |_strategy, _period_date, excluded_genres: []|
+      captured_excluded = excluded_genres
+      items
+    end
+
+    collection = RecommendationGenerator.new(user: users(:one), strategy: "best_of_genre", period_date: Date.new(2026, 8, 13), client:).call
+
+    assert_equal [ "Holiday" ], captured_excluded
+    assert_equal "Best of Post-Rock", collection.title
+  end
 end

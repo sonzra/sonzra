@@ -185,3 +185,66 @@
     padding: 32px 22px;
   }
 }
+
+.hidden-genres-form-page {
+  display: block;
+  margin-top: 24px;
+  margin-bottom: 24px;
+  width: 100%;
+}
+
+.hidden-genres-form {
+  margin-top: 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 16px;
+  width: 100%;
+}
+
+.hidden-genres-form--multi {
+  grid-template-columns: 1fr 220px auto;
+}
+
+.hidden-genres-form .field {
+  display: grid;
+  gap: 8px;
+}
+
+.hidden-genres-form .field label {
+  font-size: 13px;
+  font-weight: 750;
+  color: var(--text);
+}
+
+.hidden-genres-form .field input,
+.hidden-genres-form .field select {
+  min-height: 48px;
+  height: 48px;
+}
+
+.hidden-genres-form .form-actions {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+}
+
+.hidden-genres-form .form-actions .primary-button {
+  min-height: 48px;
+  height: 48px;
+  padding: 0 24px;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .hidden-genres-form,
+  .hidden-genres-form--multi {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .hidden-genres-form .form-actions .primary-button {
+    width: 100%;
+  }
+}

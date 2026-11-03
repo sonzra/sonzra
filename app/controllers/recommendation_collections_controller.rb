@@ -3,7 +3,18 @@ class RecommendationCollectionsController < ApplicationController
     if current_server_connection
       RecommendationGenerator.ensure_all(user: current_user, connection: current_server_connection)
     end
-    @recommendation_collections = current_user.recommendation_collections.where(server_connection: current_server_connection).includes(:recommendation_tracks, :server_connection).order(generated_at: :desc).to_a
+    collections = current_user.recommendation_collections
+      .where(server_connection: current_server_connection)
+      .includes(:recommendation_tracks, :server_connection)
+      .order(generated_at: :desc)
+      .to_a
+    if current_server_connection
+      genre_filter = HiddenGenres::Filter.new(current_user, current_server_connection)
+      collections.reject! do |collection|
+        collection.strategy == "best_of_genre" && genre_filter.hidden?(collection.title.delete_prefix("Best of ").strip)
+      end
+    end
+    @recommendation_collections = collections
   end
 
   def show
@@ -45,6 +56,7 @@ class RecommendationCollectionsController < ApplicationController
     hidden_artists = current_user.hidden_artists.where(server_connection: @collection.server_connection)
     hidden_ids = hidden_artists.pluck(:artist_id)
     hidden_names = hidden_artists.pluck(:name)
-    @collection.recommendation_tracks.reject { |track| hidden_ids.include?(track.artist_id) || (track.artist_id.blank? && hidden_names.include?(track.artist)) }
+    tracks = @collection.recommendation_tracks.reject { |track| hidden_ids.include?(track.artist_id) || (track.artist_id.blank? && hidden_names.include?(track.artist)) }
+    HiddenGenres::Filter.new(current_user, @collection.server_connection).items(tracks)
   end
 end
