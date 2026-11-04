@@ -109,6 +109,8 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".detail-albums h2", "Albums"
     assert_select ".detail-albums__grid .listen-card h3", "Artist album"
     assert_select ".detail-albums__grid .listen-card__year", "2024"
+    assert_select ".detail-albums__grid .listen-card .listen-card__cover .listen-card__art", 1
+    assert_select ".detail-albums__grid .listen-card .listen-card__cover .listen-card__play", 1
     assert_select ".listen-section h2", { text: "More by this artist", count: 0 }
   ensure
     service_class.define_singleton_method(:new, original_new)

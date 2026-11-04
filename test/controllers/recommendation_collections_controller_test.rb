@@ -11,6 +11,8 @@ class RecommendationCollectionsControllerTest < ActionDispatch::IntegrationTest
     get recommendation_collections_url
     assert_response :success
     assert_select "h1", "Mixes"
+    assert_select ".listen-card.recommendation-card .listen-card__cover .listen-card__art", 1
+    assert_select ".listen-card.recommendation-card .listen-card__cover .listen-card__play", 1
 
     get recommendation_collection_url(@collection), headers: { "Accept" => "application/json" }
     payload = JSON.parse(response.body)
