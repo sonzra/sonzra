@@ -1,4 +1,5 @@
 const OFFLINE_MEDIA_CACHE = "sonzra-offline-media-v1"
+const EPHEMERAL_STREAM_CACHE = "sonzra-stream-cache-v1"
 const OFFLINE_SHELL_CACHE = "sonzra-offline-shell-v3"
 const OFFLINE_ASSET_CACHE = "sonzra-offline-assets-v2"
 const OFFLINE_MEDIA_PATH = /^\/server_connections\/[^/]+\/(?:audio|artwork)\/[^/]+$/
@@ -58,10 +59,15 @@ function isDocumentRequest(request) {
 
 async function offlineCopyOrNetwork(request) {
   try {
-    const cache = await caches.open(OFFLINE_MEDIA_CACHE)
-    const offlineCopy = await cache.match(request.url, { ignoreVary: true })
+    const offlineCache = await caches.open(OFFLINE_MEDIA_CACHE)
+    const offlineCopy = await offlineCache.match(request.url, { ignoreVary: true })
+    if (offlineCopy) return rangeResponse(request, offlineCopy)
 
-    return offlineCopy ? rangeResponse(request, offlineCopy) : fetch(request)
+    const streamCache = await caches.open(EPHEMERAL_STREAM_CACHE)
+    const streamCopy = await streamCache.match(request.url, { ignoreVary: true })
+    if (streamCopy) return rangeResponse(request, streamCopy)
+
+    return fetch(request)
   } catch (_) {
     return fetch(request)
   }
