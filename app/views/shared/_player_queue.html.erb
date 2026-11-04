@@ -21,7 +21,7 @@
     <div data-player-target="queueView">
       <div class="listen-queue__list-header">
         <p>Queue</p>
-        <div class="listen-queue__utility-controls" role="group" aria-label="Queue controls"><button type="button" aria-label="Radio off" data-player-target="radio" data-action="player#toggleRadio"><%= lucide_icon "radio", aria: { hidden: true } %></button><button type="button" aria-label="Repeat off" data-player-target="repeat" data-action="player#toggleRepeat"><%= lucide_icon "repeat", aria: { hidden: true } %></button><button type="button" class="listen-queue__clear" aria-label="Clear queue" data-action="player#promptClearQueue"><%= lucide_icon "brush-cleaning", aria: { hidden: true } %></button></div>
+        <div class="listen-queue__utility-controls" role="group" aria-label="Queue controls"><button type="button" aria-label="Radio off" data-player-target="radio" data-action="player#toggleRadio"><%= lucide_icon "radio", aria: { hidden: true } %></button><button type="button" aria-label="Repeat off" data-player-target="repeat" data-action="player#toggleRepeat"><%= lucide_icon "repeat", aria: { hidden: true } %></button><button type="button" aria-label="Preload on Wi-Fi only off" data-player-target="wifiPreload" data-action="player#togglePreloadOnWifiOnly"><%= lucide_icon "wifi", aria: { hidden: true } %></button><button type="button" class="listen-queue__clear" aria-label="Clear queue" data-action="player#promptClearQueue"><%= lucide_icon "brush-cleaning", aria: { hidden: true } %></button></div>
       </div>
       <ol data-player-target="queueList"></ol>
     </div>
