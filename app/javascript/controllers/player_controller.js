@@ -29,6 +29,9 @@ export default class extends Controller {
     this.offlineMode = this.offlineValue === true
     this.outbox = this.outbox || new OfflineOutbox()
     this.ephemeralStreamStore = this.ephemeralStreamStore || new EphemeralStreamStore()
+    if (!this.ephemeralStreamStore.supported() && typeof window !== "undefined" && window.isSecureContext === false) {
+      console.warn("[Sonzra Stream Cache] Insecure origin detected. Modern browsers disable CacheStorage and ServiceWorker over remote HTTP (e.g. http://192.168.x.x). To enable stream caching, access via http://localhost:3000 (SSH tunnel) or HTTPS, or enable Chrome's unsafely-treat-insecure-origin-as-secure flag.")
+    }
     this.preloadAbortController = null
     this.preloadingSource = null
     this.isReconnecting = false
