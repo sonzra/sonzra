@@ -930,10 +930,15 @@ module Integrations
         token_value = if token.present?
           (@reauth_attempted && @access_token.present?) ? @access_token : token
         end
-        device_id_value = @device_id.presence || "sonzra-web"
+        device_id_value = @device_id.presence || default_device_id
         values = "Client=\"Sonzra\", Device=\"Sonzra\", DeviceId=\"#{device_id_value}\", Version=\"1.0.0\""
         values += ", Token=\"#{token_value}\"" if token_value.present?
         "MediaBrowser #{values}"
+      end
+
+      def default_device_id
+        instance_id = ENV["JELLYFIN_CLIENT_ID"].presence || ENV["SONZRA_INSTANCE_ID"].presence
+        instance_id.present? ? "#{instance_id}-web" : "sonzra-web"
       end
 
       def authorization_headers(token)

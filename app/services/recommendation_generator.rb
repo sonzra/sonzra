@@ -138,7 +138,8 @@ class RecommendationGenerator
   end
 
   def client_for(connection)
-    @client ||= Integrations::Client.for(connection, device_id: "sonzra-worker-#{connection.id}")
+    instance_prefix = ENV["JELLYFIN_CLIENT_ID"].presence || ENV["SONZRA_INSTANCE_ID"].presence || "sonzra"
+    @client ||= Integrations::Client.for(connection, device_id: "#{instance_prefix}-worker-#{connection.id}")
   end
 
   def current_connection

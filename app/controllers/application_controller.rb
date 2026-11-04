@@ -7,7 +7,8 @@ class ApplicationController < ActionController::Base
   private
 
   def current_device_id
-    session[:sonzra_device_id] ||= "sonzra-web-#{SecureRandom.hex(6)}"
+    instance_prefix = ENV["JELLYFIN_CLIENT_ID"].presence || ENV["SONZRA_INSTANCE_ID"].presence || "sonzra"
+    session[:sonzra_device_id] ||= "#{instance_prefix}-web-#{SecureRandom.hex(6)}"
   end
 
   def server_access_token(server_connection)

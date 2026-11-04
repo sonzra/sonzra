@@ -5,10 +5,11 @@ class PlaybackController < ApplicationController
   before_action :require_playback_access
 
   def show
+    token = analyzer_request? ? server_connection.access_token : server_access_token(server_connection)
     client.stream_audio(
       item_id: params.expect(:item_id),
       range: request.headers["Range"],
-      access_token: session.dig(:server_access_tokens, server_connection.id.to_s)
+      access_token: token
     ) do |part|
       part.is_a?(Integrations::Jellyfin::AudioStreamResponseData) ? start_stream(part) : response.stream.write(part)
     end
@@ -24,7 +25,9 @@ class PlaybackController < ApplicationController
   private
 
   def client
-    @client ||= Integrations::Client.for(server_connection)
+    token = analyzer_request? ? server_connection.access_token : (server_access_token(server_connection) || server_connection.access_token)
+    device_id = analyzer_request? ? "sonzra-analyzer-#{server_connection.id}" : current_device_id
+    @client ||= Integrations::Client.for(server_connection, access_token: token, device_id: device_id)
   end
 
   def server_connection

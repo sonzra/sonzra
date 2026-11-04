@@ -1,8 +1,8 @@
 class ArtworkController < ApplicationController
   def show
     server_connection = current_user.server_connections.find(params.expect(:server_connection_id))
-    client = Integrations::Client.for(server_connection)
-    access_token = session.dig(:server_access_tokens, server_connection.id.to_s) || server_connection.access_token
+    access_token = server_access_token(server_connection) || server_connection.access_token
+    client = Integrations::Client.for(server_connection, access_token: access_token, device_id: current_device_id)
 
     artwork = client.artwork(
       item_id: params.expect(:item_id),

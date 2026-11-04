@@ -847,4 +847,18 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     header = client.authorization_header("some-token")
     assert_includes header, 'DeviceId="sonzra-web"'
   end
+
+  test "incorporates JELLYFIN_CLIENT_ID or SONZRA_INSTANCE_ID into default device_id when omitted" do
+    ENV["JELLYFIN_CLIENT_ID"] = "production"
+    client = Integrations::Jellyfin::Client.new(
+      base_url: "https://example.com",
+      username: "bruno",
+      password: "secret"
+    )
+
+    header = client.authorization_header("some-token")
+    assert_includes header, 'DeviceId="production-web"'
+  ensure
+    ENV.delete("JELLYFIN_CLIENT_ID")
+  end
 end

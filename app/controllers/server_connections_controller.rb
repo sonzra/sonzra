@@ -70,6 +70,7 @@ class ServerConnectionsController < ApplicationController
     connection.save!
     current_user.update!(preferred_server_connection: connection) unless current_user.preferred_server_connection
     session[:server_remote_user_ids] = session.fetch(:server_remote_user_ids, {}).merge(connection.id.to_s => authentication.dig("User", "Id"))
+    store_server_access_token(connection, authentication.fetch("AccessToken"))
     session.delete(:quick_connect)
     render json: { status: "connected", redirect_url: server_connections_path }
   rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError, ActiveRecord::RecordInvalid => error
@@ -95,7 +96,7 @@ class ServerConnectionsController < ApplicationController
   end
 
   def test_connection
-    result = ServerConnections::TestConnection.new(@server_connection).call
+    result = ServerConnections::TestConnection.new(@server_connection, device_id: current_device_id).call
     respond_to do |format|
       format.html do
         flash[result.success? ? :notice : :alert] = result.message
@@ -231,7 +232,7 @@ class ServerConnectionsController < ApplicationController
   end
 
   def jellyfin_client(media_server)
-    Integrations::Jellyfin::Client.new(base_url: media_server.base_url)
+    Integrations::Jellyfin::Client.new(base_url: media_server.base_url, device_id: current_device_id)
   end
 
   def plex_client(media_server, access_token: nil)
@@ -256,6 +257,7 @@ class ServerConnectionsController < ApplicationController
     connection.assign_attributes(username: client.authenticated_account_name(access_token:), access_token:, password: nil)
     connection.save!
     current_user.update!(preferred_server_connection: connection) unless current_user.preferred_server_connection
+    store_server_access_token(connection, authentication.fetch("AccessToken"))
     session.delete(:quick_connect)
     render json: { status: "connected", redirect_url: server_connections_path }
   end

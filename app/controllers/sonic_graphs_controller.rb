@@ -35,7 +35,12 @@ class SonicGraphsController < ApplicationController
 
   def show
     server_connection = current_user.server_connections.find(params.expect(:server_connection_id))
-    client = Integrations::Client.for(server_connection, remote_user_id: session.dig(:server_remote_user_ids, server_connection.id.to_s))
+    client = Integrations::Client.for(
+      server_connection,
+      remote_user_id: session.dig(:server_remote_user_ids, server_connection.id.to_s),
+      access_token: server_access_token(server_connection),
+      device_id: current_device_id
+    )
 
     item_id = params.expect(:item_id)
     center_items = client.recommendation_tracks_by_ids([ item_id ])

@@ -23,6 +23,27 @@ class ServerConnections::TestConnectionTest < ActiveSupport::TestCase
     assert_equal "The saved server credentials were rejected.", result.message
   end
 
+  test "forwards device_id to integration client when client is not injected" do
+    fake_client = Object.new
+    fake_client.define_singleton_method(:authenticate) { "Bruno" }
+
+    original_for = Integrations::Client.method(:for)
+    received_options = nil
+    Integrations::Client.define_singleton_method(:for) do |_conn, **options|
+      received_options = options
+      fake_client
+    end
+
+    begin
+      result = ServerConnections::TestConnection.new(server_connection, device_id: "test-device-id").call
+
+      assert_predicate result, :success?
+      assert_equal "test-device-id", received_options[:device_id]
+    ensure
+      Integrations::Client.define_singleton_method(:for, original_for)
+    end
+  end
+
   private
 
   def server_connection
