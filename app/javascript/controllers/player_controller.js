@@ -12,7 +12,7 @@ const RADIO_MAX_QUEUE_SIZE = 24
 const PLAYBACK_RECOVERY_DELAY = 8_000
 const MAX_PLAYBACK_RECOVERY_ATTEMPTS = 2
 const QUEUE_TRANSITION_DURATION = 320
-const LOOKAHEAD_BUFFER_THRESHOLD = 45
+const LOOKAHEAD_BUFFER_THRESHOLD = 15
 
 export default class extends Controller {
   static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "favorite", "radio", "volume", "clearDialog", "queueView", "lyricsView", "queueTab", "lyricsTab", "lyricsStatus", "lyricsList", "lyricsFollow", "visualizer", "wifiPreload"]
@@ -975,7 +975,7 @@ export default class extends Controller {
 
     const duration = this.audioTarget.duration
     const currentTime = Number(this.audioTarget.currentTime) || 0
-    if (Number.isFinite(duration) && duration > 0 && currentTime >= duration - 5) {
+    if (Number.isFinite(duration) && duration > 0 && currentTime >= duration - 30) {
       return true
     }
 
@@ -1016,16 +1016,18 @@ export default class extends Controller {
     this.preloadingSource = nextTrack.source
 
     try {
+      console.info("[Sonzra Stream Cache] Preloading next track into cache:", nextTrack.title || nextTrack.source)
       const response = await fetch(nextTrack.source, {
         signal: this.preloadAbortController.signal,
         credentials: "same-origin"
       })
       if (response.ok) {
         await this.ephemeralStreamStore?.put(nextTrack.source, response)
+        console.info("[Sonzra Stream Cache] Successfully cached track in sonzra-stream-cache-v1:", nextTrack.title || nextTrack.source)
       }
     } catch (error) {
       if (error?.name !== "AbortError") {
-        // Ephemeral preloading failure is non-fatal
+        console.warn("[Sonzra Stream Cache] Preload failed (non-fatal):", error)
       }
     } finally {
       if (this.preloadingSource === nextTrack.source) {
