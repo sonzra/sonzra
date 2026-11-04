@@ -667,4 +667,39 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     assert_equal "Random", parameters["SortBy"]
     assert_equal "20", parameters["Limit"]
   end
+
+  test "uses sonzra-dev device identifier in development environment to avoid production session collisions" do
+    client = Integrations::Jellyfin::Client.new(base_url: "https://example.com")
+    header = client.send(:authorization_header)
+    assert_includes header, 'DeviceId="sonzra-web"'
+    assert_includes header, 'Device="Sonzra"'
+
+    original_env = Rails.env
+    begin
+      Rails.env = "development"
+      dev_header = client.send(:authorization_header)
+      assert_includes dev_header, 'DeviceId="sonzra-dev"'
+      assert_includes dev_header, 'Device="Sonzra Dev"'
+    ensure
+      Rails.env = original_env
+    end
+  end
+
+  test "respects SONZRA_DEVICE_ID environment variable" do
+    client = Integrations::Jellyfin::Client.new(base_url: "https://example.com")
+    with_env("SONZRA_DEVICE_ID" => "custom-device-123") do
+      header = client.send(:authorization_header)
+      assert_includes header, 'DeviceId="custom-device-123"'
+    end
+  end
+
+  private
+
+  def with_env(hash)
+    original = hash.keys.index_with { |key| ENV[key] }
+    hash.each { |key, value| ENV[key] = value }
+    yield
+  ensure
+    original.each { |key, value| ENV[key] = value }
+  end
 end

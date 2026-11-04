@@ -890,10 +890,21 @@ module Integrations
       end
 
       def authorization_header(token = nil)
-        device_id = @device_id.presence || "sonzra-web"
-        values = %(Client="Sonzra", Device="Sonzra", DeviceId="#{device_id}", Version="1.0.0")
+        device_id = @device_id.presence || default_device_id
+        device_name = default_device_name
+        values = %(Client="Sonzra", Device="#{device_name}", DeviceId="#{device_id}", Version="1.0.0")
         values += ", Token=\"#{token}\"" if token.present?
         "MediaBrowser #{values}"
+      end
+
+      def default_device_id
+        ENV.fetch("SONZRA_DEVICE_ID") do
+          Rails.env.development? ? "sonzra-dev" : "sonzra-web"
+        end
+      end
+
+      def default_device_name
+        Rails.env.development? ? "Sonzra Dev" : "Sonzra"
       end
 
       def authorization_headers(token)
