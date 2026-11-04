@@ -311,18 +311,11 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
       similar_response
     ])
 
-    client = Integrations::Jellyfin::Client.new(
-      base_url: @server_connection.base_url,
-      username: @server_connection.username,
-      password: @server_connection.password,
-      access_token: "stale-token",
-      remote_user_id: "user-id",
-      http: http,
-      on_token_refreshed: ->(t) { @server_connection.update_column(:access_token, t) }
-    )
-
     original_for = Integrations::Client.method(:for)
-    Integrations::Client.define_singleton_method(:for) { |*_args, **_kwargs| client }
+    Integrations::Client.define_singleton_method(:for) do |server_connection, **kwargs|
+      options = server_connection.client_options(**kwargs, http: http, access_token: "stale-token", remote_user_id: "user-id")
+      Integrations::Jellyfin::Client.new(**options)
+    end
 
     begin
       get library_item_server_connection_url(@server_connection, "album-id")

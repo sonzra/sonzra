@@ -13,6 +13,7 @@ describe("quick connect controller", () => {
   })
 
   afterEach(() => {
+    delete window.Turbo
     application.stop()
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
@@ -51,5 +52,49 @@ describe("quick connect controller", () => {
     expect(dialog.close).toHaveBeenCalled()
     expect(document.querySelector(".connection-alert")).toBeNull()
     expect(window.Turbo.visit).toHaveBeenCalledWith(window.location.href, { action: "replace" })
+  })
+
+  it("stops polling when dialog is closed", async () => {
+    application.stop()
+    document.body.innerHTML = `
+      <dialog id="reconnect-dialog" open>
+        <section data-controller="quick-connect" data-quick-connect-status-url-value="/server_connections/quick_connect_status" data-quick-connect-modal-value="true">
+          <p data-quick-connect-target="message">Waiting for approval…</p>
+        </section>
+      </dialog>
+    `
+    const dialog = document.getElementById("reconnect-dialog")
+    application = Application.start()
+    application.register("quick-connect", QuickConnectController)
+    await Promise.resolve()
+
+    const controller = application.getControllerForElementAndIdentifier(document.querySelector("[data-controller]"), "quick-connect")
+    expect(controller.timer).not.toBeNull()
+
+    // Dispatch close event on dialog
+    dialog.removeAttribute("open")
+    dialog.dispatchEvent(new Event("close"))
+
+    expect(controller.timer).toBeNull()
+  })
+
+  it("redirects to redirect_url on connected when on standalone page", async () => {
+    application.stop()
+    document.body.innerHTML = `
+      <section data-controller="quick-connect" data-quick-connect-status-url-value="/server_connections/quick_connect_status" data-quick-connect-modal-value="false">
+        <p data-quick-connect-target="message">Waiting for approval…</p>
+      </section>
+    `
+    window.Turbo = { visit: vi.fn() }
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ json: () => Promise.resolve({ status: "connected", redirect_url: "/server_connections" }) })))
+
+    application = Application.start()
+    application.register("quick-connect", QuickConnectController)
+    await Promise.resolve()
+
+    const controller = application.getControllerForElementAndIdentifier(document.querySelector("[data-controller]"), "quick-connect")
+    await controller.poll()
+
+    expect(window.Turbo.visit).toHaveBeenCalledWith("/server_connections")
   })
 })

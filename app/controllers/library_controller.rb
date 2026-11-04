@@ -122,7 +122,12 @@ class LibraryController < ApplicationController
     @result = @service.call
     @supports_letter_filtering = @service.supports?(Integrations::Capabilities::LETTER_FILTERING)
 
-    store_server_access_token(@server_connection, @result.access_token) if @result.success?
+    if @result.success?
+      clear_connection_alert(@server_connection)
+      store_server_access_token(@server_connection, @result.access_token)
+    elsif @result.message.to_s.match?(/session expired|401|authentication/i)
+      record_connection_alert(@server_connection)
+    end
 
     respond_to do |format|
       format.html

@@ -861,4 +861,25 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
   ensure
     ENV.delete("JELLYFIN_CLIENT_ID")
   end
+
+  test "publicly exposes access_token reader" do
+    client = Integrations::Jellyfin::Client.new(base_url: "https://example.com", access_token: "my-token")
+    assert client.respond_to?(:access_token)
+    assert_equal "my-token", client.access_token
+  end
+
+  test "wraps network errors in stream with ConnectionError" do
+    http = Object.new
+    http.define_singleton_method(:start) do |*_args, **_kwargs|
+      raise SocketError, "getaddrinfo: Name or service not known"
+    end
+
+    client = Integrations::Jellyfin::Client.new(base_url: "https://example.com", http: http)
+    request = Net::HTTP::Get.new(URI.parse("https://example.com/Audio/123/stream"))
+
+    error = assert_raises(Integrations::Jellyfin::Client::ConnectionError) do
+      client.send(:stream, request) { |_| }
+    end
+    assert_includes error.message, "Connection failed: getaddrinfo: Name or service not known"
+  end
 end

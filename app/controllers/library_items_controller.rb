@@ -8,12 +8,15 @@ class LibraryItemsController < ApplicationController
       access_token: server_access_token(@server_connection),
       device_id: current_device_id
     ).call
-    return unless @result.success?
-
-    store_server_access_token(@server_connection, @result.access_token)
-    @back_path, @back_label = detail_back_destination(@result.details)
-    @media_detail_header = playable_media_detail?(@result.details)
-    @media_detail_title = media_detail_title(@result.details) if @media_detail_header
+    if @result.success?
+      clear_connection_alert(@server_connection)
+      store_server_access_token(@server_connection, @result.access_token)
+      @back_path, @back_label = detail_back_destination(@result.details)
+      @media_detail_header = playable_media_detail?(@result.details)
+      @media_detail_title = media_detail_title(@result.details) if @media_detail_header
+    elsif @result.message.to_s.match?(/session expired|401|authentication/i)
+      record_connection_alert(@server_connection)
+    end
   end
 
   private

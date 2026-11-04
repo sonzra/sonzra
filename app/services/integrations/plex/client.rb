@@ -26,6 +26,8 @@ module Integrations
         end
       end
 
+      attr_reader :access_token
+
       def initiate_pin(forward_url:)
         response = request(:post, "#{PLEX_CLOUD_URL}/api/v2/pins", params: { strong: true }, form: true)
         pin = parse_json(response)

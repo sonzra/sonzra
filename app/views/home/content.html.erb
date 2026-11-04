@@ -2,6 +2,11 @@
   <% if @result.success? %>
     <%= render(redesign_enabled? ? "redesign_library_content" : "library_content", content: @result.content) %>
   <% else %>
+    <% if @server_connection && @result.message.to_s.match?(/session expired|401|authentication/i) %>
+      <%= turbo_stream.update "connection_alerts" do %>
+        <%= render "shared/reconnect_banner", server_connection: @server_connection %>
+      <% end %>
+    <% end %>
     <section class="listen-loading listen-loading--error" role="alert">
       <h1>We couldn’t load your library.</h1>
       <p><%= @result.message %></p>

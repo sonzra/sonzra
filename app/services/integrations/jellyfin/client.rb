@@ -25,6 +25,8 @@ module Integrations
         @reauth_attempted = false
       end
 
+      attr_reader :base_url, :username, :password, :access_token, :remote_user_id, :http
+
       def authenticate
         authentication.fetch("User").fetch("Name")
       end
@@ -434,8 +436,6 @@ module Integrations
         raise ConnectionError, "Could not establish a secure connection to the server."
       end
 
-      attr_reader :base_url, :username, :password, :access_token, :remote_user_id, :http
-
       def items(user_id, token, limit: 8, sort_order: "Descending", **parameters)
         requested_fields = parameters.delete(:Fields)
         get(
@@ -839,6 +839,8 @@ module Integrations
         http.start(retried_request.uri.host, retried_request.uri.port, use_ssl: retried_request.uri.scheme == "https", open_timeout: 5, read_timeout: 10) do |connection|
           connection.request(retried_request) { |response| yield response }
         end
+      rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED, Errno::ETIMEDOUT, Timeout::Error, OpenSSL::SSL::SSLError, Errno::EHOSTUNREACH, Errno::ECONNRESET => error
+        raise ConnectionError, "Connection failed: #{error.message}"
       end
 
       def clone_request_with_token(http_request, new_token)

@@ -46,6 +46,12 @@ class ServerConnectionsController < ApplicationController
   end
 
   def quick_connect
+    if session[:quick_connect].blank? && params[:connection_id].present?
+      connection = current_user.server_connections.find_by(id: params[:connection_id])
+      if connection&.media_server
+        session[:quick_connect] = quick_connect_session(connection.media_server).merge("reconnect_connection_id" => connection.id)
+      end
+    end
     @quick_connect = session[:quick_connect]
     redirect_to server_connections_path, alert: "Start a new server connection to receive an approval code." unless @quick_connect
   end
@@ -73,6 +79,7 @@ class ServerConnectionsController < ApplicationController
     connection.save!
     current_user.update!(preferred_server_connection: connection) unless current_user.preferred_server_connection
     session[:server_remote_user_ids] = session.fetch(:server_remote_user_ids, {}).merge(connection.id.to_s => authentication.dig("User", "Id"))
+    clear_connection_alert(connection)
     store_server_access_token(connection, authentication.fetch("AccessToken"))
     session.delete(:quick_connect)
     render json: { status: "connected", redirect_url: server_connections_path }
@@ -112,21 +119,25 @@ class ServerConnectionsController < ApplicationController
   def reconnect
     if request.patch?
       @server_connection.assign_attributes(connection_params)
-      if @server_connection.save
+      if @server_connection.valid?
         client = Integrations::Client.for(@server_connection, device_id: current_device_id)
         begin
           client.authenticate
+          @server_connection.save!
+          clear_connection_alert(@server_connection)
           store_server_access_token(@server_connection, client.access_token)
           respond_to do |format|
             format.turbo_stream do
               render turbo_stream: [
                 turbo_stream.remove("connection-alert-#{@server_connection.id}"),
-                turbo_stream.update("reconnect_modal", html: "<div class=\"reconnect-modal__success\" data-controller=\"reconnect\" data-action=\"connect->reconnect#close\"><p>Connected successfully!</p></div>")
+                turbo_stream.update("reconnect_modal", html: %(<div class="reconnect-modal__success" data-controller="reconnect"><p>Connected successfully!</p><button type="button" class="primary-button" data-action="reconnect#close">Done</button></div>))
               ]
             end
             format.html { redirect_to @server_connection, notice: "Server reconnected." }
           end
-        rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError => error
+        rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError,
+               Integrations::Plex::Client::AuthenticationError, Integrations::Plex::Client::ConnectionError => error
+          @server_connection.reload
           @server_connection.errors.add(:base, error.message)
           render :reconnect, status: :unprocessable_entity
         end
@@ -148,6 +159,15 @@ class ServerConnectionsController < ApplicationController
           @quick_connect = session[:quick_connect]
         rescue StandardError => e
           Rails.logger.warn("[Reconnect] QuickConnect initiation failed: #{e.message}")
+        end
+      elsif @server_connection.media_server&.plex?
+        begin
+          session[:quick_connect] = quick_connect_session(@server_connection.media_server).merge(
+            "reconnect_connection_id" => @server_connection.id
+          )
+          @quick_connect = session[:quick_connect]
+        rescue StandardError => e
+          Rails.logger.warn("[Reconnect] Plex PIN initiation failed: #{e.message}")
         end
       end
       render :reconnect
@@ -263,11 +283,15 @@ class ServerConnectionsController < ApplicationController
     access_token = client.pin_status(pin_id: quick_connect.fetch("id"), code: quick_connect.fetch("code"))
     return render json: { status: "pending" } if access_token.blank?
 
-    connection = current_user.server_connections.find_or_initialize_by(media_server: media_server)
+    connection = if quick_connect["reconnect_connection_id"].present?
+      current_user.server_connections.find_by(id: quick_connect["reconnect_connection_id"])
+    end
+    connection ||= current_user.server_connections.find_or_initialize_by(media_server: media_server)
     connection.assign_attributes(username: client.authenticated_account_name(access_token:), access_token:, password: nil)
     connection.save!
     current_user.update!(preferred_server_connection: connection) unless current_user.preferred_server_connection
-    store_server_access_token(connection, authentication.fetch("AccessToken"))
+    clear_connection_alert(connection)
+    store_server_access_token(connection, access_token)
     session.delete(:quick_connect)
     render json: { status: "connected", redirect_url: server_connections_path }
   end

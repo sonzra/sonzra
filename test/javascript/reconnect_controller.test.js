@@ -84,4 +84,15 @@ describe("reconnect controller", () => {
     dialog.dispatchEvent(new MouseEvent("click", { bubbles: true }))
     expect(dialog.close).toHaveBeenCalledOnce()
   })
+
+  it("clears modal turbo-frame content when dialog is closed", () => {
+    const dialog = document.getElementById("reconnect-dialog")
+    const frame = document.createElement("turbo-frame")
+    frame.id = "reconnect_modal"
+    frame.innerHTML = "<div>Polling active</div>"
+    dialog.appendChild(frame)
+
+    controller.close({ preventDefault: vi.fn() })
+    expect(frame.innerHTML).toBe("")
+  })
 })

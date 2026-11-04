@@ -8,14 +8,14 @@
         </div>
         <div class="reconnect-modal__body">
           <% if @quick_connect %>
-            <div class="quick-connect" data-controller="quick-connect" data-quick-connect-status-url-value="<%= quick_connect_status_server_connections_path %>" data-quick-connect-modal-value="true">
+            <div class="quick-connect" data-controller="quick-connect" data-quick-connect-status-url-value="<%= quick_connect_status_server_connections_path %>" data-quick-connect-modal-value="<%= turbo_frame_request? %>">
               <p class="reconnect-modal__instruction">In an already signed-in Jellyfin app, open <strong>Settings → Quick Connect</strong> and enter this code:</p>
               <p class="quick-connect__code" aria-label="Quick Connect code"><%= @quick_connect.fetch("code") %></p>
               <p class="form-hint" data-quick-connect-target="message">Waiting for approval…</p>
             </div>
           <% elsif @server_connection.media_server&.plex? %>
             <p class="reconnect-modal__instruction">Your Plex token has expired. Launch Plex authentication to link your account again:</p>
-            <%= link_to "Link Plex Account", quick_connect_server_connections_path, class: "primary-button", target: "_top" %>
+            <%= link_to "Link Plex Account", quick_connect_server_connections_path(connection_id: @server_connection.id), class: "primary-button", target: "_top" %>
           <% else %>
             <p class="reconnect-modal__instruction">Enter your credentials for <%= @server_connection.name %> to restore the connection:</p>
             <%= form_with model: @server_connection, url: reconnect_server_connection_path(@server_connection), method: :patch, class: "connection-form", data: { turbo_frame: "reconnect_modal" } do |f| %>

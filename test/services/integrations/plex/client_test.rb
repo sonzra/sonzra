@@ -398,4 +398,14 @@ class Integrations::Plex::ClientTest < ActiveSupport::TestCase
   ensure
     ENV["PLEX_CLIENT_ID"] = previous_value if previous_value
   end
+
+  test "publicly exposes access_token reader" do
+    previous_value = ENV["PLEX_CLIENT_ID"]
+    ENV["PLEX_CLIENT_ID"] = "test-client-id"
+    client = Integrations::Plex::Client.new(base_url: "http://plex.example.test", access_token: "plex-token")
+    assert client.respond_to?(:access_token)
+    assert_equal "plex-token", client.access_token
+  ensure
+    ENV["PLEX_CLIENT_ID"] = previous_value if previous_value
+  end
 end

@@ -197,6 +197,143 @@ class ServerConnectionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "dialog#reconnect-dialog"
   end
 
+  test "renders reconnect banner in connection alerts when connection alert session is present" do
+    result = ServerConnections::FetchHomeContentResultData.new(
+      content: nil,
+      access_token: nil,
+      message: "Session expired."
+    )
+    service = Object.new
+    service.define_singleton_method(:call) { result }
+    original_new = ServerConnections::FetchCachedHomeContent.method(:new)
+    ServerConnections::FetchCachedHomeContent.define_singleton_method(:new) { |*_args, **_kwargs| service }
+
+    begin
+      get home_content_url
+      assert_response :success
+
+      get server_connections_url
+      assert_response :success
+      assert_select "#connection-alert-#{@server_connection.id}"
+      assert_select ".connection-alert__text strong", "Connection to #{@server_connection.name} expired."
+    ensure
+      ServerConnections::FetchCachedHomeContent.define_singleton_method(:new, original_new)
+    end
+  end
+
+  test "reconnect does not save invalid credentials when authentication fails" do
+    old_password = @server_connection.password
+    fake_client = Object.new
+    fake_client.define_singleton_method(:authenticate) do
+      raise Integrations::Jellyfin::Client::AuthenticationError, "Invalid username or password."
+    end
+
+    original_for = Integrations::Client.method(:for)
+    Integrations::Client.define_singleton_method(:for) { |*_args, **_kwargs| fake_client }
+
+    begin
+      patch reconnect_server_connection_url(@server_connection), params: {
+        server_connection: { username: "bruno", password: "wrong-password" }
+      }
+
+      assert_response :unprocessable_entity
+      assert_equal old_password, @server_connection.reload.password
+      assert_select ".form-errors", text: /Invalid username or password/
+    ensure
+      Integrations::Client.define_singleton_method(:for, original_for)
+    end
+  end
+
+  test "completes plex quick connect status and stores access token without NameError" do
+    plex_server = MediaServer.create!(provider: :plex, base_url: "https://plex.example.com", name: "Plex Server")
+    fake_client = Object.new
+    fake_client.define_singleton_method(:initiate_pin) do |**|
+      { "id" => "123", "code" => "ABCD", "url" => "https://plex.tv/pin" }
+    end
+    fake_client.define_singleton_method(:pin_status) { |**| "fresh-plex-token" }
+    fake_client.define_singleton_method(:authenticated_account_name) { |**| "PlexUser" }
+
+    with_plex_client(fake_client) do
+      post start_quick_connect_server_connections_url, params: {
+        server_connection: { media_server_id: plex_server.id }
+      }
+      assert_redirected_to quick_connect_server_connections_url
+
+      get quick_connect_status_server_connections_url, as: :json
+      assert_response :success
+
+      response_data = JSON.parse(response.body)
+      assert_equal "connected", response_data["status"]
+
+      connection = users(:one).server_connections.find_by!(media_server: plex_server)
+      assert_equal "PlexUser", connection.username
+      assert_equal "fresh-plex-token", connection.access_token
+      assert_equal "fresh-plex-token", session.dig(:server_access_tokens, connection.id.to_s)
+    end
+  end
+
+  test "reconnect initiates quick connect session for plex connection" do
+    plex_server = MediaServer.create!(provider: :plex, base_url: "https://plex.example.com", name: "Plex Server")
+    plex_connection = users(:one).server_connections.create!(
+      media_server: plex_server,
+      username: "PlexUser",
+      access_token: "expired-token"
+    )
+
+    fake_client = Object.new
+    fake_client.define_singleton_method(:initiate_pin) do |**|
+      { "id" => "999", "code" => "WXYZ", "url" => "https://plex.tv/pin" }
+    end
+
+    with_plex_client(fake_client) do
+      get reconnect_server_connection_url(plex_connection)
+      assert_response :success
+
+      assert_equal "plex", session.dig(:quick_connect, "provider")
+      assert_equal "999", session.dig(:quick_connect, "id")
+      assert_equal plex_connection.id, session.dig(:quick_connect, "reconnect_connection_id")
+
+      # Clicking link to quick_connect does not redirect away with error
+      get quick_connect_server_connections_url
+      assert_response :success
+      assert_select "a[href='https://plex.tv/pin']", text: "Open Plex sign-in"
+    end
+  end
+
+  test "prioritizes and synchronizes updated database token over stale session token" do
+    fake_client = Object.new
+    fake_client.define_singleton_method(:authenticate) { "Bruno" }
+    fake_client.define_singleton_method(:access_token) { "stale-session-token" }
+    original_for = Integrations::Client.method(:for)
+    Integrations::Client.define_singleton_method(:for) { |*_args, **_kwargs| fake_client }
+
+    begin
+      patch reconnect_server_connection_url(@server_connection), params: {
+        server_connection: { username: "bruno", password: "new-password" }
+      }
+      assert_equal "stale-session-token", session.dig(:server_access_tokens, @server_connection.id.to_s)
+
+      # Now simulate background job updating the DB token
+      @server_connection.update_column(:access_token, "database-fresh-token")
+
+      get server_connections_url
+      assert_equal "database-fresh-token", @controller.send(:server_access_token, @server_connection)
+      assert_equal "database-fresh-token", session.dig(:server_access_tokens, @server_connection.id.to_s)
+    ensure
+      Integrations::Client.define_singleton_method(:for, original_for)
+    end
+  end
+
+  def with_plex_client(client)
+    client_class = Integrations::Plex::Client
+    client_class.singleton_class.alias_method :new_before_plex_test, :new
+    client_class.define_singleton_method(:new) { |**| client }
+    yield
+  ensure
+    client_class.singleton_class.alias_method :new, :new_before_plex_test
+    client_class.singleton_class.remove_method :new_before_plex_test
+  end
+
   def with_jellyfin_client(client)
     client_class = Integrations::Jellyfin::Client
     client_class.singleton_class.alias_method :new_before_quick_connect_test, :new
