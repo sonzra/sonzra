@@ -45,15 +45,19 @@ body.redesign { margin: 0; overflow-x: hidden; }
 .redesign .listen-section__heading { align-items: end; }
 .redesign .listen-shelf-wrap { position: relative; }
 .redesign .listen-shelf { display: grid; margin: 0; list-style: none; }
-.redesign .listen-card { min-width: 0; cursor: pointer; }
-.redesign .listen-card__art { position: relative; display: block; aspect-ratio: 1; overflow: hidden; background: var(--rz-raised); }
+.redesign .listen-card { position: relative; min-width: 0; cursor: pointer; }
+.redesign .listen-card__cover { position: relative; aspect-ratio: 1; overflow: hidden; border-radius: 16px; background: var(--rz-raised); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%), 0 15px 32px rgb(0 0 0 / 24%); transition: transform .22s ease, box-shadow .22s ease; }
+.redesign .listen-card__art { position: relative; display: block; width: 100%; height: 100%; aspect-ratio: 1; overflow: hidden; background: var(--rz-raised); }
 .redesign .listen-card__art img { width: 100%; height: 100%; object-fit: cover; }
 .redesign .listen-card__fallback { position: absolute; inset: 0; width: 100% !important; height: 100% !important; padding: 24%; object-fit: contain !important; background: radial-gradient(circle, #30215f, #12131f); }
-.redesign .listen-card__play { position: absolute; z-index: 2; right: 12px; bottom: 12px; display: grid; place-items: center; padding: 0; border-radius: 50%; color: var(--rz-text); box-shadow: 0 8px 20px rgb(0 0 0 / 40%); opacity: 0; transform: translateY(7px) scale(.9); transition: opacity .22s cubic-bezier(.2, .8, .2, 1), transform .22s cubic-bezier(.2, .8, .2, 1); }
+.redesign .listen-card__play { position: absolute; z-index: 2; top: auto; left: auto; right: 12px; bottom: 12px; display: grid; width: 46px; height: 46px; place-items: center; padding: 0; border: 1px solid rgb(255 255 255 / 48%); border-radius: 50%; background: rgb(9 9 15 / 84%); color: #fff; box-shadow: 0 8px 20px rgb(0 0 0 / 40%); cursor: pointer; opacity: 0; transform: translateY(7px) scale(.9); transition: opacity .22s cubic-bezier(.2, .8, .2, 1), transform .22s cubic-bezier(.2, .8, .2, 1), background .18s ease; }
+.redesign .listen-card__play:hover { background: var(--rz-hover); border-color: rgb(255 255 255 / 75%); }
+.redesign .listen-card__play svg { width: 17px; height: 17px; margin-left: 1px; }
+.redesign .listen-card:hover .listen-card__cover, .redesign .listen-card:focus-within .listen-card__cover { transform: translateY(-3px); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 20%), 0 22px 45px rgb(0 0 0 / 36%); }
 .redesign .listen-card:hover .listen-card__play, .redesign .listen-card:focus-within .listen-card__play { opacity: 1; transform: none; }
 .redesign .listen-card__options { position: absolute; z-index: 3; top: 9px; right: 9px; }
-.redesign .listen-card__options-toggle { display: grid; width: 34px; height: 34px; place-items: center; padding: 0; border: 1px solid var(--rz-line); border-radius: 50%; color: var(--rz-text); cursor: pointer; }
-.redesign .listen-card__options-toggle svg, .redesign .listen-card__play svg { width: 18px; height: 18px; }
+.redesign .listen-card__options-toggle { display: grid; width: 34px; height: 34px; place-items: center; padding: 0; border: 1px solid var(--rz-line); border-radius: 50%; background: rgb(9 9 15 / 80%); color: var(--rz-text); cursor: pointer; }
+.redesign .listen-card__options-toggle svg { width: 18px; height: 18px; }
 .redesign .listen-card h3 { min-width: 0; }.redesign .listen-card h3 a { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .redesign .library-grid { display: grid; }.redesign .library-page-layout--browsable { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; }.redesign .library-grid-wrapper { min-width: 0; }.redesign .library-infinite-sentinel { height: 40px; margin-top: 20px; }.redesign .library-alphabet { position: sticky; display: flex; flex-direction: column; gap: 2px; padding: 6px 0; }.redesign .library-alphabet button { display: grid; width: 26px; height: 22px; place-items: center; padding: 0; border-radius: 6px; background: transparent; font-size: 11px; font-weight: 750; cursor: pointer; }
 .redesign .library-media-list { display: grid; max-width: 900px; margin: 0; padding: 0; list-style: none; }.redesign .library-media-list__item { display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; align-items: center; gap: 13px; padding: 9px; }.redesign .library-media-list__art { display: block; width: 54px; height: 54px; overflow: hidden; background: var(--rz-raised); }.redesign .library-media-list__art img { width: 100%; height: 100%; object-fit: cover; }.redesign .library-media-list__details { display: grid; min-width: 0; gap: 3px; }.redesign .library-media-list__details a, .redesign .library-media-list__details span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.redesign .library-media-list__details a { color: var(--rz-text); font-size: 15px; font-weight: 800; text-decoration: none; }.redesign .library-media-list__details span { color: var(--rz-muted); font-size: 13px; }.redesign .library-media-list__actions { display: flex; align-items: center; gap: 7px; }
@@ -144,9 +148,8 @@ body.redesign { margin: 0; overflow-x: hidden; }
 .redesign .listen-text-button { color: var(--rz-primary-light); font-size: 12px; text-decoration: none; }
 .redesign .listen-shelf { grid-auto-flow: initial; grid-template-columns: repeat(5, minmax(0, 1fr)); grid-auto-columns: unset; gap: 18px; overflow: visible; padding: 0; }
 .redesign .listen-shelf-wrap { --shelf-cover-size: auto; }.redesign .listen-shelf__button { display: none; }
-.redesign .listen-card { position: relative; min-width: 0; }.redesign .listen-card__art { border-radius: 16px; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%), 0 15px 32px rgb(0 0 0 / 24%); transition: transform .22s ease, box-shadow .22s ease; }.redesign .listen-card:hover .listen-card__art, .redesign .listen-card:focus-within .listen-card__art { transform: translateY(-3px); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 20%), 0 22px 45px rgb(0 0 0 / 36%); }
+.redesign .listen-card { position: relative; min-width: 0; }
 .redesign .listen-card h3 { margin: 10px 0 3px; font-size: 13px; }.redesign .listen-card h3 a { color: var(--rz-text); text-decoration: none; }.redesign .listen-card p { color: var(--rz-muted); font-size: 11px; }
-.redesign .listen-card__play { width: 46px; height: 46px; border-color: rgb(255 255 255 / 48%); background: rgb(9 9 15 / 84%); }.redesign .listen-card__options-toggle { border-color: var(--rz-line); background: rgb(9 9 15 / 80%); }
 .redesign .library-grid { grid-template-columns: repeat(auto-fill, minmax(172px, 1fr)); gap: 24px 18px; }.redesign .library-page-intro, .redesign .settings-intro { margin: 0 0 30px; }.redesign .settings-intro h1, .redesign .form-page h1, .redesign .connection-detail h1 { font-size: clamp(38px, 5vw, 62px); letter-spacing: -.055em; }.redesign .page-title { gap: 12px; }.redesign .back-link { color: var(--rz-muted); }.redesign .back-link:hover { color: var(--rz-text); }
 .redesign .library-search__trigger { border-color: var(--rz-line); border-radius: 11px; background: rgb(255 255 255 / 4%); }.redesign .library-search__dialog { border-color: var(--rz-line); background: var(--rz-raised); }.redesign .library-pagination { color: var(--rz-muted); }
 .redesign-library-tabs { display: flex; gap: 18px; margin-top: 25px; overflow-x: auto; border-bottom: 1px solid var(--rz-line); scrollbar-width: none; }.redesign-library-tabs::-webkit-scrollbar { display: none; }.redesign-library-tabs a { position: relative; flex: 0 0 auto; padding: 10px 2px 12px; color: var(--rz-muted); font-size: 11px; font-weight: 750; text-decoration: none; }.redesign-library-tabs a[aria-current="page"] { color: var(--rz-text); }.redesign-library-tabs a[aria-current="page"]::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; background: var(--rz-primary); content: ""; }
@@ -591,13 +594,6 @@ html[data-turbo-preview] .redesign .listen-main:not(.listen-main--home), html[da
 .redesign .redesign-detail-tracks .track-list .listen-card__play:hover, .redesign .redesign-detail-tracks .track-list__queue:hover, .redesign .redesign-detail-tracks .detail-track__more:hover, .redesign .redesign-detail-tracks .detail-track__more[aria-expanded="true"] { border-color: rgb(155 130 255 / 58%) !important; background: rgb(122 90 248 / 20%) !important; color: #fff !important; }
 .redesign .redesign-detail-tracks .track-list .listen-card__play svg, .redesign .redesign-detail-tracks .track-list__queue svg, .redesign .redesign-detail-tracks .detail-track__more svg { width: 16px; height: 16px; }
 
-/* Card controls belong to the cover, so they retain their inset
-   while that cover lifts on hover. */
-.redesign .listen-card__cover { position: relative; aspect-ratio: 1; border-radius: 16px; transition: transform .22s ease; }
-.redesign .listen-card__cover .listen-card__art { width: 100%; height: 100%; }
-.redesign .listen-card__cover .listen-card__play { right: 12px; bottom: 12px; }
-.redesign .listen-card:hover .listen-card__cover, .redesign .listen-card:focus-within .listen-card__cover { transform: translateY(-3px); }
-.redesign .listen-card:hover .listen-card__art, .redesign .listen-card:focus-within .listen-card__art { transform: none; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 20%), 0 22px 45px rgb(0 0 0 / 36%); }
 
 /* Detail content sits directly on the application canvas. The ambient light
    can flow beyond the content width, while only cards and menus create layers. */
