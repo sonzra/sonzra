@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { OfflineMediaStore } from "offline_media_store"
+import { OfflineOutbox } from "offline_outbox"
 
 const PLAYER_STATE_KEY = "sonzra:player-state"
 const LEGACY_QUEUE_KEY = "sonzra:queue"
@@ -23,6 +24,7 @@ export default class extends Controller {
 
     this.radioEnabled = this.radioEnabledValue === true
     this.offlineMode = this.offlineValue === true
+    this.outbox = this.outbox || new OfflineOutbox()
     this.lyricsCache = new Map()
     this.lyricsFollowing = true
     this.bindEventHandlers()
@@ -44,8 +46,10 @@ export default class extends Controller {
     this.audioTarget.addEventListener("waiting", this.boundHandleBuffering)
     this.audioTarget.addEventListener("stalled", this.boundHandleBuffering)
     this.audioTarget.addEventListener("error", this.boundHandlePlaybackError)
+    window.addEventListener("online", this.boundFlushOutbox)
     window.addEventListener("pagehide", this.boundHandlePageHide)
     window.addEventListener("pageshow", this.boundReconcilePlayback)
+    window.addEventListener("pageshow", this.boundFlushOutbox)
     window.addEventListener("sonzra:native-media-command", this.boundHandleNativeMediaCommand)
     window.addEventListener("resize", this.boundUpdateQueueScrollHint)
     document.addEventListener("visibilitychange", this.boundHandleVisibilityChange)
@@ -53,16 +57,25 @@ export default class extends Controller {
     document.addEventListener("click", this.boundDismissQueueMenu)
     this.reconcilePlayback()
     this.syncPageTrackControls()
+    this.flushOutbox()
   }
 
   offlineValueChanged(value) {
     this.offlineMode = value
+    if (!value) {
+      this.syncRetryAttempts = 0
+      this.clearSyncRetry()
+      this.flushOutbox()
+    }
   }
 
   disconnect() {
     if (!this.hasAudioTarget) return
 
     this.persistQueue({ force: true })
+    this.clearSyncRetry()
+    window.removeEventListener("online", this.boundFlushOutbox)
+    window.removeEventListener("pageshow", this.boundFlushOutbox)
     this.audioTarget.removeEventListener("timeupdate", this.boundUpdateTimeline)
     this.audioTarget.removeEventListener("loadedmetadata", this.boundUpdateTimeline)
     this.audioTarget.removeEventListener("durationchange", this.boundUpdateTimeline)
@@ -914,7 +927,7 @@ export default class extends Controller {
   }
 
   reportPlayback(event, { keepalive = false } = {}) {
-    if (this.offlineMode || !this.currentTrack || !this.currentTrack.itemId || !this.currentTrack.reportingUrl || !this.hasAudioTarget) return
+    if (!this.currentTrack || !this.currentTrack.itemId || !this.hasAudioTarget) return
 
     const positionTicks = Math.round(this.audioTarget.currentTime * 10_000_000)
     this.lastReportedPosition = this.audioTarget.currentTime
@@ -922,6 +935,24 @@ export default class extends Controller {
       this.currentTrack.startPosition = this.audioTarget.currentTime
       this.persistQueue({ force: true })
     }
+
+    const payload = {
+      event,
+      serverConnectionId: this.extractServerConnectionId(this.currentTrack),
+      itemId: this.currentTrack.itemId,
+      reportingUrl: this.currentTrack.reportingUrl,
+      positionTicks,
+      durationTicks: Math.round((Number(this.audioTarget.duration) || 0) * 10_000_000),
+      paused: this.audioTarget.paused,
+      resumable: Boolean(this.currentTrack.resumable && !this.audioTarget.ended),
+      occurredAt: new Date().toISOString()
+    }
+
+    if (this.offlineMode || !this.currentTrack.reportingUrl) {
+      this.outbox?.enqueue(payload)?.catch(() => {})
+      return
+    }
+
     try {
       fetch(this.currentTrack.reportingUrl, {
         method: "POST",
@@ -930,12 +961,129 @@ export default class extends Controller {
           "Content-Type": "application/json",
           "X-CSRF-Token": document.querySelector("meta[name='csrf-token']")?.content
         },
-        body: JSON.stringify({ event, item_id: this.currentTrack.itemId, position_ticks: positionTicks, duration_ticks: Math.round((Number(this.audioTarget.duration) || 0) * 10_000_000), paused: this.audioTarget.paused, resumable: this.currentTrack.resumable && !this.audioTarget.ended }),
+        body: JSON.stringify({
+          event,
+          item_id: this.currentTrack.itemId,
+          position_ticks: positionTicks,
+          duration_ticks: Math.round((Number(this.audioTarget.duration) || 0) * 10_000_000),
+          paused: this.audioTarget.paused,
+          resumable: this.currentTrack.resumable && !this.audioTarget.ended
+        }),
         keepalive
-      }).catch(() => {})
+      }).then((response) => {
+        if (!response?.ok) {
+          this.outbox?.enqueue(payload)?.catch(() => {})
+        }
+      }).catch(() => {
+        this.outbox?.enqueue(payload)?.catch(() => {})
+      })
     } catch (_) {
-      // Playback reporting must never interrupt local playback or queue changes.
+      this.outbox?.enqueue(payload)?.catch(() => {})
     }
+  }
+
+  extractServerConnectionId(item) {
+    if (!item) return null
+    if (item.serverConnectionId) return String(item.serverConnectionId)
+    const match = (item.reportingUrl || item.source || "").match(/\/server_connections\/([^/]+)/)
+    return match ? match[1] : null
+  }
+
+  async flushOutbox() {
+    if (this.isFlushingOutbox || !this.outbox || !this.outbox.supported()) return
+    if (this.offlineMode || (typeof navigator !== "undefined" && navigator.onLine === false)) return
+
+    this.isFlushingOutbox = true
+    let totalSynced = 0
+
+    try {
+      const pending = await this.outbox.pendingEvents().catch(() => [])
+      if (!pending || pending.length === 0) return
+
+      const eventsByConnection = new Map()
+      for (const ev of pending) {
+        const connId = ev.serverConnectionId || this.extractServerConnectionId(ev)
+        if (!connId) continue
+        if (!eventsByConnection.has(connId)) eventsByConnection.set(connId, [])
+        eventsByConnection.get(connId).push(ev)
+      }
+
+      for (const [ connId, events ] of eventsByConnection.entries()) {
+        const batchUrl = `/server_connections/${connId}/playback_reports/batch`
+        const payload = events.map((e) => ({
+          event: e.event,
+          item_id: e.itemId,
+          position_ticks: e.positionTicks,
+          duration_ticks: e.durationTicks || 0,
+          paused: e.paused,
+          resumable: Boolean(e.resumable),
+          occurred_at: e.occurredAt
+        }))
+
+        const response = await fetch(batchUrl, {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            "X-CSRF-Token": document.querySelector("meta[name='csrf-token']")?.content
+          },
+          body: JSON.stringify({ events: payload }),
+          keepalive: true
+        })
+
+        if (response && response.ok) {
+          await this.outbox.clearEvents(events.map((e) => e.id))
+          totalSynced += events.length
+        } else {
+          throw new Error(`Batch reporting failed: ${response?.status}`)
+        }
+      }
+
+      if (totalSynced > 0) {
+        this.syncRetryAttempts = 0
+        this.clearSyncRetry()
+        this.showSyncToast(totalSynced)
+        window.dispatchEvent(new CustomEvent("sonzra:offline-synced", { detail: { count: totalSynced } }))
+      }
+    } catch (_) {
+      this.scheduleSyncRetry()
+    } finally {
+      this.isFlushingOutbox = false
+    }
+  }
+
+  scheduleSyncRetry() {
+    this.clearSyncRetry()
+    this.syncRetryAttempts = (this.syncRetryAttempts || 0) + 1
+    const backoffDelays = [ 30_000, 60_000, 120_000, 300_000, 900_000 ]
+    const delay = backoffDelays[Math.min(this.syncRetryAttempts - 1, backoffDelays.length - 1)]
+
+    this.syncRetryTimeout = window.setTimeout(() => {
+      this.flushOutbox()
+    }, delay)
+  }
+
+  clearSyncRetry() {
+    if (this.syncRetryTimeout) {
+      window.clearTimeout(this.syncRetryTimeout)
+      this.syncRetryTimeout = null
+    }
+  }
+
+  showSyncToast(count) {
+    if (!count || count <= 0) return
+
+    const message = count === 1 ? "Synced 1 offline play" : `Synced ${count} offline plays`
+    const toast = document.createElement("div")
+    toast.className = "flash flash--notice"
+    toast.setAttribute("role", "status")
+    toast.textContent = message
+
+    document.body.appendChild(toast)
+
+    window.setTimeout(() => {
+      toast.remove()
+    }, 3000)
   }
 
   restoreVolume() {
@@ -1317,6 +1465,7 @@ export default class extends Controller {
     this.boundSyncPageTrackControls = this.syncPageTrackControls.bind(this)
     this.boundDismissQueueMenu = this.dismissQueueMenu.bind(this)
     this.boundUpdateQueueScrollHint = this.updateQueueScrollHint.bind(this)
+    this.boundFlushOutbox = this.flushOutbox.bind(this)
   }
 
   startProgressWatch() {
