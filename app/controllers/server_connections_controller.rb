@@ -65,7 +65,10 @@ class ServerConnectionsController < ApplicationController
     return render json: { status: "pending" } unless state.fetch("Authenticated")
 
     authentication = client.authenticate_with_quick_connect(quick_connect.fetch("secret"))
-    connection = current_user.server_connections.find_or_initialize_by(media_server: media_server)
+    connection = if quick_connect["reconnect_connection_id"].present?
+      current_user.server_connections.find_by(id: quick_connect["reconnect_connection_id"])
+    end
+    connection ||= current_user.server_connections.find_or_initialize_by(media_server: media_server)
     connection.assign_attributes(username: authentication.dig("User", "Name"), access_token: authentication.fetch("AccessToken"), password: nil)
     connection.save!
     current_user.update!(preferred_server_connection: connection) unless current_user.preferred_server_connection
@@ -134,8 +137,15 @@ class ServerConnectionsController < ApplicationController
       if @server_connection.media_server&.jellyfin? && @server_connection.password.blank?
         begin
           client = Integrations::Client.for(@server_connection, device_id: current_device_id)
-          @quick_connect = client.initiate_quick_connect
-          session[:quick_connect] = @quick_connect.merge("media_server_id" => @server_connection.media_server_id)
+          quick_connect_data = client.initiate_quick_connect
+          session[:quick_connect] = {
+            "media_server_id" => @server_connection.media_server_id,
+            "secret" => quick_connect_data.fetch("Secret"),
+            "code" => quick_connect_data.fetch("Code"),
+            "provider" => "jellyfin",
+            "reconnect_connection_id" => @server_connection.id
+          }
+          @quick_connect = session[:quick_connect]
         rescue StandardError => e
           Rails.logger.warn("[Reconnect] QuickConnect initiation failed: #{e.message}")
         end

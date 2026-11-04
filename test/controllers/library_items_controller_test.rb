@@ -336,7 +336,7 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "fresh-session-token", session.dig(:server_access_tokens, @server_connection.id.to_s)
   end
 
-  test "renders floating reconnect banner when item details request fails with unrecoverable session expiry" do
+  test "renders redesign error actions when item details request fails with unrecoverable session expiry" do
     result = ServerConnections::FetchLibraryItemDetailsResultData.new(
       details: nil,
       access_token: nil,
@@ -356,8 +356,10 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :success
-    assert_select "#connection-alert-#{@server_connection.id}"
-    assert_select ".connection-alert__text strong", "Connection to #{@server_connection.name} expired."
-    assert_select "a.connection-alert__reconnect-btn[href='#{reconnect_server_connection_path(@server_connection)}']"
+    assert_select ".listen-loading--error"
+    assert_select "h1", "We couldn’t load this item."
+    assert_select "p", "Session expired."
+    assert_select ".listen-loading__actions a.primary-button[href='#{reconnect_server_connection_path(@server_connection)}']", text: "Reconnect Server"
+    assert_select ".listen-loading__actions a.secondary-button[href='#{server_connections_path}']", text: "Manage servers"
   end
 end

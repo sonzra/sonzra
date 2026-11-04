@@ -33,11 +33,14 @@
       <nav class="library-pagination"><%= link_to "← Previous", url_for(page: @page - 1, q: @query, genre: @genre), class: "secondary-button" if @page > 1 %><span>Page <%= @page %> of <%= [(@result.total / Library::Pagination::PAGE_SIZE.to_f).ceil, 1].max %></span><%= link_to "Next →", url_for(page: @page + 1, q: @query, genre: @genre), class: "secondary-button" if @page * Library::Pagination::PAGE_SIZE < @result.total %></nav>
     <% end %>
   <% else %>
-    <section class="listen-loading listen-loading--error">
+    <section class="listen-loading listen-loading--error" role="alert">
       <h1>We couldn’t load your <%= @title.downcase %>.</h1>
       <p><%= @result.message %></p>
       <% if @server_connection %>
-        <%= render "shared/reconnect_banner", server_connection: @server_connection %>
+        <div class="listen-loading__actions">
+          <%= link_to "Reconnect Server", reconnect_server_connection_path(@server_connection), data: { turbo_frame: "reconnect_modal", action: "reconnect#open" }, class: "primary-button" %>
+          <%= link_to "Manage servers", server_connections_path, class: "secondary-button" %>
+        </div>
       <% end %>
     </section>
   <% end %>
