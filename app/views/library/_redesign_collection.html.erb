@@ -48,6 +48,12 @@
       <% end %>
     </section>
   <% else %>
-    <section class="listen-loading listen-loading--error"><h1>We couldn’t load your <%= @title.downcase %>.</h1><p><%= @result.message %></p></section>
+    <section class="listen-loading listen-loading--error">
+      <h1>We couldn’t load your <%= @title.downcase %>.</h1>
+      <p><%= @result.message %></p>
+      <% if @server_connection %>
+        <%= render "shared/reconnect_banner", server_connection: @server_connection %>
+      <% end %>
+    </section>
   <% end %>
 </main>
