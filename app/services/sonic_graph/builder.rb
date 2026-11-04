@@ -54,7 +54,7 @@ module SonicGraph
     private
 
     def client
-      @client ||= Integrations::Client.for(@connection, device_id: "sonzra-worker-#{@connection.id}")
+      @client ||= Integrations::Client.for(@connection)
     end
 
     def cache_nodes_metadata(batch_item_ids)
