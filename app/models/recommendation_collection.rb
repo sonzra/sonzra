@@ -5,6 +5,7 @@ class RecommendationCollection < ApplicationRecord
   belongs_to :server_connection
   has_many :recommendation_tracks, -> { order(:position) }, dependent: :destroy
   has_many :recommendation_collection_events, dependent: :destroy
+  has_many :recommendation_runs, dependent: :nullify
 
   validates :strategy, inclusion: { in: STRATEGIES }
   validates :period_date, :title, :subtitle, :generated_at, presence: true

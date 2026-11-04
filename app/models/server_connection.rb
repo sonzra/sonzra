@@ -6,8 +6,11 @@ class ServerConnection < ApplicationRecord
   has_many :listening_events, dependent: :destroy
   has_many :hidden_artists, dependent: :destroy
   has_many :hidden_genres, dependent: :destroy
-  has_many :track_similarities, dependent: :destroy
-  has_many :sonic_graph_nodes, dependent: :destroy
+  has_many :track_similarities, dependent: :delete_all
+  has_many :sonic_graph_nodes, dependent: :delete_all
+  has_many :recommendation_runs, dependent: :destroy
+  has_many :recommendation_collections, dependent: :destroy
+  has_many :preferred_by_users, class_name: "User", foreign_key: "preferred_server_connection_id", dependent: :nullify
 
   after_create_commit -> { BuildSonicGraphJob.perform_later(id) }
 
@@ -26,7 +29,7 @@ class ServerConnection < ApplicationRecord
     end
   end
 
-  def client_options(remote_user_id: nil)
-    { base_url: base_url, username: username, password: password, access_token: access_token.presence, remote_user_id: remote_user_id.presence }
+  def client_options(remote_user_id: nil, device_id: nil)
+    { base_url: base_url, username: username, password: password, access_token: access_token.presence, remote_user_id: remote_user_id.presence, device_id: device_id.presence }.compact
   end
 end
