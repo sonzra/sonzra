@@ -637,7 +637,14 @@ html[data-turbo-preview] .redesign .listen-main:not(.listen-main--home), html[da
 .redesign .connection-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; line-height: 1; }
 .redesign .connection-badge--provider { background: rgb(255 255 255 / 6%); border: 1px solid var(--rz-line); color: var(--rz-primary-light); }
 .redesign .connection-badge--preferred { background: rgb(67 215 198 / 12%); border: 1px solid rgb(67 215 198 / 38%); color: var(--rz-accent); }
+.redesign .connection-badge--secondary { background: rgb(255 255 255 / 4%); border: 1px solid var(--rz-line); color: var(--rz-muted); }
 .redesign .connection-badge__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--rz-accent); box-shadow: 0 0 8px rgb(67 215 198 / 80%); }
+.redesign .connection-detail__properties { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 12px 0 16px; }
+.redesign .connection-detail__property { display: flex; flex-direction: column; gap: 6px; padding: 14px 18px; border: 1px solid var(--rz-line); border-radius: 14px; background: rgb(255 255 255 / 3%); }
+.redesign .connection-detail__label { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--rz-muted); }
+.redesign .connection-detail__value { font-size: 14px; color: var(--rz-text); word-break: break-all; }
+.redesign .connection-detail__value strong { color: var(--rz-text); }
+.redesign .form-hint--pulse { animation: redesign-breathe 2s ease-in-out infinite alternate; }
 .redesign .redesign-utility-page .connection-card__provider { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 4px; font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .redesign .redesign-utility-page .connection-card__provider::before { width: 6px; height: 6px; border-radius: 50%; background: var(--rz-accent); box-shadow: 0 0 10px rgb(67 215 198 / 68%); content: ""; }
 .redesign .redesign-utility-page .connection-card h2 { font-size: 18px; font-weight: 700; letter-spacing: -.025em; margin: 0; color: var(--rz-text); }
