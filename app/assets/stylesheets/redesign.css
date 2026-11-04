@@ -653,6 +653,37 @@ html[data-turbo-preview] .redesign .listen-main:not(.listen-main--home), html[da
 .redesign .redesign-state .listen-loading__mark { width: 72px; margin-bottom: 2px; filter: drop-shadow(0 0 25px rgb(122 90 248 / 68%)); }
 .redesign .redesign-state .eyebrow { margin: 0; }.redesign .redesign-state h1 { max-width: 500px; }.redesign .redesign-state p:not(.eyebrow) { max-width: 440px; margin: 0; line-height: 1.6; }
 
+/* Reconnect Alert & Dialog */
+.redesign .connection-alerts { position: fixed; top: calc(16px + env(safe-area-inset-top)); right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 10px; max-width: 440px; width: calc(100% - 40px); pointer-events: none; }
+.redesign .connection-alert { pointer-events: auto; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 16px; background: var(--rz-raised); border: 1px solid rgb(255 170 0 / 40%); border-radius: 16px; box-shadow: 0 16px 45px rgb(0 0 0 / 55%); color: var(--rz-text); backdrop-filter: blur(14px); }
+.redesign .connection-alert__content { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.redesign .connection-alert__icon { color: #f59e0b; flex-shrink: 0; display: flex; }
+.redesign .connection-alert__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.redesign .connection-alert__text strong { font-size: 13px; font-weight: 800; color: var(--rz-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.redesign .connection-alert__text span { font-size: 11px; color: var(--rz-muted); }
+.redesign .connection-alert__actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.redesign .connection-alert__reconnect-btn { display: inline-flex; min-height: 44px; min-width: 44px; padding: 0 16px; border-radius: 999px; background: linear-gradient(135deg, var(--rz-primary), var(--rz-primary-dark)); color: #fff; font-size: 12px; font-weight: 800; text-decoration: none; cursor: pointer; align-items: center; justify-content: center; border: 0; box-shadow: 0 8px 24px rgb(122 90 248 / 30%); }
+.redesign .connection-alert__dismiss { display: inline-flex; min-height: 44px; min-width: 44px; width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; color: var(--rz-muted); font-size: 22px; cursor: pointer; align-items: center; justify-content: center; padding: 0; transition: background .18s ease, color .18s ease; }
+.redesign .connection-alert__dismiss:hover { color: var(--rz-text); background: rgb(255 255 255 / 8%); }
+.redesign .reconnect-dialog { width: min(92vw, 480px); margin: auto; padding: 0; border: 1px solid var(--rz-line); border-radius: 22px; background: var(--rz-raised); color: var(--rz-text); box-shadow: 0 28px 90px rgb(0 0 0 / 72%); }
+.redesign .reconnect-dialog::backdrop { background: rgb(3 3 8 / 78%); backdrop-filter: blur(8px); }
+.redesign .reconnect-dialog[open] { animation: redesign-dialog-enter .22s cubic-bezier(.2, .8, .2, 1) both; }
+.redesign .reconnect-dialog[open]::backdrop { animation: redesign-backdrop-enter .22s ease both; }
+.redesign .reconnect-modal { padding: 28px; }
+.redesign .reconnect-modal__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+.redesign .reconnect-modal__header h2 { font-size: 22px; font-weight: 800; letter-spacing: -.03em; margin: 0; color: var(--rz-text); }
+.redesign .reconnect-modal__close { display: grid; place-items: center; width: 36px; height: 36px; min-width: 44px; min-height: 44px; border: 1px solid var(--rz-line); border-radius: 50%; background: rgb(255 255 255 / 4%); color: var(--rz-text); font-size: 20px; cursor: pointer; padding: 0; transition: background .18s ease, border-color .18s ease; }
+.redesign .reconnect-modal__close:hover { background: rgb(255 255 255 / 10%); border-color: var(--rz-primary-light); }
+.redesign .reconnect-modal__instruction { color: var(--rz-muted); font-size: 14px; line-height: 1.55; margin: 0 0 18px; }
+.redesign .reconnect-modal .field { display: grid; gap: 8px; margin-bottom: 16px; }
+.redesign .reconnect-modal .field label { font-size: 12px; font-weight: 800; color: #dfddea; }
+.redesign .reconnect-modal .field input { width: 100%; min-height: 48px; padding: 0 14px; border: 1px solid rgb(255 255 255 / 13%); border-radius: 12px; background: rgb(8 8 14 / 62%); color: var(--rz-text); font: inherit; transition: border-color .18s ease, box-shadow .18s ease; }
+.redesign .reconnect-modal .field input:focus { border-color: rgb(155 130 255 / 72%); box-shadow: 0 0 0 3px rgb(122 90 248 / 18%); outline: 0; }
+.redesign .reconnect-modal .form-actions { display: flex; align-items: center; gap: 12px; margin-top: 22px; }
+.redesign .reconnect-modal .form-actions .primary-button { min-height: 44px; padding: 0 22px; border-radius: 999px; background: linear-gradient(135deg, var(--rz-primary), var(--rz-primary-dark)); box-shadow: 0 10px 30px rgb(122 90 248 / 25%); color: #fff; font-size: 13px; font-weight: 800; border: 0; cursor: pointer; }
+.redesign .reconnect-modal .form-actions .secondary-button { min-height: 44px; padding: 0 20px; border-radius: 999px; border: 1px solid var(--rz-line); background: rgb(255 255 255 / 5%); color: var(--rz-text); font-size: 13px; font-weight: 750; cursor: pointer; }
+.redesign .reconnect-modal__success { padding: 32px 20px; text-align: center; color: var(--rz-accent); font-size: 16px; font-weight: 800; }
+
 @media (max-width: 700px) {
   .redesign .redesign-utility-page { padding-top: 16px; }
   .redesign .redesign-utility-page > .settings-header, .redesign .redesign-utility-page > .form-page > .page-title { align-items: flex-start; flex-direction: column; gap: 12px; margin-bottom: 16px; padding-bottom: 12px; }

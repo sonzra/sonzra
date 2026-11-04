@@ -13,7 +13,7 @@
     </div>
   </div>
   <div class="connection-alert__actions">
-    <%= link_to "Reconnect", reconnect_server_connection_path(server_connection), data: { turbo_frame: "reconnect_modal", action: "reconnect#open" }, class: "button button--primary button--small connection-alert__reconnect-btn" %>
+    <%= link_to "Reconnect", reconnect_server_connection_path(server_connection), data: { turbo_frame: "reconnect_modal", action: "reconnect#open" }, class: "primary-button connection-alert__reconnect-btn" %>
     <button type="button" class="connection-alert__dismiss" data-action="reconnect#dismiss" aria-label="Dismiss alert">&times;</button>
   </div>
 </div>
