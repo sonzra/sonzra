@@ -1,0 +1,19 @@
+<div id="connection-alert-<%= server_connection.id %>" class="connection-alert" role="alert" data-controller="reconnect" data-reconnect-dialog-id-value="reconnect-dialog">
+  <div class="connection-alert__content">
+    <div class="connection-alert__icon" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+    </div>
+    <div class="connection-alert__text">
+      <strong>Connection to <%= server_connection.name.presence || "Media Server" %> expired.</strong>
+      <span>Audio playback will continue.</span>
+    </div>
+  </div>
+  <div class="connection-alert__actions">
+    <%= link_to "Reconnect", reconnect_server_connection_path(server_connection), data: { turbo_frame: "reconnect_modal", action: "reconnect#open" }, class: "button button--primary button--small connection-alert__reconnect-btn" %>
+    <button type="button" class="connection-alert__dismiss" data-action="reconnect#dismiss" aria-label="Dismiss alert">&times;</button>
+  </div>
+</div>

@@ -92,6 +92,12 @@
       <% if item["Type"] == "MusicArtist" %><%= render "shared/media_grid", title: "Albums", items: details[:other_albums], server_connection: @server_connection if details[:other_albums].any? %><% else %><% { "More by this artist" => details[:other_albums], "Similar albums" => details[:similar_albums] }.each do |title, albums| %><%= render "shared/media_shelf", title: title, eyebrow: "From your library", items: albums, server_connection: @server_connection if albums.any? %><% end %><% end %>
     <% end %>
   <% else %>
-    <section class="listen-loading listen-loading--error"><h1>We couldn’t load this item.</h1><p><%= @result.message %></p></section>
+    <section class="listen-loading listen-loading--error">
+      <h1>We couldn’t load this item.</h1>
+      <p><%= @result.message %></p>
+      <% if @server_connection %>
+        <%= render "shared/reconnect_banner", server_connection: @server_connection %>
+      <% end %>
+    </section>
   <% end %>
 </main>

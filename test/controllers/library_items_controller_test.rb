@@ -335,4 +335,29 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "fresh-session-token", @server_connection.reload.access_token
     assert_equal "fresh-session-token", session.dig(:server_access_tokens, @server_connection.id.to_s)
   end
+
+  test "renders floating reconnect banner when item details request fails with unrecoverable session expiry" do
+    result = ServerConnections::FetchLibraryItemDetailsResultData.new(
+      details: nil,
+      access_token: nil,
+      message: "Session expired."
+    )
+    service = Object.new
+    service.define_singleton_method(:call) { result }
+
+    service_class = ServerConnections::FetchLibraryItemDetails
+    original_new = service_class.method(:new)
+    service_class.define_singleton_method(:new) { |*_args, **_kwargs| service }
+
+    begin
+      get library_item_server_connection_url(@server_connection, "album-id")
+    ensure
+      service_class.define_singleton_method(:new, original_new)
+    end
+
+    assert_response :success
+    assert_select "#connection-alert-#{@server_connection.id}"
+    assert_select ".connection-alert__text strong", "Connection to #{@server_connection.name} expired."
+    assert_select "a.connection-alert__reconnect-btn[href='#{reconnect_server_connection_path(@server_connection)}']"
+  end
 end

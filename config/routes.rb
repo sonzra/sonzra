@@ -62,6 +62,8 @@ Rails.application.routes.draw do
     post :start_quick_connect, on: :collection
     get :quick_connect_status, on: :collection
     post :test_connection, on: :member
+    get :reconnect, on: :member
+    patch :reconnect, on: :member
   end
   resource :player_preferences, only: :update
   get "up" => "rails/health#show", as: :rails_health_check

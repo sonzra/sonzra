@@ -1,5 +1,5 @@
 class ServerConnectionsController < ApplicationController
-  before_action :set_server_connection, only: %i[show edit update destroy test_connection]
+  before_action :set_server_connection, only: %i[show edit update destroy test_connection reconnect]
   before_action :set_media_server, only: %i[create start_quick_connect]
 
   def index
@@ -102,6 +102,44 @@ class ServerConnectionsController < ApplicationController
         redirect_back fallback_location: server_connections_path
       end
       format.json { render json: { success: result.success?, message: result.message }, status: result.success? ? :ok : :unprocessable_entity }
+    end
+  end
+
+  def reconnect
+    if request.patch?
+      @server_connection.assign_attributes(connection_params)
+      if @server_connection.save
+        client = Integrations::Client.for(@server_connection, device_id: current_device_id)
+        begin
+          client.authenticate
+          store_server_access_token(@server_connection, client.access_token)
+          respond_to do |format|
+            format.turbo_stream do
+              render turbo_stream: [
+                turbo_stream.remove("connection-alert-#{@server_connection.id}"),
+                turbo_stream.update("reconnect_modal", html: "<div class=\"reconnect-modal__success\" data-controller=\"reconnect\" data-action=\"connect->reconnect#close\"><p>Connected successfully!</p></div>")
+              ]
+            end
+            format.html { redirect_to @server_connection, notice: "Server reconnected." }
+          end
+        rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError => error
+          @server_connection.errors.add(:base, error.message)
+          render :reconnect, status: :unprocessable_entity
+        end
+      else
+        render :reconnect, status: :unprocessable_entity
+      end
+    else
+      if @server_connection.media_server&.jellyfin? && @server_connection.password.blank?
+        begin
+          client = Integrations::Client.for(@server_connection, device_id: current_device_id)
+          @quick_connect = client.initiate_quick_connect
+          session[:quick_connect] = @quick_connect.merge("media_server_id" => @server_connection.media_server_id)
+        rescue StandardError => e
+          Rails.logger.warn("[Reconnect] QuickConnect initiation failed: #{e.message}")
+        end
+      end
+      render :reconnect
     end
   end
 

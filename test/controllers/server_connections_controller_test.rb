@@ -156,6 +156,47 @@ class ServerConnectionsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "renders reconnect modal frame for server connection" do
+    get reconnect_server_connection_url(@server_connection)
+
+    assert_response :success
+    assert_select "turbo-frame#reconnect_modal"
+    assert_select "form[action='#{reconnect_server_connection_path(@server_connection)}']"
+    assert_select "input[name='server_connection[username]']"
+    assert_select "input[name='server_connection[password]']"
+  end
+
+  test "reconnects server connection with updated credentials via turbo stream" do
+    fake_client = Object.new
+    fake_client.define_singleton_method(:authenticate) { "Bruno" }
+    fake_client.define_singleton_method(:access_token) { "fresh-reconnect-token" }
+
+    original_for = Integrations::Client.method(:for)
+    Integrations::Client.define_singleton_method(:for) { |*_args, **_kwargs| fake_client }
+
+    begin
+      patch reconnect_server_connection_url(@server_connection), params: {
+        server_connection: { username: "bruno", password: "new-password" }
+      }, as: :turbo_stream
+
+      assert_response :success
+      assert_equal "fresh-reconnect-token", session.dig(:server_access_tokens, @server_connection.id.to_s)
+      assert_equal "new-password", @server_connection.reload.password
+      assert_includes response.body, %(target="connection-alert-#{@server_connection.id}")
+      assert_includes response.body, %(action="remove")
+    ensure
+      Integrations::Client.define_singleton_method(:for, original_for)
+    end
+  end
+
+  test "renders persistent connection alerts shell in application layout" do
+    get server_connections_url
+
+    assert_response :success
+    assert_select "#connection_alerts[data-turbo-permanent]"
+    assert_select "dialog#reconnect-dialog"
+  end
+
   def with_jellyfin_client(client)
     client_class = Integrations::Jellyfin::Client
     client_class.singleton_class.alias_method :new_before_quick_connect_test, :new
