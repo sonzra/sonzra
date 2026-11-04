@@ -26,7 +26,21 @@ class ServerConnection < ApplicationRecord
     end
   end
 
-  def client_options(remote_user_id: nil)
-    { base_url: base_url, username: username, password: password, access_token: access_token.presence, remote_user_id: remote_user_id.presence }
+  def client_options(remote_user_id: nil, device_id: nil, access_token: nil, **options)
+    token = access_token.presence || self.access_token.presence
+    options_hash = {
+      base_url: base_url,
+      username: username,
+      password: password,
+      access_token: token,
+      remote_user_id: remote_user_id.presence,
+      device_id: device_id.presence
+    }.compact
+
+    if persisted? && !options.key?(:on_token_refreshed)
+      options_hash[:on_token_refreshed] = ->(fresh_token) { update_column(:access_token, fresh_token) }
+    end
+
+    options_hash.merge(options)
   end
 end

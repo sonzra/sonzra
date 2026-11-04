@@ -47,6 +47,22 @@ class ServerConnectionTest < ActiveSupport::TestCase
     assert_nil connection.client_options[:remote_user_id]
   end
 
+  test "forwards device_id and custom options when building client options" do
+    connection = create_connection
+
+    assert_equal "sonzra-worker-42", connection.client_options(device_id: "sonzra-worker-42")[:device_id]
+    assert_nil connection.client_options[:device_id]
+  end
+
+  test "configures on_token_refreshed write-through to update access_token column" do
+    connection = create_connection
+    callback = connection.client_options[:on_token_refreshed]
+    assert callback.respond_to?(:call)
+
+    callback.call("new-access-token")
+    assert_equal "new-access-token", connection.reload.access_token
+  end
+
   private
 
   def create_connection(**attributes)

@@ -138,7 +138,7 @@ class RecommendationGenerator
   end
 
   def client_for(connection)
-    @client ||= Integrations::Client.for(connection)
+    @client ||= Integrations::Client.for(connection, device_id: "sonzra-worker-#{connection.id}")
   end
 
   def current_connection

@@ -2,9 +2,13 @@ class ApplicationController < ActionController::Base
   include Authentication
   allow_browser versions: :modern
 
-  helper_method :registrations_enabled?, :current_server_connection, :redesign_enabled?
+  helper_method :registrations_enabled?, :current_server_connection, :redesign_enabled?, :current_device_id
 
   private
+
+  def current_device_id
+    session[:sonzra_device_id] ||= "sonzra-web-#{SecureRandom.hex(6)}"
+  end
 
   def registrations_enabled?
     ApplicationSetting.instance.registrations_enabled?

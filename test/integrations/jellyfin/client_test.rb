@@ -824,4 +824,27 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     assert_includes http.requests[2]["Authorization"], "Token=\"fresh-token\""
     assert_equal "audio-data", parts.last
   end
+
+  test "includes custom device_id in authorization header when provided" do
+    client = Integrations::Jellyfin::Client.new(
+      base_url: "https://example.com",
+      username: "bruno",
+      password: "secret",
+      device_id: "sonzra-worker-123"
+    )
+
+    header = client.authorization_header("some-token")
+    assert_includes header, 'DeviceId="sonzra-worker-123"'
+  end
+
+  test "defaults device_id in authorization header to sonzra-web when omitted" do
+    client = Integrations::Jellyfin::Client.new(
+      base_url: "https://example.com",
+      username: "bruno",
+      password: "secret"
+    )
+
+    header = client.authorization_header("some-token")
+    assert_includes header, 'DeviceId="sonzra-web"'
+  end
 end
