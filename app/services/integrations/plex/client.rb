@@ -16,10 +16,11 @@ module Integrations
       PLEX_CLOUD_URL = "https://plex.tv".freeze
       LONGFORM_LIBRARY_NAMES = { audiobook: "audiobooks", podcast: "podcasts" }.freeze
 
-      def initialize(base_url:, access_token: nil, http: Net::HTTP, **)
+      def initialize(base_url:, access_token: nil, http: Net::HTTP, on_token_refreshed: nil, **)
         @base_url = normalize_base_url(base_url)
         @access_token = access_token
         @http = http
+        @on_token_refreshed = on_token_refreshed
         @client_identifier = ENV.fetch("PLEX_CLIENT_ID") do
           raise ConnectionError, "PLEX_CLIENT_ID must be configured before adding a Plex connection."
         end
@@ -265,7 +266,7 @@ module Integrations
         headers["Range"] = range if range.present?
         @http.start(uri.host, uri.port, use_ssl: uri.scheme == "https", open_timeout: 5, read_timeout: 10) do |connection|
           connection.request(Net::HTTP::Get.new(uri, headers)) do |response|
-            raise AuthenticationError if response.code == "401"
+            raise AuthenticationError, "Session expired." if response.code == "401"
             raise ConnectionError, "Plex returned HTTP #{response.code}." unless response.is_a?(Net::HTTPSuccess) || response.code == "206"
 
             yield Integrations::Jellyfin::AudioStreamResponseData.new(
@@ -575,7 +576,7 @@ module Integrations
           end
           raise error
         end
-        raise AuthenticationError if response.code == "401"
+        raise AuthenticationError, "Session expired." if response.code == "401"
         raise ConnectionError, "Plex returned HTTP #{response.code}." unless response.is_a?(Net::HTTPSuccess) || (allow_not_found && response.code == "404")
 
         response

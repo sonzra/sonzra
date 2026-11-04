@@ -667,4 +667,161 @@ class Integrations::Jellyfin::ClientTest < ActiveSupport::TestCase
     assert_equal "Random", parameters["SortBy"]
     assert_equal "20", parameters["Limit"]
   end
+
+  test "transparently re-authenticates and retries on 401 when username and password are present" do
+    unauthorized_response = Net::HTTPUnauthorized.new("1.1", "401", "Unauthorized")
+    unauthorized_response.instance_variable_set(:@read, true)
+    unauthorized_response.body = "Session expired."
+
+    auth_response = Net::HTTPOK.new("1.1", "200", "OK")
+    auth_response.instance_variable_set(:@read, true)
+    auth_response.body = { AccessToken: "fresh-token", User: { Id: "user-id", Name: "Bruno" } }.to_json
+
+    item_response = Net::HTTPOK.new("1.1", "200", "OK")
+    item_response.instance_variable_set(:@read, true)
+    item_response.body = { Id: "album-id", Name: "Abbey Road", Type: "MusicAlbum" }.to_json
+
+    tracks_response = Net::HTTPOK.new("1.1", "200", "OK")
+    tracks_response.instance_variable_set(:@read, true)
+    tracks_response.body = { Items: [ { Id: "track-1", Name: "Come Together", IndexNumber: 1 } ], TotalRecordCount: 1 }.to_json
+
+    http = FakeHttp.new([ unauthorized_response, auth_response, item_response, tracks_response ])
+
+    token_refreshed_with = nil
+    client = Integrations::Jellyfin::Client.new(
+      base_url: "https://example.com",
+      username: "bruno",
+      password: "secret",
+      access_token: "stale-token",
+      remote_user_id: "user-id",
+      http: http,
+      on_token_refreshed: ->(new_token) { token_refreshed_with = new_token }
+    )
+
+    queue = client.playback_queue("album-id")
+
+    assert_equal [ "Come Together" ], queue.items.pluck("Name")
+    assert_equal "fresh-token", queue.access_token
+    assert_equal "fresh-token", token_refreshed_with
+    assert_equal 4, http.requests.size
+    assert_equal "/Users/user-id/Items/album-id", URI.parse(http.requests[0].path).path
+    assert_includes http.requests[0]["Authorization"], "Token=\"stale-token\""
+    assert_equal "/Users/AuthenticateByName", URI.parse(http.requests[1].path).path
+    assert_equal "/Users/user-id/Items/album-id", URI.parse(http.requests[2].path).path
+    assert_includes http.requests[2]["Authorization"], "Token=\"fresh-token\""
+  end
+
+  test "halts and raises AuthenticationError if secondary request also returns 401" do
+    unauthorized_response_1 = Net::HTTPUnauthorized.new("1.1", "401", "Unauthorized")
+    unauthorized_response_1.instance_variable_set(:@read, true)
+    unauthorized_response_1.body = "Session expired."
+
+    auth_response = Net::HTTPOK.new("1.1", "200", "OK")
+    auth_response.instance_variable_set(:@read, true)
+    auth_response.body = { AccessToken: "fresh-token", User: { Id: "user-id", Name: "Bruno" } }.to_json
+
+    unauthorized_response_2 = Net::HTTPUnauthorized.new("1.1", "401", "Unauthorized")
+    unauthorized_response_2.instance_variable_set(:@read, true)
+    unauthorized_response_2.body = "Session expired."
+
+    http = FakeHttp.new([ unauthorized_response_1, auth_response, unauthorized_response_2 ])
+
+    client = Integrations::Jellyfin::Client.new(
+      base_url: "https://example.com",
+      username: "bruno",
+      password: "secret",
+      access_token: "stale-token",
+      remote_user_id: "user-id",
+      http: http
+    )
+
+    error = assert_raises(Integrations::Jellyfin::Client::AuthenticationError) do
+      client.playback_queue("album-id")
+    end
+    assert_equal "Session expired.", error.message
+    assert_equal 3, http.requests.size
+  end
+
+  test "does not attempt re-authentication when password is nil" do
+    unauthorized_response = Net::HTTPUnauthorized.new("1.1", "401", "Unauthorized")
+    unauthorized_response.instance_variable_set(:@read, true)
+    unauthorized_response.body = "Session expired."
+
+    http = FakeHttp.new([ unauthorized_response ])
+
+    client = Integrations::Jellyfin::Client.new(
+      base_url: "https://example.com",
+      access_token: "stale-token",
+      remote_user_id: "user-id",
+      http: http
+    )
+
+    error = assert_raises(Integrations::Jellyfin::Client::AuthenticationError) do
+      client.playback_queue("album-id")
+    end
+    assert_equal "Session expired.", error.message
+    assert_equal 1, http.requests.size
+  end
+
+  test "transparently re-authenticates and retries report_playback on 401" do
+    unauthorized_response = Net::HTTPUnauthorized.new("1.1", "401", "Unauthorized")
+    unauthorized_response.instance_variable_set(:@read, true)
+
+    auth_response = Net::HTTPOK.new("1.1", "200", "OK")
+    auth_response.instance_variable_set(:@read, true)
+    auth_response.body = { AccessToken: "fresh-token", User: { Id: "user-id", Name: "Bruno" } }.to_json
+
+    success_response = Net::HTTPNoContent.new("1.1", "204", "No Content")
+    success_response.instance_variable_set(:@read, true)
+
+    http = FakeHttp.new([ unauthorized_response, auth_response, success_response ])
+
+    client = Integrations::Jellyfin::Client.new(
+      base_url: "https://example.com",
+      username: "bruno",
+      password: "secret",
+      access_token: "stale-token",
+      remote_user_id: "user-id",
+      http: http
+    )
+
+    report = client.report_playback(event: "progress", item_id: "track-1", position_ticks: 10_000, paused: false)
+    assert_equal "fresh-token", report.access_token
+    assert_equal 3, http.requests.size
+  end
+
+  test "transparently re-authenticates and retries stream_audio on 401" do
+    unauthorized_response = Net::HTTPUnauthorized.new("1.1", "401", "Unauthorized")
+    unauthorized_response.instance_variable_set(:@read, true)
+
+    auth_response = Net::HTTPOK.new("1.1", "200", "OK")
+    auth_response.instance_variable_set(:@read, true)
+    auth_response.body = { AccessToken: "fresh-token", User: { Id: "user-id", Name: "Bruno" } }.to_json
+
+    audio_response = Net::HTTPOK.new("1.1", "200", "OK")
+    audio_response.instance_variable_set(:@read, true)
+    audio_response["Content-Type"] = "audio/flac"
+    audio_response.define_singleton_method(:read_body) { |&block| block.call("audio-data") }
+
+    http = FakeHttp.new([ unauthorized_response, auth_response, audio_response ])
+
+    client = Integrations::Jellyfin::Client.new(
+      base_url: "https://example.com",
+      username: "bruno",
+      password: "secret",
+      access_token: "stale-token",
+      http: http
+    )
+
+    parts = []
+    client.stream_audio(item_id: "track-id", range: nil, access_token: "stale-token") { |chunk| parts << chunk }
+
+    assert_equal 3, http.requests.size
+    assert_equal "/Audio/track-id/stream?Static=true", http.requests[0].path
+    assert_includes http.requests[0]["Authorization"], "Token=\"stale-token\""
+    assert_equal "/Users/AuthenticateByName", http.requests[1].path
+    assert_equal "/Audio/track-id/stream?Static=true", http.requests[2].path
+    assert_includes http.requests[2]["Authorization"], "Token=\"fresh-token\""
+    assert_equal "audio-data", parts.last
+  end
 end
