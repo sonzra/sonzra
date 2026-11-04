@@ -63,6 +63,48 @@ class ServerConnectionTest < ActiveSupport::TestCase
     assert_equal "new-access-token", connection.reload.access_token
   end
 
+  test "cascades deletion of dependent records and nullifies preferred connection" do
+    user = users(:one)
+    connection = create_connection(user: user)
+    user.update!(preferred_server_connection: connection)
+
+    TrackSimilarity.create!(server_connection: connection, from_item_id: "1", to_item_id: "2", distance: 0.1, synced_at: Time.current)
+    SonicGraphNode.create!(server_connection: connection, item_id: "1", title: "Song", synced_at: Time.current)
+    ListeningEvent.create!(server_connection: connection, user: user, item_id: "1", occurred_at: Time.current)
+    HiddenArtist.create!(server_connection: connection, user: user, artist_id: "artist-1", name: "Artist")
+    HiddenGenre.create!(server_connection: connection, user: user, name: "Pop")
+    collection = RecommendationCollection.create!(
+      server_connection: connection,
+      user: user,
+      strategy: "friday_rediscovery",
+      period_date: Date.current,
+      title: "Friday",
+      subtitle: "Sub",
+      generated_at: Time.current
+    )
+    RecommendationRun.create!(
+      server_connection: connection,
+      user: user,
+      strategy: "friday_rediscovery",
+      period_date: Date.current,
+      status: "completed",
+      recommendation_collection: collection
+    )
+
+    assert_nothing_raised do
+      connection.destroy!
+    end
+
+    assert_nil user.reload.preferred_server_connection_id
+    assert_equal 0, TrackSimilarity.where(server_connection_id: connection.id).count
+    assert_equal 0, SonicGraphNode.where(server_connection_id: connection.id).count
+    assert_equal 0, ListeningEvent.where(server_connection_id: connection.id).count
+    assert_equal 0, HiddenArtist.where(server_connection_id: connection.id).count
+    assert_equal 0, HiddenGenre.where(server_connection_id: connection.id).count
+    assert_equal 0, RecommendationRun.where(server_connection_id: connection.id).count
+    assert_equal 0, RecommendationCollection.where(server_connection_id: connection.id).count
+  end
+
   private
 
   def create_connection(**attributes)

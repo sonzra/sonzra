@@ -3,11 +3,15 @@ class ServerConnection < ApplicationRecord
 
   belongs_to :user
   belongs_to :media_server
-  has_many :listening_events, dependent: :destroy
-  has_many :hidden_artists, dependent: :destroy
-  has_many :hidden_genres, dependent: :destroy
-  has_many :track_similarities, dependent: :destroy
-  has_many :sonic_graph_nodes, dependent: :destroy
+  has_many :listening_events, dependent: :delete_all
+  has_many :hidden_artists, dependent: :delete_all
+  has_many :hidden_genres, dependent: :delete_all
+  has_many :track_similarities, dependent: :delete_all
+  has_many :sonic_graph_nodes, dependent: :delete_all
+  has_many :recommendation_runs, dependent: :destroy
+  has_many :recommendation_collections, dependent: :destroy
+
+  before_destroy :nullify_user_preferred_connections
 
   after_create_commit -> { BuildSonicGraphJob.perform_later(id) }
 
@@ -42,5 +46,11 @@ class ServerConnection < ApplicationRecord
     end
 
     options_hash.merge(options)
+  end
+
+  private
+
+  def nullify_user_preferred_connections
+    User.where(preferred_server_connection_id: id).update_all(preferred_server_connection_id: nil)
   end
 end
