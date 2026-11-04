@@ -21,3 +21,4 @@ playwright-report/
 test-results/
 .context/compound-engineering/
 .compound-engineering/
+.worktrees/
