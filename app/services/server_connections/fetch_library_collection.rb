@@ -1,6 +1,6 @@
 module ServerConnections
   class FetchLibraryCollection
-    def initialize(server_connection, collection, user: nil, page: 1, query: nil, genre: nil, letter: nil, client: nil)
+    def initialize(server_connection, collection, user: nil, page: 1, query: nil, genre: nil, letter: nil, client: nil, access_token: nil, device_id: nil)
       @server_connection = server_connection
       @collection = collection
       @user = user
@@ -9,6 +9,8 @@ module ServerConnections
       @genre = genre
       @letter = letter
       @client = client
+      @access_token = access_token
+      @device_id = device_id
     end
 
     def call
@@ -31,7 +33,7 @@ module ServerConnections
     private
 
     def client
-      @client ||= Integrations::Client.for(@server_connection)
+      @client ||= Integrations::Client.for(@server_connection, access_token: @access_token, device_id: @device_id)
     end
   end
 end

@@ -10,6 +10,18 @@ class ApplicationController < ActionController::Base
     session[:sonzra_device_id] ||= "sonzra-web-#{SecureRandom.hex(6)}"
   end
 
+  def server_access_token(server_connection)
+    return unless server_connection
+
+    session.dig(:server_access_tokens, server_connection.id.to_s)
+  end
+
+  def store_server_access_token(server_connection, token)
+    return unless server_connection && token.present?
+
+    session[:server_access_tokens] = session.fetch(:server_access_tokens, {}).merge(server_connection.id.to_s => token)
+  end
+
   def registrations_enabled?
     ApplicationSetting.instance.registrations_enabled?
   end

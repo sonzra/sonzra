@@ -1,11 +1,13 @@
 module ServerConnections
   class FetchRadioTracks
-    def initialize(server_connection, item_id, limit: 12, remote_user_id: nil, client: nil)
+    def initialize(server_connection, item_id, limit: 12, remote_user_id: nil, client: nil, access_token: nil, device_id: nil)
       @server_connection = server_connection
       @item_id = item_id
       @limit = limit
       @remote_user_id = remote_user_id
       @client = client
+      @access_token = access_token
+      @device_id = device_id
     end
 
     def call
@@ -30,7 +32,7 @@ module ServerConnections
     private
 
     def client
-      @client ||= Integrations::Client.for(@server_connection, remote_user_id: @remote_user_id)
+      @client ||= Integrations::Client.for(@server_connection, remote_user_id: @remote_user_id, access_token: @access_token, device_id: @device_id)
     end
   end
 end

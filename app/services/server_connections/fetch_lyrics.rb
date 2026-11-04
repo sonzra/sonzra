@@ -2,11 +2,13 @@ module ServerConnections
   class FetchLyrics
     URL_LIKE_LINE = %r{(?:https?://|www\.|(?:[a-z0-9-]+\.)+(?:com|net|org|io|co|tv)\b)}i
 
-    def initialize(server_connection, item_id, remote_user_id: nil, client: nil)
+    def initialize(server_connection, item_id, remote_user_id: nil, client: nil, access_token: nil, device_id: nil)
       @server_connection = server_connection
       @item_id = item_id
       @remote_user_id = remote_user_id
       @client = client
+      @access_token = access_token
+      @device_id = device_id
     end
 
     def call
@@ -28,7 +30,7 @@ module ServerConnections
     private
 
     def client
-      @client ||= Integrations::Client.for(@server_connection, remote_user_id: @remote_user_id)
+      @client ||= Integrations::Client.for(@server_connection, remote_user_id: @remote_user_id, access_token: @access_token, device_id: @device_id)
     end
 
     def normalize_lines(lines)

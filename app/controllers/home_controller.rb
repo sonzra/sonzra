@@ -7,8 +7,9 @@ class HomeController < ApplicationController
 
     @result = ServerConnections::FetchCachedHomeContent.new(
       @server_connection,
-      access_token: current_access_token,
-      user: current_user
+      access_token: server_access_token(@server_connection),
+      user: current_user,
+      device_id: current_device_id
     ).call
     if @result.success?
       collections = current_user.recommendation_collections.where(server_connection: @server_connection).includes(:recommendation_tracks, :server_connection).order(generated_at: :desc).to_a.uniq(&:strategy)
@@ -17,16 +18,6 @@ class HomeController < ApplicationController
         collection.strategy == "best_of_genre" && genre_filter.hidden?(collection.title.delete_prefix("Best of ").strip)
       end
     end
-    store_access_token if @result.success?
-  end
-
-  private
-
-  def store_access_token
-    session[:server_access_tokens] = session.fetch(:server_access_tokens, {}).merge(@server_connection.id.to_s => @result.access_token)
-  end
-
-  def current_access_token
-    session.dig(:server_access_tokens, @server_connection.id.to_s)
+    store_server_access_token(@server_connection, @result.access_token) if @result.success?
   end
 end

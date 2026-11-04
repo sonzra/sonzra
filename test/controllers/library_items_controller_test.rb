@@ -246,4 +246,93 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
   ensure
     service_class.define_singleton_method(:new, original_new)
   end
+
+  class FakeHttp
+    def initialize(responses)
+      @responses = Array(responses)
+    end
+
+    def start(...)
+      yield self
+    end
+
+    def request(request)
+      response = @responses.shift
+      block_given? ? yield(response) : response
+    end
+  end
+
+  test "auto-reauthenticates on 401 when visiting album page, writing new token to db and session" do
+    @server_connection.update!(access_token: "stale-token")
+
+    unauthorized_response = Net::HTTPUnauthorized.new("1.1", "401", "Unauthorized")
+    unauthorized_response.instance_variable_set(:@read, true)
+    unauthorized_response.body = "Session expired."
+
+    auth_response = Net::HTTPOK.new("1.1", "200", "OK")
+    auth_response.instance_variable_set(:@read, true)
+    auth_response.body = { AccessToken: "fresh-session-token", User: { Id: "user-id", Name: "Bruno" } }.to_json
+
+    item_response = Net::HTTPOK.new("1.1", "200", "OK")
+    item_response.instance_variable_set(:@read, true)
+    item_response.body = {
+      Id: "album-id", Name: "Abbey Road", Type: "MusicAlbum",
+      AlbumArtists: [ { Id: "artist-id", Name: "The Beatles" } ]
+    }.to_json
+
+    user_data_response = Net::HTTPOK.new("1.1", "200", "OK")
+    user_data_response.instance_variable_set(:@read, true)
+    user_data_response.body = { PlayCount: 5 }.to_json
+
+    views_response = Net::HTTPOK.new("1.1", "200", "OK")
+    views_response.instance_variable_set(:@read, true)
+    views_response.body = { Items: [] }.to_json
+
+    tracks_response = Net::HTTPOK.new("1.1", "200", "OK")
+    tracks_response.instance_variable_set(:@read, true)
+    tracks_response.body = { Items: [ { Id: "track-1", Name: "Come Together", IndexNumber: 1 } ], TotalRecordCount: 1 }.to_json
+
+    similar_response = Net::HTTPOK.new("1.1", "200", "OK")
+    similar_response.instance_variable_set(:@read, true)
+    similar_response.body = { Items: [] }.to_json
+
+    other_albums_response = Net::HTTPOK.new("1.1", "200", "OK")
+    other_albums_response.instance_variable_set(:@read, true)
+    other_albums_response.body = { Items: [], TotalRecordCount: 0 }.to_json
+
+    http = FakeHttp.new([
+      unauthorized_response,
+      auth_response,
+      item_response,
+      user_data_response,
+      views_response,
+      tracks_response,
+      other_albums_response,
+      similar_response
+    ])
+
+    client = Integrations::Jellyfin::Client.new(
+      base_url: @server_connection.base_url,
+      username: @server_connection.username,
+      password: @server_connection.password,
+      access_token: "stale-token",
+      remote_user_id: "user-id",
+      http: http,
+      on_token_refreshed: ->(t) { @server_connection.update_column(:access_token, t) }
+    )
+
+    original_for = Integrations::Client.method(:for)
+    Integrations::Client.define_singleton_method(:for) { |*_args, **_kwargs| client }
+
+    begin
+      get library_item_server_connection_url(@server_connection, "album-id")
+    ensure
+      Integrations::Client.define_singleton_method(:for, original_for)
+    end
+
+    assert_response :success
+    assert_select "h1", "Abbey Road"
+    assert_equal "fresh-session-token", @server_connection.reload.access_token
+    assert_equal "fresh-session-token", session.dig(:server_access_tokens, @server_connection.id.to_s)
+  end
 end

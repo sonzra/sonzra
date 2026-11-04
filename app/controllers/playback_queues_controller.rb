@@ -1,10 +1,15 @@
 class PlaybackQueuesController < ApplicationController
   def show
     server_connection = current_user.server_connections.find(params.expect(:server_connection_id))
-    result = ServerConnections::FetchPlaybackQueue.new(server_connection, params.expect(:item_id)).call
+    result = ServerConnections::FetchPlaybackQueue.new(
+      server_connection,
+      params.expect(:item_id),
+      access_token: server_access_token(server_connection),
+      device_id: current_device_id
+    ).call
     return render json: { error: result.message }, status: :bad_gateway unless result.success?
 
-    session[:server_access_tokens] = session.fetch(:server_access_tokens, {}).merge(server_connection.id.to_s => result.access_token)
+    store_server_access_token(server_connection, result.access_token)
     artist_filter = HiddenArtists::Filter.new(current_user, server_connection)
     genre_filter = HiddenGenres::Filter.new(current_user, server_connection)
     items = genre_filter.items(artist_filter.items(result.items))

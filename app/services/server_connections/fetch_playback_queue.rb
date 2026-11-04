@@ -1,9 +1,11 @@
 module ServerConnections
   class FetchPlaybackQueue
-    def initialize(server_connection, item_id, client: nil)
+    def initialize(server_connection, item_id, client: nil, access_token: nil, device_id: nil)
       @server_connection = server_connection
       @item_id = item_id
       @client = client
+      @access_token = access_token
+      @device_id = device_id
     end
 
     def call
@@ -16,7 +18,7 @@ module ServerConnections
     private
 
     def client
-      @client ||= Integrations::Client.for(@server_connection)
+      @client ||= Integrations::Client.for(@server_connection, access_token: @access_token, device_id: @device_id)
     end
   end
 end
