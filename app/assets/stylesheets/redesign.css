@@ -49,7 +49,7 @@ body.redesign { margin: 0; overflow-x: hidden; }
 .redesign .listen-card__art { position: relative; display: block; aspect-ratio: 1; overflow: hidden; background: var(--rz-raised); }
 .redesign .listen-card__art img { width: 100%; height: 100%; object-fit: cover; }
 .redesign .listen-card__fallback { position: absolute; inset: 0; width: 100% !important; height: 100% !important; padding: 24%; object-fit: contain !important; background: radial-gradient(circle, #30215f, #12131f); }
-.redesign .listen-card__play { position: absolute; z-index: 2; right: 12px; bottom: 42px; display: grid; place-items: center; padding: 0; border-radius: 50%; color: var(--rz-text); box-shadow: 0 8px 20px rgb(0 0 0 / 40%); opacity: 0; transform: translateY(7px) scale(.9); transition: opacity .22s cubic-bezier(.2, .8, .2, 1), transform .22s cubic-bezier(.2, .8, .2, 1); }
+.redesign .listen-card__play { position: absolute; z-index: 2; right: 12px; bottom: 12px; display: grid; place-items: center; padding: 0; border-radius: 50%; color: var(--rz-text); box-shadow: 0 8px 20px rgb(0 0 0 / 40%); opacity: 0; transform: translateY(7px) scale(.9); transition: opacity .22s cubic-bezier(.2, .8, .2, 1), transform .22s cubic-bezier(.2, .8, .2, 1); }
 .redesign .listen-card:hover .listen-card__play, .redesign .listen-card:focus-within .listen-card__play { opacity: 1; transform: none; }
 .redesign .listen-card__options { position: absolute; z-index: 3; top: 9px; right: 9px; }
 .redesign .listen-card__options-toggle { display: grid; width: 34px; height: 34px; place-items: center; padding: 0; border: 1px solid var(--rz-line); border-radius: 50%; color: var(--rz-text); cursor: pointer; }
@@ -591,13 +591,13 @@ html[data-turbo-preview] .redesign .listen-main:not(.listen-main--home), html[da
 .redesign .redesign-detail-tracks .track-list .listen-card__play:hover, .redesign .redesign-detail-tracks .track-list__queue:hover, .redesign .redesign-detail-tracks .detail-track__more:hover, .redesign .redesign-detail-tracks .detail-track__more[aria-expanded="true"] { border-color: rgb(155 130 255 / 58%) !important; background: rgb(122 90 248 / 20%) !important; color: #fff !important; }
 .redesign .redesign-detail-tracks .track-list .listen-card__play svg, .redesign .redesign-detail-tracks .track-list__queue svg, .redesign .redesign-detail-tracks .detail-track__more svg { width: 16px; height: 16px; }
 
-/* The Library's card controls belong to the cover, so they retain their inset
+/* Card controls belong to the cover, so they retain their inset
    while that cover lifts on hover. */
-.redesign .redesign-library-grid .listen-card__cover { position: relative; aspect-ratio: 1; border-radius: 16px; transition: transform .22s ease; }
-.redesign .redesign-library-grid .listen-card__cover .listen-card__art { width: 100%; height: 100%; }
-.redesign .redesign-library-grid .listen-card__cover .listen-card__play { right: 12px; bottom: 12px; }
-.redesign .redesign-library-grid .listen-card:hover .listen-card__cover, .redesign .redesign-library-grid .listen-card:focus-within .listen-card__cover { transform: translateY(-3px); }
-.redesign .redesign-library-grid .listen-card:hover .listen-card__art, .redesign .redesign-library-grid .listen-card:focus-within .listen-card__art { transform: none; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 20%), 0 22px 45px rgb(0 0 0 / 36%); }
+.redesign .listen-card__cover { position: relative; aspect-ratio: 1; border-radius: 16px; transition: transform .22s ease; }
+.redesign .listen-card__cover .listen-card__art { width: 100%; height: 100%; }
+.redesign .listen-card__cover .listen-card__play { right: 12px; bottom: 12px; }
+.redesign .listen-card:hover .listen-card__cover, .redesign .listen-card:focus-within .listen-card__cover { transform: translateY(-3px); }
+.redesign .listen-card:hover .listen-card__art, .redesign .listen-card:focus-within .listen-card__art { transform: none; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 20%), 0 22px 45px rgb(0 0 0 / 36%); }
 
 /* Detail content sits directly on the application canvas. The ambient light
    can flow beyond the content width, while only cards and menus create layers. */

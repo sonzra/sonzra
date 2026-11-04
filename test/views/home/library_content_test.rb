@@ -27,6 +27,8 @@ class HomeLibraryContentTest < ActionView::TestCase
     assert_select "#genre_tile_ambient button[aria-label='Hide genre Ambient']"
     assert_select ".genre-explorer__all-link", 0
     assert_equal [ "Recently played", "Most played songs", "Recently added albums", "Continue podcasts", "Continue audiobooks" ], css_select(".listen-section h2").map(&:text)
+    assert_select ".listen-shelf .listen-card .listen-card__cover .listen-card__art"
+    assert_select ".listen-shelf .listen-card .listen-card__cover .listen-card__play"
     assert_select "a[href='#{library_recently_played_path}']", "See all"
     assert_select "a[href='#{library_most_played_songs_path}']", "See all"
     assert_select "a[href='#{library_recently_added_albums_path}']", "See all"
