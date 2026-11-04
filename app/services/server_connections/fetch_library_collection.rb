@@ -13,7 +13,11 @@ module ServerConnections
 
     def call
       response = client.library_collection(@collection, page: @page, query: @query, genre: @genre, letter: @letter)
-      items = @user ? HiddenArtists::Filter.new(@user, @server_connection).items(response.content) : response.content
+      items = response.content
+      if @user
+        items = HiddenArtists::Filter.new(@user, @server_connection).items(items)
+        items = HiddenGenres::Filter.new(@user, @server_connection).items(items)
+      end
       has_more = (@page * Library::Pagination::PAGE_SIZE) < response.total
       FetchLibraryCollectionResultData.new(items:, total: response.total, access_token: response.access_token, message: nil, has_more:)
     rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError => error

@@ -1,0 +1,35 @@
+<main class="settings-shell redesign-utility-page">
+  <header class="settings-header settings-header--page"><div class="page-title"><%= link_to root_path, class: "back-link back-link--compact", aria: { label: "Back to home" } do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1>Hidden genres</h1></div></header>
+
+  <% if @server_connections.any? %>
+    <section class="form-page form-page--compact hidden-genres-form-page">
+      <%= form_with url: hidden_genres_path, method: :post, class: "connection-form hidden-genres-form #{@server_connections.size > 1 ? "hidden-genres-form--multi" : ""}" do |f| %>
+        <div class="field">
+          <%= f.label :name, "Genre name" %>
+          <%= f.text_field :name, placeholder: "e.g. Holiday, Ambient", required: true, id: "hidden_genre_name_input" %>
+        </div>
+        <% if @server_connections.size > 1 %>
+          <div class="field">
+            <%= f.label :server_connection_id, "Server" %>
+            <%= f.collection_select :server_connection_id, @server_connections, :id, :name, {}, required: true %>
+          </div>
+        <% else %>
+          <%= f.hidden_field :server_connection_id, value: @server_connections.first.id %>
+        <% end %>
+        <div class="form-actions">
+          <%= f.submit "Hide genre", class: "primary-button" %>
+        </div>
+      <% end %>
+    </section>
+  <% end %>
+
+  <div id="hidden_genres_container">
+    <% if @hidden_genres.any? %>
+      <section id="hidden_genres_list" class="connection-list">
+        <%= render partial: "hidden_genres/hidden_genre", collection: @hidden_genres, as: :genre %>
+      </section>
+    <% else %>
+      <%= render "hidden_genres/empty_state" %>
+    <% end %>
+  </div>
+</main>

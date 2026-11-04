@@ -153,6 +153,7 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
     assert_select ".redesign-genre-directory .redesign-genre-tile", 2
     assert_select ".redesign-genre-tile--0", "Ambient"
     assert_select ".redesign-genre-tile--1", "Jazz"
+    assert_select ".genre-tile__hide-button", 2
   end
 
   test "searches artists, albums, and tracks from the global search route" do

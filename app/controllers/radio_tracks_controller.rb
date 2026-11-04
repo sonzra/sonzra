@@ -10,8 +10,11 @@ class RadioTracksController < ApplicationController
     return render json: { error: result.message }, status: :bad_gateway unless result.success?
 
     session[:server_access_tokens] = session.fetch(:server_access_tokens, {}).merge(server_connection.id.to_s => result.access_token)
+    artist_filter = HiddenArtists::Filter.new(current_user, server_connection)
+    genre_filter = HiddenGenres::Filter.new(current_user, server_connection)
+    filtered_items = genre_filter.items(artist_filter.items(result.items))
     render json: {
-      items: HiddenArtists::Filter.new(current_user, server_connection).items(result.items).map do |item|
+      items: filtered_items.map do |item|
         {
           source: audio_server_connection_path(server_connection, item.fetch("Id")),
           item_id: item.fetch("Id"),

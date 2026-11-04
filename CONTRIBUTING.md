@@ -23,6 +23,7 @@ bin/quality
 - Keep a pull request focused on one change.
 - Include tests for new behavior and regressions.
 - Check desktop and narrow mobile layouts for user-facing changes.
+- Follow the design tokens and component patterns in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for UI work.
 - Do not add server credentials, access tokens, private media, or production data.
 - Follow [docs/ENGINEERING.md](docs/ENGINEERING.md).
 

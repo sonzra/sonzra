@@ -43,7 +43,9 @@ class RecommendationGenerator
     return run.recommendation_collection if run.status == "generated" && run.recommendation_collection
 
     tracks, title, subtitle = candidates(connection)
-    tracks = HiddenArtists::Filter.new(@user, connection).items(tracks).select { |track| track["RunTimeTicks"].to_i >= MINIMUM_TRACK_DURATION_TICKS }
+    tracks = HiddenArtists::Filter.new(@user, connection).items(tracks)
+    tracks = HiddenGenres::Filter.new(@user, connection).items(tracks)
+    tracks = tracks.select { |track| track["RunTimeTicks"].to_i >= MINIMUM_TRACK_DURATION_TICKS }
     selected = if @strategy.in?([ "top_of_month", "all_time_top" ])
       tracks.first(MAX_TRACKS)
     elsif @strategy == "more_from_artist"
@@ -67,26 +69,46 @@ class RecommendationGenerator
   private
 
   def candidates(connection)
+    excluded_genres = hidden_genre_names(connection)
     if @strategy == "top_of_month"
       items = client_for(connection).monthly_top_tracks(@period_date)
       items = client_for(connection).recommendation_tracks_by_ids(monthly_top_item_ids) if items.empty?
-      items = client_for(connection).recommendation_tracks("friday_rediscovery", @period_date) if items.empty?
+      items = fetch_recommendation_tracks(connection, "friday_rediscovery", @period_date, excluded_genres:) if items.empty?
       [ items, "Top of #{@period_date.strftime("%B")}", "Your most-played tracks this month" ]
     elsif @strategy == "all_time_top"
       items = all_time_top_tracks(connection)
-      items = client_for(connection).recommendation_tracks("friday_rediscovery", @period_date) if items.empty?
+      items = fetch_recommendation_tracks(connection, "friday_rediscovery", @period_date, excluded_genres:) if items.empty?
       [ items, "All-Time Heavy Rotation", "Your 20 most-played songs of all time" ]
     else
-      items = client_for(connection).recommendation_tracks(@strategy, @period_date)
+      items = fetch_recommendation_tracks(connection, @strategy, @period_date, excluded_genres:)
       if @strategy == "best_of_genre"
-        genre = items.first&.dig("Genres")&.first || "your library"
-        [ items, "Best of #{genre}", "A daily mix from your most-played genre" ]
+        genre = items.flat_map { |i| i["Genres"] || [] }.find { |g| !hidden_genres_filter(connection).hidden?(g) } || items.first&.dig("Genres")&.first || "your library"
+        subtitle = genre == "your library" ? "A daily mix from your library" : "A daily mix from your most-played genre"
+        [ items, "Best of #{genre}", subtitle ]
       elsif @strategy == "more_from_artist"
         artist = items.first&.fetch("AlbumArtist", nil) || items.first&.fetch("Artists", [])&.first || "your favourite artist"
         [ items, "More from #{artist}", "Inspired by your listening this week" ]
       else
         [ items, "Friday Rediscovery", "Tracks you loved and have not heard in a while" ]
       end
+    end
+  end
+
+  def hidden_genres_filter(connection)
+    @hidden_genres_filters ||= {}
+    @hidden_genres_filters[connection.id] ||= HiddenGenres::Filter.new(@user, connection)
+  end
+
+  def hidden_genre_names(connection)
+    @user ? @user.hidden_genres.where(server_connection: connection).pluck(:name) : []
+  end
+
+  def fetch_recommendation_tracks(connection, strategy, period_date, excluded_genres: [])
+    client = client_for(connection)
+    begin
+      client.recommendation_tracks(strategy, period_date, excluded_genres:)
+    rescue ArgumentError
+      client.recommendation_tracks(strategy, period_date)
     end
   end
 

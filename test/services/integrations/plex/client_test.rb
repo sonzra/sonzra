@@ -313,6 +313,28 @@ class Integrations::Plex::ClientTest < ActiveSupport::TestCase
     ENV["PLEX_CLIENT_ID"] = previous_value if previous_value
   end
 
+  test "recommendation_tracks for best_of_genre skips excluded_genres when picking top genre" do
+    previous_value = ENV["PLEX_CLIENT_ID"]
+    ENV["PLEX_CLIENT_ID"] = "sonzra-installation-id"
+    popular_holiday = { ratingKey: 1, type: "track", title: "Carol", duration: 180_000, Genre: [ { tag: "Holiday" } ], librarySectionID: 1 }
+    popular_rock = { ratingKey: 2, type: "track", title: "Rock Track", duration: 180_000, Genre: [ { tag: "Rock" } ], librarySectionID: 1 }
+    rock_recommendation = { ratingKey: 3, type: "track", title: "Recommended Rock", duration: 180_000, Genre: [ { tag: "Rock" } ], librarySectionID: 1 }
+
+    http = FakeHttp.new([
+      response(MediaContainer: { Directory: [ { key: "1", type: "artist", title: "Music" } ] }),
+      response(MediaContainer: { Metadata: [ popular_holiday, popular_holiday, popular_rock ] }),
+      response(MediaContainer: { Metadata: [ rock_recommendation ] })
+    ])
+
+    client = Integrations::Plex::Client.new(base_url: "http://plex.example.test", access_token: "plex-token", http:)
+    tracks = client.recommendation_tracks("best_of_genre", Date.new(2026, 8, 14), excluded_genres: [ "Holiday" ])
+
+    assert_equal [ "Recommended Rock" ], tracks.pluck("Name")
+    assert_includes http.requests.last.path, "genre=Rock"
+  ensure
+    ENV["PLEX_CLIENT_ID"] = previous_value if previous_value
+  end
+
   test "falls back to diverse library tracks when no sonic analysis or genre is available" do
     previous_value = ENV["PLEX_CLIENT_ID"]
     ENV["PLEX_CLIENT_ID"] = "sonzra-installation-id"

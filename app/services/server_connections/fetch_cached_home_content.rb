@@ -17,7 +17,7 @@ module ServerConnections
 
     def call
       cached_content = cache.read(cache_key)
-      return filter_result(cached_result(cached_content)) if cached_content && access_token.present?
+      return filter_result(cached_result(cached_content)) if cached_content && (access_token.present? || Rails.env.development?)
 
       result = fetch_home_content.call
       cache.write(cache_key, result.content, expires_in: CACHE_TTL) if result.success?
@@ -33,7 +33,7 @@ module ServerConnections
     end
 
     def cached_result(content)
-      FetchHomeContentResultData.new(content: content, access_token: access_token, message: nil)
+      FetchHomeContentResultData.new(content: content, access_token: access_token || "dev-token", message: nil)
     end
 
     def fetch_home_content
@@ -43,8 +43,9 @@ module ServerConnections
     def filter_result(result)
       return result unless result.success? && @user
 
-      filter = HiddenArtists::Filter.new(@user, server_connection)
-      content = result.content.transform_values { |value| value.is_a?(Array) ? filter.items(value) : value }
+      artist_filter = HiddenArtists::Filter.new(@user, server_connection)
+      genre_filter = HiddenGenres::Filter.new(@user, server_connection)
+      content = result.content.transform_values { |value| value.is_a?(Array) ? genre_filter.items(artist_filter.items(value)) : value }
       FetchHomeContentResultData.new(content:, access_token: result.access_token, message: result.message)
     end
   end

@@ -159,7 +159,7 @@ module Integrations
         Integrations::Jellyfin::PlaybackQueueResponseData.new(items:, access_token: @access_token)
       end
 
-      def recommendation_tracks(strategy, period_date)
+      def recommendation_tracks(strategy, period_date, excluded_genres: [])
         section = music_section
         case strategy
         when "friday_rediscovery"
@@ -167,8 +167,11 @@ module Integrations
             .select { |track| track.dig("UserData", "LastPlayedDate").blank? || Time.zone.parse(track.dig("UserData", "LastPlayedDate")) < period_date - 14.days }
           tracks.empty? ? recommendation_tracks_for(section, sort: "random", limit: 200) : tracks
         when "best_of_genre"
+          excluded_set = Array(excluded_genres).map { |g| g.to_s.strip.downcase }.to_set
           popular = recommendation_tracks_for(section, sort: "viewCount:desc", limit: 100)
-          genre = popular.flat_map { |track| track["Genres"] }.tally.max_by { |_, count| count }&.first
+          genre = popular.flat_map { |track| track["Genres"] || [] }
+            .reject { |g| excluded_set.include?(g.to_s.strip.downcase) }
+            .tally.max_by { |_, count| count }&.first
           genre ? recommendation_tracks_for(section, sort: "viewCount:desc", genre:, limit: 200) : recommendation_tracks_for(section, sort: "random", limit: 200)
         when "more_from_artist"
           recent = recommendation_tracks_for(section, sort: "lastViewedAt:desc", limit: 100)
