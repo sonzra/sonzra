@@ -1,20 +1,38 @@
 <main class="settings-shell redesign-utility-page">
-  <header class="settings-header">
-    <%= link_to server_connections_path, class: "back-link back-link--compact", aria: { label: "Back to servers" }, title: "Back to servers" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %>
+  <header class="settings-header settings-header--page">
+    <div class="page-title">
+      <%= link_to server_connections_path, class: "back-link back-link--compact", aria: { label: "Back to servers" }, title: "Back to servers" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %>
+      <h1><%= @server_connection.name %></h1>
+    </div>
     <div class="settings-header__actions">
       <%= link_to "Edit", edit_server_connection_path(@server_connection), class: "secondary-button" %>
-      <%= button_to "Remove", @server_connection, method: :delete, class: "text-button text-button--danger", form: { data: { turbo_confirm: "Remove this server connection?" } } %>
+      <%= button_to "Remove", @server_connection, method: :delete, class: "secondary-button secondary-button--danger", form: { data: { turbo_confirm: "Remove this server connection?" } } %>
     </div>
   </header>
 
   <%= render "shared/flash" %>
 
-  <section class="connection-detail connection-detail--compact">
-    <h1><%= @server_connection.name %></h1>
-    <p><%= @server_connection.base_url %></p>
+  <section class="connection-detail connection-detail--compact" data-controller="server-connection-test reconnect">
+    <div class="connection-card__badges">
+      <span class="connection-badge connection-badge--provider"><%= @server_connection.provider.capitalize %></span>
+      <% if current_user.preferred_server_connection_id == @server_connection.id %>
+        <span class="connection-badge connection-badge--preferred">
+          <span class="connection-badge__dot" aria-hidden="true"></span>
+          Preferred
+        </span>
+      <% end %>
+    </div>
+    <h2><%= @server_connection.name %></h2>
+    <p class="connection-card__meta"><%= @server_connection.base_url %></p>
 
-    <div class="connection-detail__credentials"><span>Connected as</span><strong><%= @server_connection.username %></strong></div>
+    <div class="connection-detail__credentials">
+      <span>Connected as</span>
+      <strong><%= @server_connection.username %></strong>
+    </div>
 
-    <%= button_to "Test connection", test_connection_server_connection_path(@server_connection), class: "primary-button" %>
+    <div class="form-actions">
+      <%= link_to "Reconnect", reconnect_server_connection_path(@server_connection), data: { turbo_frame: "reconnect_modal", action: "reconnect#open" }, class: "secondary-button" %>
+      <%= button_to "Test connection", test_connection_server_connection_path(@server_connection), class: "primary-button", form: { data: { action: "submit->server-connection-test#run" } } %>
+    </div>
   </section>
 </main>
