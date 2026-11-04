@@ -37,7 +37,7 @@
       <h1>We couldn’t load your <%= @title.downcase %>.</h1>
       <p><%= @result.message %></p>
       <% if @server_connection %>
-        <div class="listen-loading__actions">
+        <div class="listen-loading__actions" data-controller="reconnect">
           <%= link_to "Reconnect Server", reconnect_server_connection_path(@server_connection), data: { turbo_frame: "reconnect_modal", action: "reconnect#open" }, class: "primary-button" %>
           <%= link_to "Manage servers", server_connections_path, class: "secondary-button" %>
         </div>

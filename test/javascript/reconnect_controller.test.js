@@ -46,4 +46,42 @@ describe("reconnect controller", () => {
     controller.dismiss({ preventDefault: vi.fn() })
     expect(document.getElementById("connection-alert-1")).toBeNull()
   })
+
+  it("opens the dialog when turbo:frame-load is dispatched on a dialog controller", async () => {
+    document.body.innerHTML = `
+      <dialog id="reconnect-dialog" data-controller="reconnect">
+        <turbo-frame id="reconnect_modal"></turbo-frame>
+      </dialog>
+    `
+    const dialog = document.getElementById("reconnect-dialog")
+    dialog.showModal = vi.fn()
+    dialog.close = vi.fn()
+
+    application.stop()
+    application = Application.start()
+    application.register("reconnect", ReconnectController)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    dialog.dispatchEvent(new CustomEvent("turbo:frame-load", { bubbles: true }))
+    expect(dialog.showModal).toHaveBeenCalledOnce()
+  })
+
+  it("closes the dialog when clicking directly on the backdrop", async () => {
+    document.body.innerHTML = `
+      <dialog id="reconnect-dialog" data-controller="reconnect">
+        <div class="content">Modal content</div>
+      </dialog>
+    `
+    const dialog = document.getElementById("reconnect-dialog")
+    dialog.showModal = vi.fn()
+    dialog.close = vi.fn()
+
+    application.stop()
+    application = Application.start()
+    application.register("reconnect", ReconnectController)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    dialog.dispatchEvent(new MouseEvent("click", { bubbles: true }))
+    expect(dialog.close).toHaveBeenCalledOnce()
+  })
 })

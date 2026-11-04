@@ -5,7 +5,7 @@
     <section class="listen-loading listen-loading--error" role="alert">
       <h1>We couldn’t load your library.</h1>
       <p><%= @result.message %></p>
-      <div class="listen-loading__actions">
+      <div class="listen-loading__actions" data-controller="reconnect">
         <% if @server_connection %>
           <%= link_to "Reconnect Server", reconnect_server_connection_path(@server_connection), data: { turbo_frame: "reconnect_modal", action: "reconnect#open" }, class: "primary-button" %>
         <% end %>

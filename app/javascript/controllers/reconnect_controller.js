@@ -5,10 +5,42 @@ export default class extends Controller {
     dialogId: { type: String, default: "reconnect-dialog" }
   }
 
+  connect() {
+    this.handleFrameLoad = this.handleFrameLoad.bind(this)
+    this.handleBackdropClick = this.handleBackdropClick.bind(this)
+    this.element.addEventListener("turbo:frame-load", this.handleFrameLoad)
+    if (this.element.tagName === "DIALOG") {
+      this.element.addEventListener("click", this.handleBackdropClick)
+    }
+  }
+
+  disconnect() {
+    this.element.removeEventListener("turbo:frame-load", this.handleFrameLoad)
+    if (this.element.tagName === "DIALOG") {
+      this.element.removeEventListener("click", this.handleBackdropClick)
+    }
+  }
+
+  handleFrameLoad() {
+    if (this.element.tagName === "DIALOG" && !this.element.open) {
+      if (typeof this.element.showModal === "function") {
+        this.element.showModal()
+      }
+    }
+  }
+
+  handleBackdropClick(event) {
+    if (event.target === this.element) {
+      this.close(event)
+    }
+  }
+
   open(event) {
-    const dialog = document.getElementById(this.dialogIdValue)
+    const dialog = document.getElementById(this.dialogIdValue) || (this.element.tagName === "DIALOG" ? this.element : null)
     if (dialog && typeof dialog.showModal === "function") {
-      dialog.showModal()
+      if (!dialog.open) {
+        dialog.showModal()
+      }
     }
   }
 
@@ -16,7 +48,7 @@ export default class extends Controller {
     if (event) {
       event.preventDefault()
     }
-    const dialog = document.getElementById(this.dialogIdValue) || this.element.closest("dialog")
+    const dialog = document.getElementById(this.dialogIdValue) || this.element.closest("dialog") || (this.element.tagName === "DIALOG" ? this.element : null)
     if (dialog && typeof dialog.close === "function") {
       dialog.close()
     }
