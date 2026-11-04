@@ -827,6 +827,167 @@ describe("player controller", () => {
     expect(controller.currentTrack).toBeNull()
   })
 
+  it("computes lookahead buffer seconds accurately from audio target", () => {
+    controller.audioTarget.currentTime = 10
+    Object.defineProperty(controller.audioTarget, "buffered", {
+      configurable: true,
+      value: {
+        length: 1,
+        start: () => 0,
+        end: () => 65
+      }
+    })
+
+    expect(controller.lookaheadBufferSeconds()).toBe(55)
+    expect(controller.isLookaheadBufferSafe(45)).toBe(true)
+  })
+
+  it("indicates lookahead buffer is not safe when buffer depth is low", () => {
+    controller.audioTarget.currentTime = 50
+    Object.defineProperty(controller.audioTarget, "buffered", {
+      configurable: true,
+      value: {
+        length: 1,
+        start: () => 0,
+        end: () => 65
+      }
+    })
+
+    expect(controller.lookaheadBufferSeconds()).toBe(15)
+    expect(controller.isLookaheadBufferSafe(45)).toBe(false)
+  })
+
+  it("enters soft reconnecting state when audio is waiting or stalled", () => {
+    controller.playbackRequested = true
+    controller.audioTarget.dispatchEvent(new Event("waiting"))
+
+    expect(controller.isReconnecting).toBe(true)
+    expect(controller.toggleTarget.classList.contains("is-reconnecting")).toBe(true)
+    expect(controller.toggleTarget.getAttribute("aria-busy")).toBe("true")
+
+    controller.audioTarget.dispatchEvent(new Event("canplay"))
+    expect(controller.isReconnecting).toBe(false)
+    expect(controller.toggleTarget.classList.contains("is-reconnecting")).toBe(false)
+    expect(controller.toggleTarget.hasAttribute("aria-busy")).toBe(false)
+  })
+
+  it("toggles and persists preloadOnWifiOnly player preference", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true })))
+    const button = document.createElement("button")
+    button.setAttribute("data-player-target", "wifiPreload")
+    controller.element.appendChild(button)
+    controller.connect()
+
+    expect(controller.preloadOnWifiOnly).toBe(false)
+
+    await controller.togglePreloadOnWifiOnly()
+    expect(controller.preloadOnWifiOnly).toBe(true)
+    expect(button.getAttribute("aria-pressed")).toBe("true")
+    expect(global.fetch).toHaveBeenCalledWith("/player_preferences", expect.objectContaining({
+      method: "PATCH",
+      body: JSON.stringify({ preload_on_wifi_only: true })
+    }))
+  })
+
+  it("prefetches track N+1 when active track lookahead buffer is safe (AE1)", async () => {
+    const putSpy = vi.fn(async () => {})
+    controller.ephemeralStreamStore = {
+      has: vi.fn(async () => false),
+      put: putSpy,
+      touch: vi.fn()
+    }
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, clone: vi.fn(() => ({ cloned: true })) })))
+
+    controller.queue = [
+      { source: "/audio/track-1.mp3", title: "Track 1" },
+      { source: "/audio/track-2.mp3", title: "Track 2" }
+    ]
+    controller.currentIndex = 0
+    controller.currentTrack = controller.queue[0]
+
+    // Buffer < 45s: prefetch must NOT start
+    controller.audioTarget.currentTime = 10
+    Object.defineProperty(controller.audioTarget, "buffered", {
+      configurable: true,
+      value: { length: 1, start: () => 0, end: () => 20 }
+    })
+    await controller.maybePreloadNextTrack()
+    expect(global.fetch).not.toHaveBeenCalledWith("/audio/track-2.mp3", expect.anything())
+
+    // Buffer >= 45s: prefetch must start
+    Object.defineProperty(controller.audioTarget, "buffered", {
+      configurable: true,
+      value: { length: 1, start: () => 0, end: () => 65 }
+    })
+    await controller.maybePreloadNextTrack()
+    expect(global.fetch).toHaveBeenCalledWith("/audio/track-2.mp3", expect.objectContaining({ credentials: "same-origin" }))
+    expect(putSpy).toHaveBeenCalledWith("/audio/track-2.mp3", expect.anything())
+  })
+
+  it("aborts in-flight prefetch when skipping or clearing the queue (AE2)", async () => {
+    controller.ephemeralStreamStore = {
+      has: vi.fn(async () => false),
+      put: vi.fn(async () => {})
+    }
+    controller.queue = [
+      { source: "/audio/track-1.mp3", title: "Track 1" },
+      { source: "/audio/track-2.mp3", title: "Track 2" }
+    ]
+    controller.currentIndex = 0
+    controller.currentTrack = controller.queue[0]
+    controller.audioTarget.currentTime = 10
+    Object.defineProperty(controller.audioTarget, "buffered", {
+      configurable: true,
+      value: { length: 1, start: () => 0, end: () => 65 }
+    })
+
+    let abortSignal
+    vi.stubGlobal("fetch", vi.fn((_url, options) => {
+      abortSignal = options?.signal
+      return new Promise((resolve, reject) => {
+        if (options?.signal?.aborted) {
+          reject(new DOMException("The user aborted a request.", "AbortError"))
+        } else {
+          options?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("The user aborted a request.", "AbortError"))
+          })
+        }
+      })
+    }))
+
+    const preloadPromise = controller.maybePreloadNextTrack()
+    await Promise.resolve()
+    expect(abortSignal).toBeDefined()
+    expect(abortSignal.aborted).toBe(false)
+
+    controller.cancelPreload()
+    expect(abortSignal.aborted).toBe(true)
+    await preloadPromise
+  })
+
+  it("suppresses prefetching when preloadOnWifiOnly is enabled on cellular network (AE3)", async () => {
+    controller.preloadOnWifiOnly = true
+    vi.stubGlobal("navigator", {
+      connection: { type: "cellular", saveData: false }
+    })
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true })))
+
+    controller.queue = [
+      { source: "/audio/track-1.mp3", title: "Track 1" },
+      { source: "/audio/track-2.mp3", title: "Track 2" }
+    ]
+    controller.currentIndex = 0
+    controller.currentTrack = controller.queue[0]
+    controller.audioTarget.currentTime = 10
+    Object.defineProperty(controller.audioTarget, "buffered", {
+      configurable: true,
+      value: { length: 1, start: () => 0, end: () => 65 }
+    })
+
+    await controller.maybePreloadNextTrack()
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
+
   function addLyricsTargets() {
     document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", `
       <button data-player-target="queueTab"></button><button data-player-target="lyricsTab"></button>

@@ -3,6 +3,7 @@
   <% if authenticated? %>
     data-controller="player"
     data-player-radio-enabled-value="<%= session.dig(:player_preferences, "radio_enabled") == true %>"
+    data-player-preload-on-wifi-only-value="<%= session.dig(:player_preferences, "preload_on_wifi_only") == true %>"
     data-player-offline-value="<%= @offline_shell == true %>"
     data-player-preferences-url-value="<%= player_preferences_path %>"
   <% end %>>

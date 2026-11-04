@@ -4,6 +4,7 @@ import { fileURLToPath, URL } from "node:url"
 export default defineConfig({
   resolve: {
     alias: {
+      ephemeral_stream_store: fileURLToPath(new URL("./app/javascript/ephemeral_stream_store.js", import.meta.url)),
       offline_outbox: fileURLToPath(new URL("./app/javascript/offline_outbox.js", import.meta.url)),
       offline_media_store: fileURLToPath(new URL("./app/javascript/offline_media_store.js", import.meta.url)),
       graphology: fileURLToPath(new URL("./app/javascript/vendor/graphology.min.js", import.meta.url)),

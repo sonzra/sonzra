@@ -44,6 +44,23 @@ describe("offline service worker", () => {
     expect(fetch).toHaveBeenCalledWith(event.request)
   })
 
+  it("serves from the ephemeral stream cache when no offline copy exists", async () => {
+    const streamCopy = { stream: true }
+    const offlineCache = { match: vi.fn(async () => undefined) }
+    const streamCache = { match: vi.fn(async () => streamCopy) }
+    caches.open.mockImplementation(async (name) => {
+      if (name === "sonzra-offline-media-v1") return offlineCache
+      if (name === "sonzra-stream-cache-v1") return streamCache
+      return cache
+    })
+    const event = requestEvent("http://sonzra.test/server_connections/1/audio/track-1")
+
+    handlers.fetch(event)
+
+    await expect(event.response).resolves.toBe(streamCopy)
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
   it("falls back to the normal stream when offline cache access fails", async () => {
     caches.open.mockRejectedValue(new Error("Cache unavailable"))
     const event = requestEvent("http://sonzra.test/server_connections/1/audio/track-1")

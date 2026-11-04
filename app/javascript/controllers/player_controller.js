@@ -1,6 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 import { OfflineMediaStore } from "offline_media_store"
 import { OfflineOutbox } from "offline_outbox"
+import { EphemeralStreamStore } from "ephemeral_stream_store"
 
 const PLAYER_STATE_KEY = "sonzra:player-state"
 const LEGACY_QUEUE_KEY = "sonzra:queue"
@@ -11,10 +12,11 @@ const RADIO_MAX_QUEUE_SIZE = 24
 const PLAYBACK_RECOVERY_DELAY = 8_000
 const MAX_PLAYBACK_RECOVERY_ATTEMPTS = 2
 const QUEUE_TRANSITION_DURATION = 320
+const LOOKAHEAD_BUFFER_THRESHOLD = 15
 
 export default class extends Controller {
-  static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "favorite", "radio", "volume", "clearDialog", "queueView", "lyricsView", "queueTab", "lyricsTab", "lyricsStatus", "lyricsList", "lyricsFollow", "visualizer"]
-  static values = { radioEnabled: Boolean, preferencesUrl: String, offline: Boolean }
+  static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "favorite", "radio", "volume", "clearDialog", "queueView", "lyricsView", "queueTab", "lyricsTab", "lyricsStatus", "lyricsList", "lyricsFollow", "visualizer", "wifiPreload"]
+  static values = { radioEnabled: Boolean, preferencesUrl: String, offline: Boolean, preloadOnWifiOnly: Boolean }
 
   connect() {
     // The player is Turbo-permanent. During a deploy or a Turbo restoration it
@@ -23,14 +25,23 @@ export default class extends Controller {
     if (!this.hasAudioTarget) return
 
     this.radioEnabled = this.radioEnabledValue === true
+    this.preloadOnWifiOnly = this.preloadOnWifiOnlyValue === true
     this.offlineMode = this.offlineValue === true
     this.outbox = this.outbox || new OfflineOutbox()
+    this.ephemeralStreamStore = this.ephemeralStreamStore || new EphemeralStreamStore()
+    if (!this.ephemeralStreamStore.supported() && typeof window !== "undefined" && window.isSecureContext === false) {
+      console.warn("[Sonzra Stream Cache] Insecure origin detected. Modern browsers disable CacheStorage and ServiceWorker over remote HTTP (e.g. http://192.168.x.x). To enable stream caching, access via http://localhost:3000 (SSH tunnel) or HTTPS, or enable Chrome's unsafely-treat-insecure-origin-as-secure flag.")
+    }
+    this.preloadAbortController = null
+    this.preloadingSource = null
+    this.isReconnecting = false
     this.lyricsCache = new Map()
     this.lyricsFollowing = true
     this.bindEventHandlers()
     this.relocateLegacyQueue()
     this.restoreVolume()
     this.restoreQueue()
+    this.updateWifiPreloadControls()
     this.audioTarget.preload = "auto"
     this.audioTarget.playsInline = true
     this.configureAudioSession()
@@ -99,6 +110,8 @@ export default class extends Controller {
     this.stopProgressWatch()
     this.stopVisualizer()
     this.clearPlaybackRecovery()
+    this.setReconnectingState(false)
+    this.cancelPreload()
     this.lyricsRequest?.abort()
     window.clearTimeout(this.lyricScrollTimeout)
   }
@@ -163,6 +176,7 @@ export default class extends Controller {
   }
 
   seek(event) {
+    this.cancelPreload()
     this.audioTarget.currentTime = event.currentTarget.value
     this.updateProgress(Number(event.currentTarget.value), Number(event.currentTarget.max))
     this.syncNativeMedia()
@@ -194,6 +208,7 @@ export default class extends Controller {
   previous() {
     if (this.currentIndex === 0) return
 
+    this.cancelPreload()
     this.currentIndex -= 1
     this.persistQueue({ force: true })
     this.renderQueue()
@@ -203,6 +218,7 @@ export default class extends Controller {
   next() {
     if (this.currentIndex >= this.queue.length - 1) return
 
+    this.cancelPreload()
     this.currentIndex += 1
     this.persistQueue({ force: true })
     this.renderQueue()
@@ -263,6 +279,7 @@ export default class extends Controller {
     })
     this.updateProgress(this.audioTarget.currentTime, duration)
     this.syncBrowserMediaPosition()
+    this.maybePreloadNextTrack()
     if (this.playbackRecoveryAttempts > 0 && this.audioTarget.currentTime >= (this.playbackRecoveryPosition || 0) + 15) {
       this.playbackRecoveryAttempts = 0
     }
@@ -286,6 +303,7 @@ export default class extends Controller {
   }
 
   handlePlay() {
+    this.setReconnectingState(false)
     this.syncPlayingState()
     this.startVisualizer()
     this.updateToggle()
@@ -298,6 +316,7 @@ export default class extends Controller {
   }
 
   handlePause() {
+    this.setReconnectingState(false)
     this.syncPlayingState()
     this.stopVisualizer()
     this.updateToggle()
@@ -332,14 +351,37 @@ export default class extends Controller {
   handleBuffering() {
     if (!this.playbackRequested || this.audioTarget.ended) return
 
+    this.setReconnectingState(true)
     this.schedulePlaybackRecovery(PLAYBACK_RECOVERY_DELAY)
   }
 
   handleCanPlay() {
+    this.setReconnectingState(false)
     this.clearPlaybackRecovery()
   }
 
+  setReconnectingState(reconnecting) {
+    this.isReconnecting = reconnecting
+    if (this.hasToggleTarget) {
+      this.toggleTarget.classList.toggle("is-reconnecting", reconnecting)
+      if (reconnecting) {
+        this.toggleTarget.setAttribute("aria-busy", "true")
+      } else {
+        this.toggleTarget.removeAttribute("aria-busy")
+      }
+    }
+    if (this.hasExpandedToggleTarget) {
+      this.expandedToggleTarget.classList.toggle("is-reconnecting", reconnecting)
+      if (reconnecting) {
+        this.expandedToggleTarget.setAttribute("aria-busy", "true")
+      } else {
+        this.expandedToggleTarget.removeAttribute("aria-busy")
+      }
+    }
+  }
+
   handlePlaybackError() {
+    this.setReconnectingState(false)
     if (this.schedulePlaybackRecovery(0)) return
 
     if (this.hasArtistTarget) this.artistTarget.textContent = "This track could not be played. Check the server logs and try again."
@@ -422,10 +464,13 @@ export default class extends Controller {
     const track = this.queue[this.currentIndex]
     if (!track) return
 
+    this.cancelPreload()
     if (this.currentTrack && this.currentTrack !== track) this.reportPlayback("stopped")
     this.clearPlaybackRecovery()
+    this.setReconnectingState(false)
     this.playbackRequested = true
     this.loadTrack(track)
+    this.ephemeralStreamStore?.touch(track.source)
     const playback = this.audioTarget.play()
     this.monitorPlayback(playback)
     this.maybeExtendRadioQueue()
@@ -813,6 +858,7 @@ export default class extends Controller {
   removeQueuedTrack(index) {
     if (index < 0 || index >= this.queue.length) return
 
+    this.cancelPreload()
     const removingCurrent = index === this.currentIndex
     this.queue.splice(index, 1)
     if (this.queue.length === 0) {
@@ -855,6 +901,8 @@ export default class extends Controller {
   }
 
   clearQueue() {
+    this.cancelPreload()
+    this.setReconnectingState(false)
     if (this.radioEnabled) this.setRadioEnabled(false)
     this.queue = []
     this.currentIndex = 0
@@ -905,6 +953,150 @@ export default class extends Controller {
     if (this.hasDurationTarget) this.durationTarget.textContent = "0:00"
     if (this.hasExpandedElapsedTarget) this.expandedElapsedTarget.textContent = "0:00"
     if (this.hasExpandedDurationTarget) this.expandedDurationTarget.textContent = "0:00"
+  }
+
+  lookaheadBufferSeconds() {
+    if (!this.hasAudioTarget) return 0
+
+    const currentTime = Number(this.audioTarget.currentTime) || 0
+    const buffered = this.audioTarget.buffered
+    if (!buffered || buffered.length === 0) return 0
+
+    for (let i = 0; i < buffered.length; i++) {
+      const start = buffered.start(i)
+      const end = buffered.end(i)
+      if (start <= currentTime && currentTime <= end) {
+        return Math.max(0, end - currentTime)
+      }
+    }
+
+    return 0
+  }
+
+  isLookaheadBufferSafe(thresholdSeconds = LOOKAHEAD_BUFFER_THRESHOLD) {
+    if (!this.hasAudioTarget) return false
+
+    const duration = this.audioTarget.duration
+    const currentTime = Number(this.audioTarget.currentTime) || 0
+    if (Number.isFinite(duration) && duration > 0 && currentTime >= duration - 30) {
+      return true
+    }
+
+    const lookahead = this.lookaheadBufferSeconds()
+    if (lookahead >= thresholdSeconds) return true
+
+    const buffered = this.audioTarget.buffered
+    if (buffered && buffered.length > 0 && Number.isFinite(duration) && duration > 0) {
+      for (let i = 0; i < buffered.length; i++) {
+        if (buffered.start(i) <= currentTime && buffered.end(i) >= duration - 1) {
+          return true
+        }
+      }
+    }
+
+    return false
+  }
+
+  async maybePreloadNextTrack() {
+    if (this.offlineMode || !this.currentTrack) return
+
+    const nextTrack = this.queue[this.currentIndex + 1]
+    if (!nextTrack?.source) return
+
+    if (!this.isLookaheadBufferSafe(LOOKAHEAD_BUFFER_THRESHOLD)) return
+    if (this.preloadingSource === nextTrack.source) return
+
+    const alreadyCached = await this.ephemeralStreamStore?.has(nextTrack.source)
+    if (alreadyCached) {
+      this.ephemeralStreamStore?.touch(nextTrack.source)
+      return
+    }
+
+    if (this.isPreloadSuppressedByNetwork()) return
+
+    this.cancelPreload()
+    this.preloadAbortController = new AbortController()
+    this.preloadingSource = nextTrack.source
+
+    try {
+      console.info("[Sonzra Stream Cache] Preloading next track into cache:", nextTrack.title || nextTrack.source)
+      const response = await fetch(nextTrack.source, {
+        signal: this.preloadAbortController.signal,
+        credentials: "same-origin"
+      })
+      if (response.ok) {
+        await this.ephemeralStreamStore?.put(nextTrack.source, response)
+        console.info("[Sonzra Stream Cache] Successfully cached track in sonzra-stream-cache-v1:", nextTrack.title || nextTrack.source)
+      }
+    } catch (error) {
+      if (error?.name !== "AbortError") {
+        console.warn("[Sonzra Stream Cache] Preload failed (non-fatal):", error)
+      }
+    } finally {
+      if (this.preloadingSource === nextTrack.source) {
+        this.preloadingSource = null
+        this.preloadAbortController = null
+      }
+    }
+  }
+
+  isPreloadSuppressedByNetwork() {
+    if (!this.preloadOnWifiOnly) return false
+
+    const connection = globalThis.navigator?.connection
+    if (!connection) return false
+
+    if (connection.saveData === true) return true
+    if (connection.type === "cellular") return true
+    if (["slow-2g", "2g", "3g"].includes(connection.effectiveType)) return true
+
+    return false
+  }
+
+  cancelPreload() {
+    if (this.preloadAbortController) {
+      this.preloadAbortController.abort()
+      this.preloadAbortController = null
+    }
+    this.preloadingSource = null
+  }
+
+  updateWifiPreloadControls() {
+    this.wifiPreloadTargets.forEach((control) => {
+      control.setAttribute("aria-label", this.preloadOnWifiOnly ? "Preload on Wi-Fi only on" : "Preload on Wi-Fi only off")
+      control.setAttribute("aria-pressed", this.preloadOnWifiOnly ? "true" : "false")
+      control.classList.toggle("is-active", this.preloadOnWifiOnly)
+    })
+  }
+
+  preloadOnWifiOnlyValueChanged(value) {
+    this.preloadOnWifiOnly = value === true
+    this.updateWifiPreloadControls()
+  }
+
+  async togglePreloadOnWifiOnly() {
+    await this.setPreloadOnWifiOnly(!this.preloadOnWifiOnly)
+  }
+
+  async setPreloadOnWifiOnly(enabled) {
+    this.preloadOnWifiOnly = enabled
+    this.updateWifiPreloadControls()
+
+    if (!this.preferencesUrlValue) return
+
+    try {
+      await fetch(this.preferencesUrlValue, {
+        method: "PATCH",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "X-CSRF-Token": document.querySelector("meta[name='csrf-token']")?.content
+        },
+        body: JSON.stringify({ preload_on_wifi_only: enabled })
+      })
+    } catch (_) {
+      // Preferences update failure is non-fatal
+    }
   }
 
   formatTime(seconds) {
