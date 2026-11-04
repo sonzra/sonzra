@@ -13,12 +13,13 @@ module Integrations
       class AuthenticationError < StandardError; end
       class ConnectionError < StandardError; end
 
-      def initialize(base_url:, username: nil, password: nil, access_token: nil, remote_user_id: nil, http: Net::HTTP)
+      def initialize(base_url:, username: nil, password: nil, access_token: nil, remote_user_id: nil, device_id: nil, http: Net::HTTP)
         @base_url = base_url
         @username = username
         @password = password
         @access_token = access_token
         @remote_user_id = remote_user_id
+        @device_id = device_id
         @http = http
       end
 
@@ -889,7 +890,8 @@ module Integrations
       end
 
       def authorization_header(token = nil)
-        values = 'Client="Sonzra", Device="Sonzra", DeviceId="sonzra-web", Version="1.0.0"'
+        device_id = @device_id.presence || "sonzra-web"
+        values = %(Client="Sonzra", Device="Sonzra", DeviceId="#{device_id}", Version="1.0.0")
         values += ", Token=\"#{token}\"" if token.present?
         "MediaBrowser #{values}"
       end
