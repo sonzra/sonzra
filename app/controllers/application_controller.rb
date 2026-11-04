@@ -21,6 +21,7 @@ class ApplicationController < ActionController::Base
     return unless server_connection && token.present?
 
     session[:server_access_tokens] = session.fetch(:server_access_tokens, {}).merge(server_connection.id.to_s => token)
+    server_connection.update_column(:access_token, token) if server_connection.persisted? && server_connection.access_token != token
   end
 
   def registrations_enabled?
