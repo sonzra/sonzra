@@ -523,7 +523,7 @@
 
 /* Album tracks use one shared control rhythm, matching the offline detail view. */
 .detail-section .track-list:not(.track-list--playlist) li {
-  grid-template-columns: 32px minmax(0, 1fr) 70px repeat(3, 36px);
+  grid-template-columns: 32px minmax(0, 1fr) 70px repeat(4, 36px);
   gap: 10px;
 }
 
@@ -573,7 +573,7 @@
 
 @media (max-width: 760px) {
   .detail-section .track-list:not(.track-list--playlist) li {
-    grid-template-columns: 26px minmax(0, 1fr) repeat(3, 36px) !important;
+    grid-template-columns: 26px minmax(0, 1fr) repeat(4, 36px) !important;
     gap: 8px;
   }
 
@@ -596,7 +596,8 @@
 
   .detail-section .track-list:not(.track-list--playlist) .listen-card__play { grid-column: 3; }
   .detail-section .track-list:not(.track-list--playlist) .track-list__queue { grid-column: 4; }
-  .detail-section .track-list:not(.track-list--playlist) .track-list__download { grid-column: 5; }
+  .detail-section .track-list:not(.track-list--playlist) .track-list__download.track-list__playlist { grid-column: 5; }
+  .detail-section .track-list:not(.track-list--playlist) .track-list__download:not(.track-list__playlist) { grid-column: 6; }
   .detail-section .track-list--playlist .listen-card__play { grid-column: 2; }
   .detail-section .track-list--playlist .track-list__queue { grid-column: 3; }
   .detail-section .track-list--playlist .track-list__download { grid-column: 4; }

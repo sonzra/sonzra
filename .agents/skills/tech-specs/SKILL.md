@@ -50,7 +50,7 @@ flowchart TD
     
     IdentifyTradeoffs -->|Yes| ConsultAdvisors["Consult Advisors\n(architect_advisor & ui_ux_advisor)"]
     ConsultAdvisors --> FormulateTechQuestions["Formulate Technical Open Questions\n(Options with '[ ]' & '(Recommended)')"]
-    FormulateTechQuestions --> Chunking["Decompose Epic into Bite-Sized Chunks\n(Schema -> Service -> Controller -> View/JS -> Tests)"]
+    FormulateTechQuestions --> Chunking["Decompose Epic into Bite-Sized Chunks\n(Schema -> Service -> Controller -> View/JS -> E2E -> Quality Gate)"]
     
     IdentifyTradeoffs -->|No / All Resolved| Chunking
     Chunking --> WriteTechSpec["Write specs/<issue-number>/tech-spec-epic-<N>-<slug>.md"]
@@ -98,12 +98,17 @@ When architectural or frontend technical trade-offs exist (e.g. client-side time
 ```
 
 ### Step 4: Decompose Epic into Bite-Sized Chunks
-Break the epic down into 3–5 sequential, test-driven slices so an engineer or subagent can implement them reliably:
+Break the epic down into sequential, test-driven slices so an engineer or subagent can implement them reliably:
 - **Chunk 1: Data Model & Schema (if needed)**: Migrations, Active Record models, validations, encryption, model tests.
 - **Chunk 2: Upstream Integration & Domain Service**: Adapter methods, domain service object, immutable `Data.define` result DTO, service unit tests using test doubles.
 - **Chunk 3: Routing, Controller & Turbo Streams**: RESTful routes, thin controller actions, parameter sanitization, Turbo Stream responses, controller integration tests.
 - **Chunk 4: Views, Stimulus & Styling**: ERB partials, Stimulus controller, `--rz-*` CSS styles, responsive safe-area insets, Vitest controller tests.
-- **Chunk 5: End-to-End Verification & Quality Gate**: Full test suite execution, RuboCop check, responsive viewport check (375px & desktop), `bin/quality`.
+- **Chunk 5: End-to-End Playwright Suite (Mandatory for UI Epics)**:
+  - Create `test/e2e/<feature>.spec.js`.
+  - Directly translate the PRD's Observable Acceptance Criteria into Playwright test scenarios.
+  - **Strict Mocking Rule**: Intercept all media server and backend routes using `page.route` via test helpers (`test/e2e/support/helpers.js`). Connecting to a live Jellyfin or media server instance is strictly forbidden.
+  - Test across desktop and mobile viewports (minimum 44px touch targets, mobile bottom sheets, keyboard navigation).
+- **Chunk 6: Integration Verification & Quality Gate**: Full test suite execution, RuboCop check, responsive viewport check (375px & desktop), `bin/quality`.
 
 ### Step 5: Generate Technical Specification Document
 Populate the document using the canonical template at [resources/tech-spec-template.md](./resources/tech-spec-template.md) and save to `specs/<issue-number>/tech-spec-epic-<epic-number>-<slug>.md`.
