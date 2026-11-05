@@ -10,8 +10,6 @@ class OfflineDownloadsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "uses the standalone redesign downloads collection layout" do
-    users(:one).update!(ui_variant: "redesign")
-
     get offline_downloads_path
 
     assert_response :success
