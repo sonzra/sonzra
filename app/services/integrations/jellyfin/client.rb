@@ -10,8 +10,8 @@ module Integrations
       CAPABILITIES = [ Integrations::Capabilities::LETTER_FILTERING, Integrations::Capabilities::SONIC_GRAPH ].freeze
       include Integrations::CapabilitySupport
 
-      class AuthenticationError < StandardError; end
-      class ConnectionError < StandardError; end
+      class AuthenticationError < Integrations::AuthenticationError; end
+      class ConnectionError < Integrations::ConnectionError; end
 
       def initialize(base_url:, username: nil, password: nil, access_token: nil, remote_user_id: nil, http: Net::HTTP, on_token_refreshed: nil, device_id: nil)
         @base_url = base_url

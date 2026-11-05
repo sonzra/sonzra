@@ -2,7 +2,7 @@ require "test_helper"
 
 class ServerConnections::FetchLibraryCollectionTest < ActiveSupport::TestCase
   test "returns a fetched library collection" do
-    response = Integrations::Jellyfin::LibraryCollectionResponseData.new(content: [ { "Name" => "Artist" } ], total: 1, access_token: "token")
+    response = Integrations::LibraryCollectionResponseData.new(content: [ { "Name" => "Artist" } ], total: 1, access_token: "token")
     client = Object.new
     client.define_singleton_method(:library_collection) { |_, **| response }
 
@@ -14,7 +14,7 @@ class ServerConnections::FetchLibraryCollectionTest < ActiveSupport::TestCase
   end
 
   test "calculates has_more based on total count and current page" do
-    response = Integrations::Jellyfin::LibraryCollectionResponseData.new(content: Array.new(60) { { "Name" => "Artist" } }, total: 120, access_token: "token")
+    response = Integrations::LibraryCollectionResponseData.new(content: Array.new(60) { { "Name" => "Artist" } }, total: 120, access_token: "token")
     client = Object.new
     client.define_singleton_method(:library_collection) { |_, **| response }
 
@@ -24,7 +24,7 @@ class ServerConnections::FetchLibraryCollectionTest < ActiveSupport::TestCase
   end
 
   test "passes letter parameter to client library collection" do
-    response = Integrations::Jellyfin::LibraryCollectionResponseData.new(content: [ { "Name" => "Beatles" } ], total: 1, access_token: "token")
+    response = Integrations::LibraryCollectionResponseData.new(content: [ { "Name" => "Beatles" } ], total: 1, access_token: "token")
     client = Object.new
     received_letter = nil
     client.define_singleton_method(:library_collection) { |_, **kwargs| received_letter = kwargs[:letter]; response }
@@ -44,7 +44,7 @@ class ServerConnections::FetchLibraryCollectionTest < ActiveSupport::TestCase
   end
 
   test "supports music shelf collections" do
-    response = Integrations::Jellyfin::LibraryCollectionResponseData.new(content: [ { "Name" => "Track" } ], total: 1, access_token: "token")
+    response = Integrations::LibraryCollectionResponseData.new(content: [ { "Name" => "Track" } ], total: 1, access_token: "token")
     client = Object.new
     requested_collection = nil
     client.define_singleton_method(:library_collection) { |collection, **| requested_collection = collection; response }
@@ -60,7 +60,7 @@ class ServerConnections::FetchLibraryCollectionTest < ActiveSupport::TestCase
     connection = ServerConnection.create!(name: "Home", provider: :jellyfin, base_url: "https://example.com", username: "bruno", password: "secret", user: users(:one))
     HiddenGenre.create!(user: users(:one), server_connection: connection, name: "Holiday")
 
-    response = Integrations::Jellyfin::LibraryCollectionResponseData.new(
+    response = Integrations::LibraryCollectionResponseData.new(
       content: [
         { "Id" => "album-1", "Name" => "Xmas Album", "Genres" => [ "Holiday" ] },
         { "Id" => "album-2", "Name" => "Rock Album", "Genres" => [ "Rock" ] }

@@ -25,7 +25,7 @@ module ServerConnections
       end
 
       FetchRadioTracksResultData.new(items:, access_token: client.instance_variable_get(:@access_token), message: nil)
-    rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError => error
+    rescue Integrations::AuthenticationError, Integrations::ConnectionError => error
       FetchRadioTracksResultData.new(items: [], access_token: nil, message: error.message.presence || "Could not prepare radio tracks.")
     end
 

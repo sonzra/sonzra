@@ -13,12 +13,12 @@ module ServerConnections
 
       def report_playback(event:, item_id:, position_ticks:, paused:, duration_ticks: 0, access_token: nil)
         @reported_events << { event:, item_id:, position_ticks:, paused:, duration_ticks: }
-        Integrations::Jellyfin::PlaybackReportResponseData.new(access_token: "token-123")
+        Integrations::PlaybackReportResponseData.new(access_token: "token-123")
       end
 
       def update_playback_position(item_id:, position_ticks:, access_token: nil)
         @updated_positions << { item_id:, position_ticks: }
-        Integrations::Jellyfin::PlaybackReportResponseData.new(access_token: "token-123")
+        Integrations::PlaybackReportResponseData.new(access_token: "token-123")
       end
 
       def library_item_details(item_id)
@@ -30,7 +30,7 @@ module ServerConnections
             }
           }
         }
-        Integrations::Jellyfin::LibraryItemDetailsResponseData.new(details:, access_token: "token-123")
+        Integrations::LibraryItemDetailsResponseData.new(details:, access_token: "token-123")
       end
     end
 

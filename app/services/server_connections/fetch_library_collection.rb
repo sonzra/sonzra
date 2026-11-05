@@ -22,7 +22,7 @@ module ServerConnections
       end
       has_more = (@page * Library::Pagination::PAGE_SIZE) < response.total
       FetchLibraryCollectionResultData.new(items:, total: response.total, access_token: response.access_token, message: nil, has_more:)
-    rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError => error
+    rescue Integrations::AuthenticationError, Integrations::ConnectionError => error
       FetchLibraryCollectionResultData.new(items: [], total: 0, access_token: nil, message: error.message.presence || "Could not load this library.", has_more: false)
     end
 

@@ -11,11 +11,11 @@ class PlaybackController < ApplicationController
       range: request.headers["Range"],
       access_token: token
     ) do |part|
-      part.is_a?(Integrations::Jellyfin::AudioStreamResponseData) ? start_stream(part) : response.stream.write(part)
+      part.is_a?(Integrations::AudioStreamResponseData) ? start_stream(part) : response.stream.write(part)
     end
-  rescue Integrations::Jellyfin::Client::AuthenticationError
+  rescue Integrations::AuthenticationError
     head :unauthorized
-  rescue Integrations::Jellyfin::Client::ConnectionError
+  rescue Integrations::ConnectionError
     head :bad_gateway
   rescue ActionController::Live::ClientDisconnected
   ensure

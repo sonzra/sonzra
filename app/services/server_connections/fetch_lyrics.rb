@@ -23,7 +23,7 @@ module ServerConnections
         synchronized: available && lines.all? { |line| line[:start].present? },
         message: nil
       )
-    rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError => error
+    rescue Integrations::AuthenticationError, Integrations::ConnectionError => error
       FetchLyricsResultData.new(lines: [], access_token: nil, available: false, synchronized: false, message: error.message.presence || "Could not load lyrics.")
     end
 

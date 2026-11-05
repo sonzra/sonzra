@@ -33,7 +33,7 @@ class PlaylistsControllerTest < ActionDispatch::IntegrationTest
     requested_album_id = nil
     client.define_singleton_method(:playback_queue) do |item_id|
       requested_album_id = item_id
-      Integrations::Jellyfin::PlaybackQueueResponseData.new(
+      Integrations::PlaybackQueueResponseData.new(
         items: [ { "Id" => "track-1" }, { "Id" => "track-2" } ],
         access_token: "token"
       )

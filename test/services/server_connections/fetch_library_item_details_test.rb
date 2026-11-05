@@ -3,7 +3,7 @@ require "test_helper"
 class ServerConnections::FetchLibraryItemDetailsTest < ActiveSupport::TestCase
   test "returns details and a temporary access token" do
     details = { item: { "Name" => "Album" }, album: {}, tracks: [], other_albums: [], similar_albums: [] }
-    response = Integrations::Jellyfin::LibraryItemDetailsResponseData.new(details: details, access_token: "token")
+    response = Integrations::LibraryItemDetailsResponseData.new(details: details, access_token: "token")
     client = Object.new
     client.define_singleton_method(:library_item_details) { |_| response }
 
@@ -19,7 +19,7 @@ class ServerConnections::FetchLibraryItemDetailsTest < ActiveSupport::TestCase
     received_options = nil
     fake_client = Object.new
     fake_client.define_singleton_method(:library_item_details) do |_|
-      Integrations::Jellyfin::LibraryItemDetailsResponseData.new(
+      Integrations::LibraryItemDetailsResponseData.new(
         details: { item: { "Name" => "Album" }, album: {}, tracks: [], other_albums: [], similar_albums: [] },
         access_token: "new-token"
       )
