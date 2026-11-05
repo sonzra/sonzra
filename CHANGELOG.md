@@ -4,6 +4,22 @@
 
 No changes yet.
 
+## 1.0.0 — 2026-11-05
+
+### Added
+
+- Multi-architecture container image builds supporting both `linux/amd64` and `linux/arm64` published to GitHub Container Registry.
+- Playwright End-to-End browser test automation in GitHub Actions CI workflow covering authentication and playlist operations.
+- Full playlist addition management for single tracks, complete albums, recommendation mixes, and entire artist discographies.
+- Canonical `Integrations::AuthenticationError` and `Integrations::ConnectionError` exception hierarchy.
+
+### Changed
+
+- Decoupled media server adapters into provider-neutral immutable DTOs (`Integrations::*ResponseData`), eliminating direct cross-provider dependencies between Plex and Jellyfin.
+- Updated `public/manifest.json` description to represent multi-provider streaming support (Jellyfin & Plex).
+- Updated security disclosure contact information in `SECURITY.md`.
+- Updated Docker configuration and documentation across `README.md` and `docs/INSTALLATION.md` to reference `1.0.0`.
+
 ## 0.0.21-alpha — 2026-11-05
 
 ### Added
