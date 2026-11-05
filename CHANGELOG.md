@@ -4,6 +4,31 @@
 
 No changes yet.
 
+## 0.0.21-alpha — 2026-11-05
+
+### Added
+
+- Unified Offline Synchronization Protocol: Client IndexedDB offline outbox (`OfflineOutbox`) to queue, throttle, and deduplicate playback telemetry during offline listening or degraded network connections.
+- Batch playback reporting endpoint (`POST /server_connections/:id/playback_reports/batch`) and `ServerConnections::ReportPlaybackBatch` service with historical timestamp persistence and latest-timestamp conflict resolution.
+- Automatic offline outbox synchronization on window reconnection (`online`) and app restore (`pageshow`) with exponential backoff and audio feedback toast notifications.
+- Resilient audio stream buffering featuring active buffer lookahead monitoring, soft-reconnecting transport, N+1 audio track preloading, and ephemeral audio caching (`EphemeralStreamStore`) with Service Worker HTTP range request interception.
+- User playback preference to restrict audio preloading to Wi-Fi connections (`preload_on_wifi_only`).
+- Persistent shell reconnection banner (`#connection_alerts`) and inline reconnect modal with auto-polling for QuickConnect approval, allowing seamless re-authentication without full-page navigation.
+- Dynamic client `DeviceId` scoping per user web session and isolated background worker identifiers (`BuildSonicGraphJob` and `RecommendationGenerator`) to prevent token revocation and Jellyfin/Plex session collisions.
+
+### Changed
+
+- Standardized card media controls by encapsulating artwork, play button, and options toggle within `.listen-card__cover` across shelves, grids, and recommendation mixes.
+- Refined server connection interfaces (index, show, new, edit, quick-connect, and reconnect) with redesign design system styling and responsive action layouts.
+- Updated Docker Compose configuration in `README.md` to reference `0.0.21-alpha`.
+
+### Fixed
+
+- Card play button alignment and parallax coordinate drift on hover, anchoring controls with bottom/right 12px positioning and synchronized -3px hover elevation on the parent container.
+- Transparent re-authentication on HTTP 401 responses for Jellyfin and Plex adapters with single-retry protection and write-through token updates to database and session cookies.
+- Cascaded deletion of dependent records (`listening_events`, `playback_queues`, `recommendation_collections`) when deleting server connections to prevent foreign key constraint violations.
+- QuickConnect session initialization for Plex during reconnection and resolution of stale token race conditions.
+
 ## 0.0.20-alpha — 2026-11-03
 
 ### Added
