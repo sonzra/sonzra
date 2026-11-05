@@ -1,20 +1,67 @@
 <main class="settings-shell redesign-utility-page">
-  <header class="settings-header">
-    <%= link_to server_connections_path, class: "back-link back-link--compact", aria: { label: "Back to servers" }, title: "Back to servers" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %>
+  <header class="settings-header settings-header--page">
+    <div class="page-title">
+      <%= link_to server_connections_path, class: "back-link back-link--compact", aria: { label: "Back to servers" }, title: "Back to servers" do %>
+        <%= lucide_icon "arrow-left", aria: { hidden: true } %>
+      <% end %>
+      <div>
+        <p class="eyebrow">Server</p>
+        <h1><%= @server_connection.name %></h1>
+      </div>
+    </div>
     <div class="settings-header__actions">
-      <%= link_to "Edit", edit_server_connection_path(@server_connection), class: "secondary-button" %>
-      <%= button_to "Remove", @server_connection, method: :delete, class: "text-button text-button--danger", form: { data: { turbo_confirm: "Remove this server connection?" } } %>
+      <%= link_to edit_server_connection_path(@server_connection), class: "secondary-button", title: "Edit #{@server_connection.name}" do %>
+        <%= lucide_icon "pencil", aria: { hidden: true } %>
+        <span>Edit</span>
+      <% end %>
+      <%= button_to @server_connection, method: :delete, class: "secondary-button secondary-button--danger", form: { data: { turbo_confirm: "Remove this server connection?" } }, title: "Remove this server connection" do %>
+        <%= lucide_icon "trash-2", aria: { hidden: true } %>
+        <span>Remove</span>
+      <% end %>
     </div>
   </header>
 
   <%= render "shared/flash" %>
 
-  <section class="connection-detail connection-detail--compact">
-    <h1><%= @server_connection.name %></h1>
-    <p><%= @server_connection.base_url %></p>
+  <section class="connection-detail connection-detail--compact" data-controller="server-connection-test reconnect">
+    <% is_preferred = current_user.preferred_server_connection_id == @server_connection.id %>
+    <div class="connection-card__badges">
+      <span class="connection-badge connection-badge--provider"><%= @server_connection.provider.capitalize %></span>
+      <% if is_preferred %>
+        <span class="connection-badge connection-badge--preferred">
+          <span class="connection-badge__dot" aria-hidden="true"></span>
+          Preferred
+        </span>
+      <% else %>
+        <span class="connection-badge connection-badge--secondary">Secondary</span>
+      <% end %>
+    </div>
 
-    <div class="connection-detail__credentials"><span>Connected as</span><strong><%= @server_connection.username %></strong></div>
+    <div class="connection-detail__properties">
+      <div class="connection-detail__property">
+        <span class="connection-detail__label">Server address</span>
+        <span class="connection-detail__value"><%= @server_connection.base_url %></span>
+      </div>
+      <div class="connection-detail__property">
+        <span class="connection-detail__label">Connected account</span>
+        <span class="connection-detail__value"><strong><%= @server_connection.username %></strong></span>
+      </div>
+      <div class="connection-detail__property">
+        <span class="connection-detail__label">Provider</span>
+        <span class="connection-detail__value"><%= @server_connection.provider.capitalize %></span>
+      </div>
+      <div class="connection-detail__property">
+        <span class="connection-detail__label">Library status</span>
+        <span class="connection-detail__value"><%= is_preferred ? "Active preferred server" : "Secondary server" %></span>
+      </div>
+    </div>
 
-    <%= button_to "Test connection", test_connection_server_connection_path(@server_connection), class: "primary-button" %>
+    <div class="form-actions">
+      <%= link_to "Reconnect", reconnect_server_connection_path(@server_connection), data: { turbo_frame: "reconnect_modal", action: "reconnect#open" }, class: "secondary-button", title: "Re-authenticate or restore session" %>
+      <%= button_to "Test connection", test_connection_server_connection_path(@server_connection), class: "primary-button", form: { data: { action: "submit->server-connection-test#run" } }, title: "Test server connectivity" %>
+      <% if !is_preferred && current_user.server_connections.many? %>
+        <%= button_to "Set as preferred", active_server_connection_path, method: :patch, params: { server_connection_id: @server_connection.id }, class: "secondary-button", title: "Set as active preferred server" %>
+      <% end %>
+    </div>
   </section>
 </main>

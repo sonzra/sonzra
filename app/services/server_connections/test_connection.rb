@@ -1,8 +1,9 @@
 module ServerConnections
   class TestConnection
-    def initialize(server_connection, client: nil)
+    def initialize(server_connection, client: nil, device_id: nil)
       @server_connection = server_connection
       @client = client
+      @device_id = device_id
     end
 
     def call
@@ -24,7 +25,7 @@ module ServerConnections
     end
 
     def build_client
-      Integrations::Client.for(server_connection)
+      Integrations::Client.for(server_connection, device_id: @device_id)
     end
   end
 end

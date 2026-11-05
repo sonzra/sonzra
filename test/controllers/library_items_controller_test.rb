@@ -246,4 +246,113 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
   ensure
     service_class.define_singleton_method(:new, original_new)
   end
+
+  class FakeHttp
+    def initialize(responses)
+      @responses = Array(responses)
+    end
+
+    def start(...)
+      yield self
+    end
+
+    def request(request)
+      response = @responses.shift
+      block_given? ? yield(response) : response
+    end
+  end
+
+  test "auto-reauthenticates on 401 when visiting album page, writing new token to db and session" do
+    @server_connection.update!(access_token: "stale-token")
+
+    unauthorized_response = Net::HTTPUnauthorized.new("1.1", "401", "Unauthorized")
+    unauthorized_response.instance_variable_set(:@read, true)
+    unauthorized_response.body = "Session expired."
+
+    auth_response = Net::HTTPOK.new("1.1", "200", "OK")
+    auth_response.instance_variable_set(:@read, true)
+    auth_response.body = { AccessToken: "fresh-session-token", User: { Id: "user-id", Name: "Bruno" } }.to_json
+
+    item_response = Net::HTTPOK.new("1.1", "200", "OK")
+    item_response.instance_variable_set(:@read, true)
+    item_response.body = {
+      Id: "album-id", Name: "Abbey Road", Type: "MusicAlbum",
+      AlbumArtists: [ { Id: "artist-id", Name: "The Beatles" } ]
+    }.to_json
+
+    user_data_response = Net::HTTPOK.new("1.1", "200", "OK")
+    user_data_response.instance_variable_set(:@read, true)
+    user_data_response.body = { PlayCount: 5 }.to_json
+
+    views_response = Net::HTTPOK.new("1.1", "200", "OK")
+    views_response.instance_variable_set(:@read, true)
+    views_response.body = { Items: [] }.to_json
+
+    tracks_response = Net::HTTPOK.new("1.1", "200", "OK")
+    tracks_response.instance_variable_set(:@read, true)
+    tracks_response.body = { Items: [ { Id: "track-1", Name: "Come Together", IndexNumber: 1 } ], TotalRecordCount: 1 }.to_json
+
+    similar_response = Net::HTTPOK.new("1.1", "200", "OK")
+    similar_response.instance_variable_set(:@read, true)
+    similar_response.body = { Items: [] }.to_json
+
+    other_albums_response = Net::HTTPOK.new("1.1", "200", "OK")
+    other_albums_response.instance_variable_set(:@read, true)
+    other_albums_response.body = { Items: [], TotalRecordCount: 0 }.to_json
+
+    http = FakeHttp.new([
+      unauthorized_response,
+      auth_response,
+      item_response,
+      user_data_response,
+      views_response,
+      tracks_response,
+      other_albums_response,
+      similar_response
+    ])
+
+    original_for = Integrations::Client.method(:for)
+    Integrations::Client.define_singleton_method(:for) do |server_connection, **kwargs|
+      options = server_connection.client_options(**kwargs, http: http, access_token: "stale-token", remote_user_id: "user-id")
+      Integrations::Jellyfin::Client.new(**options)
+    end
+
+    begin
+      get library_item_server_connection_url(@server_connection, "album-id")
+    ensure
+      Integrations::Client.define_singleton_method(:for, original_for)
+    end
+
+    assert_response :success
+    assert_select "h1", "Abbey Road"
+    assert_equal "fresh-session-token", @server_connection.reload.access_token
+    assert_equal "fresh-session-token", session.dig(:server_access_tokens, @server_connection.id.to_s)
+  end
+
+  test "renders redesign error actions when item details request fails with unrecoverable session expiry" do
+    result = ServerConnections::FetchLibraryItemDetailsResultData.new(
+      details: nil,
+      access_token: nil,
+      message: "Session expired."
+    )
+    service = Object.new
+    service.define_singleton_method(:call) { result }
+
+    service_class = ServerConnections::FetchLibraryItemDetails
+    original_new = service_class.method(:new)
+    service_class.define_singleton_method(:new) { |*_args, **_kwargs| service }
+
+    begin
+      get library_item_server_connection_url(@server_connection, "album-id")
+    ensure
+      service_class.define_singleton_method(:new, original_new)
+    end
+
+    assert_response :success
+    assert_select ".listen-loading--error"
+    assert_select "h1", "We couldn’t load this item."
+    assert_select "p", "Session expired."
+    assert_select ".listen-loading__actions a.primary-button[href='#{reconnect_server_connection_path(@server_connection)}']", text: "Reconnect Server"
+    assert_select ".listen-loading__actions a.secondary-button[href='#{server_connections_path}']", text: "Manage servers"
+  end
 end

@@ -13,15 +13,19 @@ module Integrations
       class AuthenticationError < StandardError; end
       class ConnectionError < StandardError; end
 
-      def initialize(base_url:, username: nil, password: nil, access_token: nil, remote_user_id: nil, device_id: nil, http: Net::HTTP)
+      def initialize(base_url:, username: nil, password: nil, access_token: nil, remote_user_id: nil, http: Net::HTTP, on_token_refreshed: nil, device_id: nil)
         @base_url = base_url
         @username = username
         @password = password
         @access_token = access_token
         @remote_user_id = remote_user_id
-        @device_id = device_id
         @http = http
+        @on_token_refreshed = on_token_refreshed
+        @device_id = device_id
+        @reauth_attempted = false
       end
+
+      attr_reader :base_url, :username, :password, :access_token, :remote_user_id, :http
 
       def authenticate
         authentication.fetch("User").fetch("Name")
@@ -64,7 +68,7 @@ module Integrations
           recently_added_podcasts: recently_added_podcasts
         }
 
-        HomeContentResponseData.new(content: content, access_token: token)
+        HomeContentResponseData.new(content: content, access_token: current_access_token(token))
       rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED
         raise ConnectionError, "Could not reach the server. Check the address and try again."
       rescue OpenSSL::SSL::SSLError
@@ -97,7 +101,7 @@ module Integrations
           other_albums: music_albums_without_podcasts(other_albums, podcast_library, podcast_album_ids),
           similar_albums: music_albums_without_podcasts(similar_albums.select { |similar| similar["Type"] == "MusicAlbum" }, podcast_library, podcast_album_ids)
         }
-        LibraryItemDetailsResponseData.new(details: details, access_token: token)
+        LibraryItemDetailsResponseData.new(details: details, access_token: current_access_token(token))
       end
 
       def library_collection(collection, page:, query:, genre: nil, letter: nil)
@@ -120,7 +124,7 @@ module Integrations
         else raise ArgumentError, "Unsupported collection: #{collection}"
         end
 
-        LibraryCollectionResponseData.new(content: response.fetch("Items", []), total: response.fetch("TotalRecordCount", 0), access_token: token)
+        LibraryCollectionResponseData.new(content: response.fetch("Items", []), total: response.fetch("TotalRecordCount", 0), access_token: current_access_token(token))
       end
 
       def playback_queue(item_id)
@@ -139,7 +143,7 @@ module Integrations
           [ item ]
         end
 
-        PlaybackQueueResponseData.new(items: items, access_token: token)
+        PlaybackQueueResponseData.new(items: items, access_token: current_access_token(token))
       end
 
       def recommendation_tracks(strategy, period_date, excluded_genres: [])
@@ -204,13 +208,6 @@ module Integrations
 
         tracks = music_songs_without_podcasts(raw_tracks, podcast_ids)
         tracks.sort_by { |track| item_ids.index(track["Id"]) || item_ids.size }
-      rescue AuthenticationError
-        if @username.present? && @password.present?
-          @access_token = nil
-          @resolved_user = nil
-          retry
-        end
-        []
       rescue StandardError
         []
       end
@@ -253,7 +250,7 @@ module Integrations
           Fields: "AlbumArtists,RunTimeTicks,AlbumPrimaryImageTag"
         ).fetch("Items", [])
 
-        PlaybackQueueResponseData.new(items: items.select { |item| item["Type"] == "Audio" }, access_token: token)
+        PlaybackQueueResponseData.new(items: items.select { |item| item["Type"] == "Audio" }, access_token: current_access_token(token))
       end
 
       def all_track_ids
@@ -265,13 +262,6 @@ module Integrations
 
         raw_tracks = all_items(user_id, token, sort_order: "Ascending", IncludeItemTypes: "Audio", Recursive: true)
         music_songs_without_podcasts(raw_tracks, podcast_ids).map { |item| item["Id"] }
-      rescue AuthenticationError
-        if @username.present? && @password.present?
-          @access_token = nil
-          @resolved_user = nil
-          retry
-        end
-        []
       rescue StandardError
         []
       end
@@ -293,13 +283,6 @@ module Integrations
           all_items(user_id, token, sort_order: "Ascending", IncludeItemTypes: "Audio", ArtistIds: artist_id)
         end
         music_songs_without_podcasts(tracks, podcast_ids).map { |track| track["Id"] }.uniq
-      rescue AuthenticationError
-        if @username.present? && @password.present?
-          @access_token = nil
-          @resolved_user = nil
-          retry
-        end
-        []
       rescue StandardError
         []
       end
@@ -313,13 +296,6 @@ module Integrations
           rank_distance = (0.05 + (index * 0.045)).round(3)
           { id: item["Id"], distance: rank_distance }
         end
-      rescue AuthenticationError
-        if @username.present? && @password.present?
-          @access_token = nil
-          @resolved_user = nil
-          retry
-        end
-        []
       rescue StandardError
         []
       end
@@ -330,12 +306,11 @@ module Integrations
         uri = URI.parse("#{base_url}/Audio/#{item_id}/Lyrics")
         response = perform(Net::HTTP::Get.new(uri, authorization_headers(token)))
 
-        raise AuthenticationError if response.code == "401"
-        return LyricsResponseData.new(lines: [], access_token: token, available: false) if response.code == "404"
+        return LyricsResponseData.new(lines: [], access_token: current_access_token(token), available: false) if response.code == "404"
 
         ensure_success!(response)
         payload = JSON.parse(response.body)
-        LyricsResponseData.new(lines: payload.fetch("Lyrics", []), access_token: token, available: true)
+        LyricsResponseData.new(lines: payload.fetch("Lyrics", []), access_token: current_access_token(token), available: true)
       rescue JSON::ParserError, KeyError
         raise ConnectionError, "The server returned an unexpected response."
       rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED
@@ -417,10 +392,8 @@ module Integrations
         token = access_token || authentication.fetch("AccessToken")
         response = perform(playback_report_request(event, item_id, position_ticks, paused, token))
 
-        raise AuthenticationError if response.code == "401"
-
         ensure_success!(response)
-        PlaybackReportResponseData.new(access_token: token)
+        PlaybackReportResponseData.new(access_token: current_access_token(token))
       rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED
         raise ConnectionError, "Could not reach the server. Check the address and try again."
       rescue OpenSSL::SSL::SSLError
@@ -436,10 +409,8 @@ module Integrations
           end
         )
 
-        raise AuthenticationError if response.code == "401"
-
         ensure_success!(response)
-        PlaybackReportResponseData.new(access_token: token)
+        PlaybackReportResponseData.new(access_token: current_access_token(token))
       rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED
         raise ConnectionError, "Could not reach the server. Check the address and try again."
       rescue OpenSSL::SSL::SSLError
@@ -453,23 +424,17 @@ module Integrations
           return { "User" => @resolved_user, "AccessToken" => access_token } if @resolved_user
           return { "User" => @resolved_user = { "Id" => remote_user_id, "Name" => username }, "AccessToken" => access_token } if remote_user_id.present? && username.present?
 
-          return { "User" => @resolved_user = get("Users/Me", access_token), "AccessToken" => access_token }
+          return { "User" => @resolved_user = get("Users/Me", access_token), "AccessToken" => current_access_token(access_token) }
         end
 
-        response = perform(request)
-
-        raise AuthenticationError if response.code == "401"
-        ensure_success!(response)
-        JSON.parse(response.body).tap { |session| @resolved_user = session["User"] }
-      rescue JSON::ParserError, KeyError
-        raise ConnectionError, "The server returned an unexpected response."
+        session = raw_authenticate_by_name
+        @resolved_user = session["User"]
+        session
       rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED
         raise ConnectionError, "Could not reach the server. Check the address and try again."
       rescue OpenSSL::SSL::SSLError
         raise ConnectionError, "Could not establish a secure connection to the server."
       end
-
-      attr_reader :base_url, :username, :password, :access_token, :remote_user_id, :http
 
       def items(user_id, token, limit: 8, sort_order: "Descending", **parameters)
         requested_fields = parameters.delete(:Fields)
@@ -552,7 +517,7 @@ module Integrations
       def playlist_details(item, user_id, token)
         LibraryItemDetailsResponseData.new(
           details: { item: item, album: item, tracks: playlist_items(item.fetch("Id"), user_id, token), other_albums: [], similar_albums: [], kind: :playlist },
-          access_token: token
+          access_token: current_access_token(token)
         )
       end
 
@@ -648,7 +613,7 @@ module Integrations
             other_albums: [],
             similar_albums: []
           },
-          access_token: token
+          access_token: current_access_token(token)
         )
       end
 
@@ -823,7 +788,23 @@ module Integrations
 
       private
 
+      def current_access_token(fallback = nil)
+        @access_token.presence || fallback
+      end
+
       def perform(http_request, max_retries: 2)
+        response = execute_http_request(http_request, max_retries: max_retries)
+
+        if response.code == "401" && can_reauthenticate?(http_request)
+          new_token = reauthenticate!
+          retried_request = clone_request_with_token(http_request, new_token)
+          response = execute_http_request(retried_request, max_retries: 0)
+        end
+
+        response
+      end
+
+      def execute_http_request(http_request, max_retries: 2)
         retries = 0
         begin
           http.start(http_request.uri.host, http_request.uri.port, use_ssl: http_request.uri.scheme == "https", open_timeout: 5, read_timeout: 10) do |connection|
@@ -840,9 +821,67 @@ module Integrations
       end
 
       def stream(http_request)
+        attempted_reauth = false
         http.start(http_request.uri.host, http_request.uri.port, use_ssl: http_request.uri.scheme == "https", open_timeout: 5, read_timeout: 10) do |connection|
-          connection.request(http_request) { |response| yield response }
+          connection.request(http_request) do |response|
+            if response.code == "401" && can_reauthenticate?(http_request)
+              attempted_reauth = true
+              break
+            end
+            yield response
+          end
         end
+
+        return unless attempted_reauth
+
+        new_token = reauthenticate!
+        retried_request = clone_request_with_token(http_request, new_token)
+        http.start(retried_request.uri.host, retried_request.uri.port, use_ssl: retried_request.uri.scheme == "https", open_timeout: 5, read_timeout: 10) do |connection|
+          connection.request(retried_request) { |response| yield response }
+        end
+      rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED, Errno::ETIMEDOUT, Timeout::Error, OpenSSL::SSL::SSLError, Errno::EHOSTUNREACH, Errno::ECONNRESET => error
+        raise ConnectionError, "Connection failed: #{error.message}"
+      end
+
+      def clone_request_with_token(http_request, new_token)
+        retried_request = http_request.class.new(http_request.path)
+        retried_request.instance_variable_set(:@uri, http_request.uri) if http_request.uri
+        http_request.each_header { |key, value| retried_request[key] = value }
+        retried_request.body = http_request.body if http_request.body
+        retried_request["Authorization"] = authorization_header(new_token)
+        retried_request
+      end
+
+      def can_reauthenticate?(http_request = nil)
+        @username.present? && @password.present? && !@reauth_attempted && !authentication_request?(http_request)
+      end
+
+      def authentication_request?(http_request)
+        return false if http_request.nil?
+
+        path = http_request.uri.path
+        path.end_with?("/Users/AuthenticateByName", "/Users/AuthenticateWithQuickConnect", "/QuickConnect/Initiate", "/QuickConnect/Connect")
+      end
+
+      def reauthenticate!
+        @reauth_attempted = true
+        @access_token = nil
+        @resolved_user = nil
+        session = raw_authenticate_by_name
+        @access_token = session.fetch("AccessToken")
+        @resolved_user = session["User"]
+        @on_token_refreshed&.call(@access_token)
+        @access_token
+      end
+
+      def raw_authenticate_by_name
+        response = execute_http_request(request, max_retries: 0)
+        raise AuthenticationError, "Session expired." if response.code == "401"
+
+        ensure_success!(response)
+        JSON.parse(response.body)
+      rescue JSON::ParserError, KeyError
+        raise ConnectionError, "The server returned an unexpected response."
       end
 
       def ensure_success!(response)
@@ -872,7 +911,7 @@ module Integrations
         request = Net::HTTP::Post.new(URI.parse("#{base_url}/Users/AuthenticateWithQuickConnect"), "Content-Type" => "application/json", "Authorization" => authorization_header)
         request.body = { Secret: secret }.to_json
         response = perform(request)
-        raise AuthenticationError if response.code == "401"
+        raise AuthenticationError, "Session expired." if response.code == "401"
         ensure_success!(response)
         JSON.parse(response.body)
       rescue JSON::ParserError
@@ -890,10 +929,18 @@ module Integrations
       end
 
       def authorization_header(token = nil)
-        device_id = @device_id.presence || "sonzra-web"
-        values = %(Client="Sonzra", Device="Sonzra", DeviceId="#{device_id}", Version="1.0.0")
-        values += ", Token=\"#{token}\"" if token.present?
+        token_value = if token.present?
+          (@reauth_attempted && @access_token.present?) ? @access_token : token
+        end
+        device_id_value = @device_id.presence || default_device_id
+        values = "Client=\"Sonzra\", Device=\"Sonzra\", DeviceId=\"#{device_id_value}\", Version=\"1.0.0\""
+        values += ", Token=\"#{token_value}\"" if token_value.present?
         "MediaBrowser #{values}"
+      end
+
+      def default_device_id
+        instance_id = ENV["JELLYFIN_CLIENT_ID"].presence || ENV["SONZRA_INSTANCE_ID"].presence
+        instance_id.present? ? "#{instance_id}-web" : "sonzra-web"
       end
 
       def authorization_headers(token)

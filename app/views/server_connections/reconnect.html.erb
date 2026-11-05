@@ -1,0 +1,50 @@
+<main class="settings-shell redesign-utility-page">
+  <section class="form-page form-page--compact">
+    <turbo-frame id="reconnect_modal">
+      <div class="reconnect-modal">
+        <div class="reconnect-modal__header">
+          <h2 id="reconnect-title">Reconnect to <%= @server_connection.name %></h2>
+          <button type="button" class="reconnect-modal__close" data-action="reconnect#close" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="reconnect-modal__body">
+          <% if @quick_connect %>
+            <div class="quick-connect" data-controller="quick-connect" data-quick-connect-status-url-value="<%= quick_connect_status_server_connections_path %>" data-quick-connect-modal-value="<%= turbo_frame_request? %>">
+              <p class="reconnect-modal__instruction">In an already signed-in Jellyfin app, open <strong>Settings → Quick Connect</strong> and enter this code:</p>
+              <p class="quick-connect__code" aria-label="Quick Connect code"><%= @quick_connect.fetch("code") %></p>
+              <p class="form-hint" data-quick-connect-target="message">Waiting for approval…</p>
+            </div>
+          <% elsif @server_connection.media_server&.plex? %>
+            <p class="reconnect-modal__instruction">Your Plex token has expired. Launch Plex authentication to link your account again:</p>
+            <%= link_to "Link Plex Account", quick_connect_server_connections_path(connection_id: @server_connection.id), class: "primary-button", target: "_top" %>
+          <% else %>
+            <p class="reconnect-modal__instruction">Enter your credentials for <%= @server_connection.name %> to restore the connection:</p>
+            <%= form_with model: @server_connection, url: reconnect_server_connection_path(@server_connection), method: :patch, class: "connection-form", data: { turbo_frame: "reconnect_modal" } do |f| %>
+              <% if @server_connection.errors.any? %>
+                <div class="form-errors" role="alert">
+                  <h2><%= pluralize(@server_connection.errors.count, "error") %> prevented reconnection:</h2>
+                  <ul>
+                    <% @server_connection.errors.full_messages.each do |message| %>
+                      <li><%= message %></li>
+                    <% end %>
+                  </ul>
+                </div>
+              <% end %>
+              <div class="field">
+                <%= f.label :username %>
+                <%= f.text_field :username, value: @server_connection.username, required: true, autocomplete: "username" %>
+              </div>
+              <div class="field">
+                <%= f.label :password %>
+                <%= f.password_field :password, required: true, autocomplete: "current-password" %>
+              </div>
+              <div class="form-actions">
+                <%= f.submit "Reconnect", class: "primary-button" %>
+                <button type="button" class="secondary-button" data-action="reconnect#close">Cancel</button>
+              </div>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+    </turbo-frame>
+  </section>
+</main>

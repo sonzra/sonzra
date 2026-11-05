@@ -7,12 +7,13 @@ module ServerConnections
       cache.delete([ "server_connection", server_connection.cache_key_with_version, "home_content", CACHE_VERSION ])
     end
 
-    def initialize(server_connection, access_token:, user: nil, fetch_home_content: nil, cache: Rails.cache)
+    def initialize(server_connection, access_token:, user: nil, fetch_home_content: nil, cache: Rails.cache, device_id: nil)
       @server_connection = server_connection
       @access_token = access_token
       @user = user
       @fetch_home_content = fetch_home_content
       @cache = cache
+      @device_id = device_id
     end
 
     def call
@@ -37,7 +38,7 @@ module ServerConnections
     end
 
     def fetch_home_content
-      @fetch_home_content ||= FetchHomeContent.new(server_connection)
+      @fetch_home_content ||= FetchHomeContent.new(server_connection, access_token: access_token, device_id: @device_id)
     end
 
     def filter_result(result)

@@ -16,16 +16,18 @@ class LibraryController < ApplicationController
     @server_connection = current_server_connection
     return render :no_server unless @server_connection
 
-    client = Integrations::Client.for(@server_connection)
+    client = Integrations::Client.for(
+      @server_connection,
+      access_token: server_access_token(@server_connection),
+      device_id: current_device_id
+    )
     @search_results = %i[artists albums songs].index_with do |collection|
       ServerConnections::FetchLibraryCollection.new(
         @server_connection, collection, user: current_user, query: @query, client:
       ).call
     end
     result_with_token = @search_results.values.find { |result| result.access_token.present? }
-    if result_with_token
-      session[:server_access_tokens] = session.fetch(:server_access_tokens, {}).merge(@server_connection.id.to_s => result_with_token.access_token)
-    end
+    store_server_access_token(@server_connection, result_with_token.access_token) if result_with_token
     @search_error = @search_results.values.find { |result| !result.success? }&.message if @search_results.values.none?(&:success?)
   end
 
@@ -36,11 +38,12 @@ class LibraryController < ApplicationController
     return render :no_server unless @server_connection
 
     @result = ServerConnections::FetchLibraryCollection.new(
-      @server_connection, :favorite_tracks, user: current_user
+      @server_connection, :favorite_tracks,
+      user: current_user,
+      access_token: server_access_token(@server_connection),
+      device_id: current_device_id
     ).call
-    if @result.success?
-      session[:server_access_tokens] = session.fetch(:server_access_tokens, {}).merge(@server_connection.id.to_s => @result.access_token)
-    end
+    store_server_access_token(@server_connection, @result.access_token) if @result.success?
   end
 
   def audiobooks
@@ -73,7 +76,13 @@ class LibraryController < ApplicationController
     return render :no_server unless @server_connection
 
     @query = params[:q].presence
-    @result = ServerConnections::FetchLibraryCollection.new(@server_connection, :genres, user: current_user, page: 1, query: @query).call
+    @result = ServerConnections::FetchLibraryCollection.new(
+      @server_connection, :genres,
+      user: current_user, page: 1, query: @query,
+      access_token: server_access_token(@server_connection),
+      device_id: current_device_id
+    ).call
+    store_server_access_token(@server_connection, @result.access_token) if @result.success?
   end
 
   private
@@ -84,7 +93,12 @@ class LibraryController < ApplicationController
     server_connection = current_server_connection
     return unless server_connection
 
-    @library_tab_counts = Library::TabCounts.new(server_connection, user: current_user).call
+    @library_tab_counts = Library::TabCounts.new(
+      server_connection,
+      user: current_user,
+      access_token: server_access_token(server_connection),
+      device_id: current_device_id
+    ).call
   end
 
   def render_collection(collection, title)
@@ -101,12 +115,19 @@ class LibraryController < ApplicationController
 
     @service = ServerConnections::FetchLibraryCollection.new(
       @server_connection, collection,
-      user: current_user, page: @page, query: @query, genre: @genre, letter: @letter
+      user: current_user, page: @page, query: @query, genre: @genre, letter: @letter,
+      access_token: server_access_token(@server_connection),
+      device_id: current_device_id
     )
     @result = @service.call
     @supports_letter_filtering = @service.supports?(Integrations::Capabilities::LETTER_FILTERING)
 
-    session[:server_access_tokens] = session.fetch(:server_access_tokens, {}).merge(@server_connection.id.to_s => @result.access_token) if @result.success?
+    if @result.success?
+      clear_connection_alert(@server_connection)
+      store_server_access_token(@server_connection, @result.access_token)
+    elsif @result.message.to_s.match?(/session expired|401|authentication/i)
+      record_connection_alert(@server_connection)
+    end
 
     respond_to do |format|
       format.html

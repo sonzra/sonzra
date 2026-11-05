@@ -47,11 +47,20 @@ class ServerConnectionTest < ActiveSupport::TestCase
     assert_nil connection.client_options[:remote_user_id]
   end
 
-  test "forwards device_id when building client options" do
+  test "forwards device_id and custom options when building client options" do
     connection = create_connection
 
     assert_equal "sonzra-worker-42", connection.client_options(device_id: "sonzra-worker-42")[:device_id]
     assert_nil connection.client_options[:device_id]
+  end
+
+  test "configures on_token_refreshed write-through to update access_token column" do
+    connection = create_connection
+    callback = connection.client_options[:on_token_refreshed]
+    assert callback.respond_to?(:call)
+
+    callback.call("new-access-token")
+    assert_equal "new-access-token", connection.reload.access_token
   end
 
   test "destroys dependent recommendation runs and collections without foreign key violation" do
@@ -65,7 +74,7 @@ class ServerConnectionTest < ActiveSupport::TestCase
       subtitle: "Weekly",
       generated_at: Time.current
     )
-    run = RecommendationRun.create!(
+    RecommendationRun.create!(
       user: users(:one),
       server_connection: connection,
       recommendation_collection: collection,
@@ -77,6 +86,48 @@ class ServerConnectionTest < ActiveSupport::TestCase
     assert_difference -> { ServerConnection.count } => -1, -> { RecommendationCollection.count } => -1, -> { RecommendationRun.count } => -1 do
       connection.destroy!
     end
+  end
+
+  test "cascades deletion of dependent records and nullifies preferred connection" do
+    user = users(:one)
+    connection = create_connection(user: user)
+    user.update!(preferred_server_connection: connection)
+
+    TrackSimilarity.create!(server_connection: connection, from_item_id: "1", to_item_id: "2", distance: 0.1, synced_at: Time.current)
+    SonicGraphNode.create!(server_connection: connection, item_id: "1", title: "Song", synced_at: Time.current)
+    ListeningEvent.create!(server_connection: connection, user: user, item_id: "1", occurred_at: Time.current)
+    HiddenArtist.create!(server_connection: connection, user: user, artist_id: "artist-1", name: "Artist")
+    HiddenGenre.create!(server_connection: connection, user: user, name: "Pop")
+    collection = RecommendationCollection.create!(
+      server_connection: connection,
+      user: user,
+      strategy: "friday_rediscovery",
+      period_date: Date.current,
+      title: "Friday",
+      subtitle: "Sub",
+      generated_at: Time.current
+    )
+    RecommendationRun.create!(
+      server_connection: connection,
+      user: user,
+      strategy: "friday_rediscovery",
+      period_date: Date.current,
+      status: "completed",
+      recommendation_collection: collection
+    )
+
+    assert_nothing_raised do
+      connection.destroy!
+    end
+
+    assert_nil user.reload.preferred_server_connection_id
+    assert_equal 0, TrackSimilarity.where(server_connection_id: connection.id).count
+    assert_equal 0, SonicGraphNode.where(server_connection_id: connection.id).count
+    assert_equal 0, ListeningEvent.where(server_connection_id: connection.id).count
+    assert_equal 0, HiddenArtist.where(server_connection_id: connection.id).count
+    assert_equal 0, HiddenGenre.where(server_connection_id: connection.id).count
+    assert_equal 0, RecommendationRun.where(server_connection_id: connection.id).count
+    assert_equal 0, RecommendationCollection.where(server_connection_id: connection.id).count
   end
 
   private

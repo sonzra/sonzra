@@ -15,11 +15,12 @@ module ServerConnections
 
     Result = Struct.new(:success?, :synced_count, :access_token, :message, keyword_init: true)
 
-    def initialize(server_connection, events:, user: nil, access_token: nil, client: nil)
+    def initialize(server_connection, events:, user: nil, access_token: nil, device_id: nil, client: nil)
       @server_connection = server_connection
       @events = Array(events)
       @user = user || server_connection.user
       @access_token = access_token
+      @device_id = device_id
       @client = client
     end
 
@@ -51,6 +52,7 @@ module ServerConnections
           duration_ticks: ev[:duration_ticks],
           resumable: ev[:resumable],
           access_token: current_token,
+          device_id: @device_id,
           client_occurred_at: ev[:occurred_at],
           client: cached_client
         ).call
@@ -69,10 +71,10 @@ module ServerConnections
 
     private
 
-    attr_reader :server_connection, :events, :user, :access_token, :client
+    attr_reader :server_connection, :events, :user, :access_token, :client, :device_id
 
     def item_cache_client
-      target = client || Integrations::Client.for(server_connection)
+      target = client || Integrations::Client.for(server_connection, access_token: access_token, device_id: @device_id)
       CachingClientWrapper.new(target)
     end
 

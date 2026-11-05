@@ -53,7 +53,12 @@ class PlaylistsController < ApplicationController
   end
 
   def client
-    @client ||= Integrations::Client.for(server_connection, remote_user_id: session_remote_user_id)
+    @client ||= Integrations::Client.for(
+      server_connection,
+      remote_user_id: session_remote_user_id,
+      access_token: server_access_token(server_connection),
+      device_id: current_device_id
+    )
   end
 
   def cache_remote_user_id

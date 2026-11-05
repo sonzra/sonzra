@@ -11,7 +11,8 @@ module Api
           return render json: { status: "error", message: "No server connection found" }, status: :unprocessable_entity
         end
 
-        client = Integrations::Client.for(server_connection)
+        instance_prefix = ENV["JELLYFIN_CLIENT_ID"].presence || ENV["SONZRA_INSTANCE_ID"].presence || "sonzra"
+        client = Integrations::Client.for(server_connection, device_id: "#{instance_prefix}-analyzer-#{server_connection.id}")
         all_ids = track_ids_for(client, server_connection)
         analysis_version = requested_analysis_version
         analyzed_ids = SonicGraphNode.where(server_connection:).with_analysis_version(analysis_version).pluck(:item_id)

@@ -1,5 +1,5 @@
 class ServerConnectionsController < ApplicationController
-  before_action :set_server_connection, only: %i[show edit update destroy test_connection]
+  before_action :set_server_connection, only: %i[show edit update destroy test_connection reconnect]
   before_action :set_media_server, only: %i[create start_quick_connect]
 
   def index
@@ -46,6 +46,12 @@ class ServerConnectionsController < ApplicationController
   end
 
   def quick_connect
+    if session[:quick_connect].blank? && params[:connection_id].present?
+      connection = current_user.server_connections.find_by(id: params[:connection_id])
+      if connection&.media_server
+        session[:quick_connect] = quick_connect_session(connection.media_server).merge("reconnect_connection_id" => connection.id)
+      end
+    end
     @quick_connect = session[:quick_connect]
     redirect_to server_connections_path, alert: "Start a new server connection to receive an approval code." unless @quick_connect
   end
@@ -65,11 +71,16 @@ class ServerConnectionsController < ApplicationController
     return render json: { status: "pending" } unless state.fetch("Authenticated")
 
     authentication = client.authenticate_with_quick_connect(quick_connect.fetch("secret"))
-    connection = current_user.server_connections.find_or_initialize_by(media_server: media_server)
+    connection = if quick_connect["reconnect_connection_id"].present?
+      current_user.server_connections.find_by(id: quick_connect["reconnect_connection_id"])
+    end
+    connection ||= current_user.server_connections.find_or_initialize_by(media_server: media_server)
     connection.assign_attributes(username: authentication.dig("User", "Name"), access_token: authentication.fetch("AccessToken"), password: nil)
     connection.save!
     current_user.update!(preferred_server_connection: connection) unless current_user.preferred_server_connection
     session[:server_remote_user_ids] = session.fetch(:server_remote_user_ids, {}).merge(connection.id.to_s => authentication.dig("User", "Id"))
+    clear_connection_alert(connection)
+    store_server_access_token(connection, authentication.fetch("AccessToken"))
     session.delete(:quick_connect)
     render json: { status: "connected", redirect_url: server_connections_path }
   rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError, ActiveRecord::RecordInvalid => error
@@ -95,13 +106,71 @@ class ServerConnectionsController < ApplicationController
   end
 
   def test_connection
-    result = ServerConnections::TestConnection.new(@server_connection).call
+    result = ServerConnections::TestConnection.new(@server_connection, device_id: current_device_id).call
     respond_to do |format|
       format.html do
         flash[result.success? ? :notice : :alert] = result.message
         redirect_back fallback_location: server_connections_path
       end
       format.json { render json: { success: result.success?, message: result.message }, status: result.success? ? :ok : :unprocessable_entity }
+    end
+  end
+
+  def reconnect
+    if request.patch?
+      @server_connection.assign_attributes(connection_params)
+      if @server_connection.valid?
+        client = Integrations::Client.for(@server_connection, device_id: current_device_id)
+        begin
+          client.authenticate
+          @server_connection.save!
+          clear_connection_alert(@server_connection)
+          store_server_access_token(@server_connection, client.access_token)
+          respond_to do |format|
+            format.turbo_stream do
+              render turbo_stream: [
+                turbo_stream.remove("connection-alert-#{@server_connection.id}"),
+                turbo_stream.update("reconnect_modal", html: %(<div class="reconnect-modal__success" data-controller="reconnect"><p>Connected successfully!</p><button type="button" class="primary-button" data-action="reconnect#close">Done</button></div>))
+              ]
+            end
+            format.html { redirect_to @server_connection, notice: "Server reconnected." }
+          end
+        rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError,
+               Integrations::Plex::Client::AuthenticationError, Integrations::Plex::Client::ConnectionError => error
+          @server_connection.reload
+          @server_connection.errors.add(:base, error.message)
+          render :reconnect, status: :unprocessable_entity
+        end
+      else
+        render :reconnect, status: :unprocessable_entity
+      end
+    else
+      if @server_connection.media_server&.jellyfin? && @server_connection.password.blank?
+        begin
+          client = Integrations::Client.for(@server_connection, device_id: current_device_id)
+          quick_connect_data = client.initiate_quick_connect
+          session[:quick_connect] = {
+            "media_server_id" => @server_connection.media_server_id,
+            "secret" => quick_connect_data.fetch("Secret"),
+            "code" => quick_connect_data.fetch("Code"),
+            "provider" => "jellyfin",
+            "reconnect_connection_id" => @server_connection.id
+          }
+          @quick_connect = session[:quick_connect]
+        rescue StandardError => e
+          Rails.logger.warn("[Reconnect] QuickConnect initiation failed: #{e.message}")
+        end
+      elsif @server_connection.media_server&.plex?
+        begin
+          session[:quick_connect] = quick_connect_session(@server_connection.media_server).merge(
+            "reconnect_connection_id" => @server_connection.id
+          )
+          @quick_connect = session[:quick_connect]
+        rescue StandardError => e
+          Rails.logger.warn("[Reconnect] Plex PIN initiation failed: #{e.message}")
+        end
+      end
+      render :reconnect
     end
   end
 
@@ -193,7 +262,7 @@ class ServerConnectionsController < ApplicationController
   end
 
   def jellyfin_client(media_server)
-    Integrations::Jellyfin::Client.new(base_url: media_server.base_url)
+    Integrations::Jellyfin::Client.new(base_url: media_server.base_url, device_id: current_device_id)
   end
 
   def plex_client(media_server, access_token: nil)
@@ -214,10 +283,15 @@ class ServerConnectionsController < ApplicationController
     access_token = client.pin_status(pin_id: quick_connect.fetch("id"), code: quick_connect.fetch("code"))
     return render json: { status: "pending" } if access_token.blank?
 
-    connection = current_user.server_connections.find_or_initialize_by(media_server: media_server)
+    connection = if quick_connect["reconnect_connection_id"].present?
+      current_user.server_connections.find_by(id: quick_connect["reconnect_connection_id"])
+    end
+    connection ||= current_user.server_connections.find_or_initialize_by(media_server: media_server)
     connection.assign_attributes(username: client.authenticated_account_name(access_token:), access_token:, password: nil)
     connection.save!
     current_user.update!(preferred_server_connection: connection) unless current_user.preferred_server_connection
+    clear_connection_alert(connection)
+    store_server_access_token(connection, access_token)
     session.delete(:quick_connect)
     render json: { status: "connected", redirect_url: server_connections_path }
   end

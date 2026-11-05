@@ -1,13 +1,22 @@
 class LibraryItemsController < ApplicationController
   def show
     @server_connection = current_user.server_connections.find(params.expect(:server_connection_id))
-    @result = ServerConnections::FetchLibraryItemDetails.new(@server_connection, params.expect(:id), user: current_user).call
-    return unless @result.success?
-
-    session[:server_access_tokens] = session.fetch(:server_access_tokens, {}).merge(@server_connection.id.to_s => @result.access_token)
-    @back_path, @back_label = detail_back_destination(@result.details)
-    @media_detail_header = playable_media_detail?(@result.details)
-    @media_detail_title = media_detail_title(@result.details) if @media_detail_header
+    @result = ServerConnections::FetchLibraryItemDetails.new(
+      @server_connection,
+      params.expect(:id),
+      user: current_user,
+      access_token: server_access_token(@server_connection),
+      device_id: current_device_id
+    ).call
+    if @result.success?
+      clear_connection_alert(@server_connection)
+      store_server_access_token(@server_connection, @result.access_token)
+      @back_path, @back_label = detail_back_destination(@result.details)
+      @media_detail_header = playable_media_detail?(@result.details)
+      @media_detail_title = media_detail_title(@result.details) if @media_detail_header
+    elsif @result.message.to_s.match?(/session expired|401|authentication/i)
+      record_connection_alert(@server_connection)
+    end
   end
 
   private

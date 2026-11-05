@@ -2,6 +2,20 @@
   <% if @result.success? %>
     <%= render(redesign_enabled? ? "redesign_library_content" : "library_content", content: @result.content) %>
   <% else %>
-    <section class="listen-loading listen-loading--error" role="alert"><h1>We couldn’t load your library.</h1><p><%= @result.message %></p><%= link_to "Manage servers", server_connections_path, class: "listen-outline-button" %></section>
+    <% if @server_connection && @result.message.to_s.match?(/session expired|401|authentication/i) %>
+      <%= turbo_stream.update "connection_alerts" do %>
+        <%= render "shared/reconnect_banner", server_connection: @server_connection %>
+      <% end %>
+    <% end %>
+    <section class="listen-loading listen-loading--error" role="alert">
+      <h1>We couldn’t load your library.</h1>
+      <p><%= @result.message %></p>
+      <div class="listen-loading__actions" data-controller="reconnect">
+        <% if @server_connection %>
+          <%= link_to "Reconnect Server", reconnect_server_connection_path(@server_connection), data: { turbo_frame: "reconnect_modal", action: "reconnect#open" }, class: "primary-button" %>
+        <% end %>
+        <%= link_to "Manage servers", server_connections_path, class: "secondary-button" %>
+      </div>
+    </section>
   <% end %>
 </turbo-frame>

@@ -6,24 +6,60 @@
     </div>
   </header>
 
+  <%= render "shared/flash" %>
+
   <% if @server_connections.any? %>
-    <section class="connection-list" aria-label="Server connections" data-controller="server-connection-test">
-      <% @server_connections.each do |server_connection| %><article class="connection-card">
-        <div>
-          <p class="connection-card__provider"><%= server_connection.provider.capitalize %><%= " · Preferred" if current_user.preferred_server_connection_id == server_connection.id %></p>
-          <h2><%= server_connection.name %></h2>
-          <p><%= server_connection.base_url %></p>
-        </div>
-        <div class="connection-card__actions"><%= button_to "Test", test_connection_server_connection_path(server_connection), class: "secondary-button", form: { data: { action: "submit->server-connection-test#run" } } %><%= button_to "Remove", server_connection, method: :delete, class: "text-button text-button--danger", form: { data: { turbo_confirm: "Remove #{server_connection.name} from Sonzra?" } } %></div><%= link_to edit_server_connection_path(server_connection), class: "connection-card__edit", aria: { label: "Edit #{server_connection.name}" }, title: "Edit #{server_connection.name}" do %><%= lucide_icon "pencil", aria: { hidden: true } %><% end %>
-      </article><% end %>
+    <section class="connection-list" aria-label="Server connections" data-controller="server-connection-test reconnect">
+      <% @server_connections.each do |server_connection| %>
+        <% is_preferred = current_user.preferred_server_connection_id == server_connection.id %>
+        <article class="connection-card <%= 'connection-card--preferred' if is_preferred %>">
+          <div class="connection-card__info">
+            <div class="connection-card__badges">
+              <span class="connection-badge connection-badge--provider"><%= server_connection.provider.capitalize %></span>
+              <% if is_preferred %>
+                <span class="connection-badge connection-badge--preferred">
+                  <span class="connection-badge__dot" aria-hidden="true"></span>
+                  Preferred
+                </span>
+              <% end %>
+            </div>
+            <h2><%= server_connection.name %></h2>
+            <p class="connection-card__meta">
+              <span><%= server_connection.base_url %></span>
+              <% if server_connection.username.present? %>
+                <span class="connection-card__meta-sep">·</span>
+                <span>Connected as <strong><%= server_connection.username %></strong></span>
+              <% end %>
+            </p>
+          </div>
+
+          <div class="connection-card__actions">
+            <%= link_to "Reconnect", reconnect_server_connection_path(server_connection), data: { turbo_frame: "reconnect_modal", action: "reconnect#open" }, class: "secondary-button", title: "Re-authenticate or restore session" %>
+            <%= button_to "Test", test_connection_server_connection_path(server_connection), class: "secondary-button", form: { data: { action: "submit->server-connection-test#run" } } %>
+            <%= link_to "Edit", edit_server_connection_path(server_connection), class: "secondary-button connection-card__edit", aria: { label: "Edit #{server_connection.name}" }, title: "Edit #{server_connection.name}" %>
+            <% if !is_preferred && current_user.server_connections.many? %>
+              <%= button_to "Set preferred", active_server_connection_path, method: :patch, params: { server_connection_id: server_connection.id }, class: "secondary-button", title: "Use this server as preferred" %>
+            <% end %>
+            <%= button_to "Remove", server_connection, method: :delete, class: "secondary-button secondary-button--danger", form: { data: { turbo_confirm: "Remove #{server_connection.name} from Sonzra?" } } %>
+          </div>
+        </article>
+      <% end %>
     </section>
-    <div class="form-actions"><%= link_to "Connect another server", new_server_connection_path, class: "secondary-button" if @available_media_servers.any? %><%= link_to "Manage server configurations", media_servers_path, class: "secondary-button" if current_user.admin? %><%= link_to "Add server", new_server_connection_path(setup: true), class: "primary-button" if current_user.admin? %></div>
+    <div class="form-actions">
+      <%= link_to "Connect another server", new_server_connection_path, class: "secondary-button" if @available_media_servers.any? %>
+      <%= link_to "Manage server configurations", media_servers_path, class: "secondary-button" if current_user.admin? %>
+      <%= link_to "Add server", new_server_connection_path(setup: true), class: "primary-button" if current_user.admin? %>
+    </div>
   <% else %>
     <section class="empty-state">
       <%= image_tag "/brand/sonzra-mark.svg", alt: "", class: "empty-state__mark" %>
       <h2>Connect a media server</h2>
       <p>Connect your own account so your listening history stays private.</p>
-      <div class="form-actions"><%= link_to "Choose server", new_server_connection_path, class: "secondary-button" if @available_media_servers.any? %><%= link_to "Manage server configurations", media_servers_path, class: "secondary-button" if current_user.admin? %><%= link_to "Add server", new_server_connection_path(setup: true), class: "primary-button" if current_user.admin? %></div>
+      <div class="form-actions">
+        <%= link_to "Choose server", new_server_connection_path, class: "secondary-button" if @available_media_servers.any? %>
+        <%= link_to "Manage server configurations", media_servers_path, class: "secondary-button" if current_user.admin? %>
+        <%= link_to "Add server", new_server_connection_path(setup: true), class: "primary-button" if current_user.admin? %>
+      </div>
     </section>
   <% end %>
 </main>

@@ -2,7 +2,7 @@ module ServerConnections
   class ReportPlayback
     EVENTS = %w[started progress stopped].freeze
 
-    def initialize(server_connection, event:, item_id:, position_ticks:, paused:, duration_ticks: 0, resumable: false, reset_position: false, access_token:, client: nil, client_occurred_at: nil)
+    def initialize(server_connection, event:, item_id:, position_ticks:, paused:, duration_ticks: 0, resumable: false, reset_position: false, access_token:, device_id: nil, client: nil, client_occurred_at: nil)
       @server_connection = server_connection
       @event = event
       @item_id = item_id
@@ -12,6 +12,7 @@ module ServerConnections
       @resumable = resumable
       @reset_position = reset_position
       @access_token = access_token
+      @device_id = device_id
       @client = client
       @client_occurred_at = client_occurred_at
     end
@@ -66,7 +67,7 @@ module ServerConnections
     end
 
     def client
-      @client ||= Integrations::Client.for(server_connection)
+      @client ||= Integrations::Client.for(server_connection, access_token: access_token, device_id: @device_id)
     end
   end
 end

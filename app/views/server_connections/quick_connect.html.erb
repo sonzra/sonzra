@@ -1,9 +1,32 @@
 <main class="settings-shell redesign-utility-page">
+  <% plex = @quick_connect["provider"] == "plex" %>
+  <header class="settings-header settings-header--page">
+    <div class="page-title">
+      <%= link_to server_connections_path, class: "back-link back-link--compact", aria: { label: "Back to servers" }, title: "Back to servers" do %>
+        <%= lucide_icon "arrow-left", aria: { hidden: true } %>
+      <% end %>
+      <div>
+        <p class="eyebrow">Quick Connect</p>
+        <h1>Approve <%= plex ? "Plex" : "Jellyfin" %> connection</h1>
+      </div>
+    </div>
+  </header>
+
   <section class="form-page form-page--compact quick-connect" data-controller="quick-connect" data-quick-connect-status-url-value="<%= quick_connect_status_server_connections_path %>">
-    <% plex = @quick_connect["provider"] == "plex" %>
-    <div class="page-title"><h1>Approve <%= plex ? "Plex" : "Jellyfin" %> connection</h1></div>
-    <% if plex %><p>Sign in to Plex in the page that opens, then approve Sonzra’s connection.</p><%= link_to "Open Plex sign-in", @quick_connect.fetch("url"), class: "primary-button", target: "_blank", rel: "noopener" %><% else %><p>In an already signed-in Jellyfin app, open <strong>Settings → Quick Connect</strong> and enter this code.</p><p class="quick-connect__code"><%= @quick_connect.fetch("code") %></p><% end %>
-    <p data-quick-connect-target="message">Waiting for approval…</p>
-    <%= link_to "Cancel", server_connections_path, class: "secondary-button" %>
+    <% if plex %>
+      <p class="form-hint">Sign in to Plex in the page that opens, then approve Sonzra’s connection.</p>
+      <div class="form-actions">
+        <%= link_to "Open Plex sign-in", @quick_connect.fetch("url"), class: "primary-button", target: "_blank", rel: "noopener" %>
+      </div>
+    <% else %>
+      <p class="form-hint">In an already signed-in Jellyfin app, open <strong>Settings → Quick Connect</strong> and enter this code:</p>
+      <p class="quick-connect__code"><%= @quick_connect.fetch("code") %></p>
+    <% end %>
+
+    <p class="form-hint form-hint--pulse" data-quick-connect-target="message">Waiting for approval…</p>
+
+    <div class="form-actions">
+      <%= link_to "Cancel", server_connections_path, class: "secondary-button" %>
+    </div>
   </section>
 </main>
