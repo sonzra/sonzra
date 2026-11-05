@@ -63,6 +63,31 @@ class ServerConnectionTest < ActiveSupport::TestCase
     assert_equal "new-access-token", connection.reload.access_token
   end
 
+  test "destroys dependent recommendation runs and collections without foreign key violation" do
+    connection = create_connection
+    collection = RecommendationCollection.create!(
+      user: users(:one),
+      server_connection: connection,
+      strategy: "friday_rediscovery",
+      period_date: Date.current,
+      title: "Friday Mix",
+      subtitle: "Weekly",
+      generated_at: Time.current
+    )
+    RecommendationRun.create!(
+      user: users(:one),
+      server_connection: connection,
+      recommendation_collection: collection,
+      strategy: "friday_rediscovery",
+      period_date: Date.current,
+      status: "completed"
+    )
+
+    assert_difference -> { ServerConnection.count } => -1, -> { RecommendationCollection.count } => -1, -> { RecommendationRun.count } => -1 do
+      connection.destroy!
+    end
+  end
+
   test "cascades deletion of dependent records and nullifies preferred connection" do
     user = users(:one)
     connection = create_connection(user: user)

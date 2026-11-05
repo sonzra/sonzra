@@ -10,6 +10,7 @@ class ServerConnection < ApplicationRecord
   has_many :sonic_graph_nodes, dependent: :delete_all
   has_many :recommendation_runs, dependent: :destroy
   has_many :recommendation_collections, dependent: :destroy
+  has_many :preferred_by_users, class_name: "User", foreign_key: "preferred_server_connection_id", dependent: :nullify
 
   before_destroy :nullify_user_preferred_connections
 
