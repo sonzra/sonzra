@@ -30,4 +30,16 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_session_path
     assert_empty cookies[:session_id]
   end
+
+  test "unauthenticated GET sets return_to_after_authenticating" do
+    get root_url
+    assert_redirected_to new_session_path
+    assert_equal root_url, session[:return_to_after_authenticating]
+  end
+
+  test "unauthenticated HEAD sets return_to_after_authenticating" do
+    head root_url
+    assert_redirected_to new_session_path
+    assert_equal root_url, session[:return_to_after_authenticating]
+  end
 end
