@@ -129,10 +129,15 @@ module Api
       private
 
       def authenticate_analyzer_token!
-        expected_token = ENV["ANALYZER_API_KEY"].presence || "development_analyzer_token"
-        provided_token = request.headers["X-Sonzra-Analyzer-Token"]
+        expected_token = if Rails.env.production?
+          ENV["ANALYZER_API_KEY"].presence
+        else
+          ENV["ANALYZER_API_KEY"].presence || "development_analyzer_token"
+        end
 
-        unless ActiveSupport::SecurityUtils.secure_compare(provided_token.to_s, expected_token)
+        provided_token = request.headers["X-Sonzra-Analyzer-Token"].to_s
+
+        if expected_token.blank? || !ActiveSupport::SecurityUtils.secure_compare(provided_token, expected_token)
           render json: { status: "error", message: "Unauthorized analyzer token" }, status: :unauthorized
         end
       end
