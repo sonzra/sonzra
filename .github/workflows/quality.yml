@@ -25,3 +25,10 @@ jobs:
       - run: bin/rails db:prepare
       - run: bin/rails test
       - run: npm run test:javascript
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+      - name: Run Playwright E2E tests
+        run: npm run test:e2e
+        env:
+          CI: true
+          RAILS_ENV: test
