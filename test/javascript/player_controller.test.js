@@ -988,6 +988,96 @@ describe("player controller", () => {
     expect(global.fetch).not.toHaveBeenCalled()
   })
 
+  it("toggles shuffle mode and updates target aria-pressed and classes (R1)", () => {
+    document.querySelector("[data-player-target='shell']").insertAdjacentHTML("beforeend", `
+      <button data-player-target="shuffle" aria-label="Shuffle off" aria-pressed="false"></button>
+    `)
+    expect(controller.shuffleMode).toBe(false)
+
+    controller.toggleShuffle()
+    expect(controller.shuffleMode).toBe(true)
+    const button = document.querySelector("[data-player-target='shuffle']")
+    expect(button.classList.contains("is-active")).toBe(true)
+    expect(button.getAttribute("aria-pressed")).toBe("true")
+    expect(button.getAttribute("aria-label")).toBe("Shuffle on")
+
+    controller.toggleShuffle()
+    expect(controller.shuffleMode).toBe(false)
+    expect(button.classList.contains("is-active")).toBe(false)
+    expect(button.getAttribute("aria-pressed")).toBe("false")
+    expect(button.getAttribute("aria-label")).toBe("Shuffle off")
+  })
+
+  it("traverses remaining queue in randomized order when shuffle is enabled (R2, F1)", () => {
+    controller.queue = [
+      { source: "/audio/track-1.mp3", title: "Track 1" },
+      { source: "/audio/track-2.mp3", title: "Track 2" },
+      { source: "/audio/track-3.mp3", title: "Track 3" },
+      { source: "/audio/track-4.mp3", title: "Track 4" }
+    ]
+    controller.currentIndex = 0
+    controller.currentTrack = controller.queue[0]
+    vi.spyOn(controller, "playQueueIndex").mockImplementation((index) => {
+      controller.currentIndex = index
+      controller.currentTrack = controller.queue[index]
+    })
+
+    // Stub Math.random to return deterministically
+    vi.spyOn(Math, "random").mockReturnValue(0.99)
+    controller.shuffleMode = true
+    controller.generateShuffledOrder()
+
+    controller.playNext()
+    expect(controller.playQueueIndex).toHaveBeenCalled()
+    const firstPlayed = controller.playQueueIndex.mock.calls[0][0]
+    expect(firstPlayed).not.toBe(0)
+    expect(firstPlayed).toBeGreaterThanOrEqual(1)
+    expect(firstPlayed).toBeLessThanOrEqual(3)
+  })
+
+  it("restores natural queue order when shuffle is toggled off (R3, AE3)", () => {
+    controller.queue = [
+      { source: "/audio/track-1.mp3", title: "Track 1" },
+      { source: "/audio/track-2.mp3", title: "Track 2" },
+      { source: "/audio/track-3.mp3", title: "Track 3" },
+      { source: "/audio/track-4.mp3", title: "Track 4" }
+    ]
+    controller.currentIndex = 1 // Track 2 is active
+    controller.currentTrack = controller.queue[1]
+    controller.shuffleMode = true
+    controller.shuffledIndices = [3, 0] // random order pending
+
+    vi.spyOn(controller, "playQueueIndex").mockImplementation((index) => {
+      controller.currentIndex = index
+    })
+
+    // Toggle shuffle off
+    controller.toggleShuffle()
+    expect(controller.shuffleMode).toBe(false)
+    expect(controller.shuffledIndices).toEqual([])
+
+    controller.playNext()
+    // In natural order, next after index 1 is index 2 (Track 3)
+    expect(controller.playQueueIndex).toHaveBeenCalledWith(2)
+  })
+
+  it("starts playback in shuffled mode when queue is replaced with shuffle param (R4)", async () => {
+    vi.spyOn(controller, "tracksFor").mockResolvedValue([
+      { source: "/audio/track-1.mp3", title: "Track 1" },
+      { source: "/audio/track-2.mp3", title: "Track 2" },
+      { source: "/audio/track-3.mp3", title: "Track 3" }
+    ])
+    vi.spyOn(controller, "playCurrent").mockImplementation(() => {})
+
+    await controller.replaceQueue({
+      params: { shuffle: "true", queueUrl: "/queue/album-1" }
+    })
+
+    expect(controller.shuffleMode).toBe(true)
+    expect(controller.queue.length).toBe(3)
+    expect(controller.shuffledIndices.length).toBe(2)
+  })
+
   function addLyricsTargets() {
     document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", `
       <button data-player-target="queueTab"></button><button data-player-target="lyricsTab"></button>

@@ -15,7 +15,7 @@ const QUEUE_TRANSITION_DURATION = 320
 const LOOKAHEAD_BUFFER_THRESHOLD = 15
 
 export default class extends Controller {
-  static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "favorite", "radio", "volume", "clearDialog", "queueView", "lyricsView", "queueTab", "lyricsTab", "lyricsStatus", "lyricsList", "lyricsFollow", "visualizer", "wifiPreload"]
+  static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "shuffle", "favorite", "radio", "volume", "clearDialog", "queueView", "lyricsView", "queueTab", "lyricsTab", "lyricsStatus", "lyricsList", "lyricsFollow", "visualizer", "wifiPreload"]
   static values = { radioEnabled: Boolean, preferencesUrl: String, offline: Boolean, preloadOnWifiOnly: Boolean }
 
   connect() {
@@ -24,6 +24,8 @@ export default class extends Controller {
     // Do not let that incomplete markup prevent the page from connecting.
     if (!this.hasAudioTarget) return
 
+    this.shuffleMode = false
+    this.shuffledIndices = []
     this.radioEnabled = this.radioEnabledValue === true
     this.preloadOnWifiOnly = this.preloadOnWifiOnlyValue === true
     this.offlineMode = this.offlineValue === true
@@ -124,8 +126,22 @@ export default class extends Controller {
     }
 
     const shouldEnableRadio = event.params.radioEnabled === true || event.params.radioEnabled === "true"
+    const shouldShuffle = event.params.shuffle === true || event.params.shuffle === "true"
     this.queue = tracks
-    this.currentIndex = 0
+
+    if (shouldShuffle) {
+      this.shuffleMode = true
+      const startIndex = Math.floor(Math.random() * tracks.length)
+      this.currentIndex = startIndex
+      this.generateShuffledOrder()
+      this.updateShuffleControls()
+    } else {
+      this.currentIndex = 0
+      if (this.shuffleMode) {
+        this.generateShuffledOrder()
+      }
+    }
+
     this.recordRecommendationStart(event.params.recommendationCollectionId)
     this.persistQueue({ force: true })
     this.renderQueue()
@@ -136,6 +152,43 @@ export default class extends Controller {
     } else if (event.params.queueUrl && this.radioEnabled) {
       this.setRadioEnabled(false)
     }
+  }
+
+  toggleShuffle() {
+    this.shuffleMode = !this.shuffleMode
+    if (this.shuffleMode) {
+      this.generateShuffledOrder()
+    } else {
+      this.shuffledIndices = []
+    }
+    this.updateShuffleControls()
+    this.persistQueue({ force: true })
+  }
+
+  generateShuffledOrder() {
+    if (!Array.isArray(this.queue) || this.queue.length <= 1) {
+      this.shuffledIndices = []
+      return
+    }
+    const remaining = []
+    for (let i = 0; i < this.queue.length; i++) {
+      if (i !== this.currentIndex) remaining.push(i)
+    }
+    for (let i = remaining.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      const temp = remaining[i]
+      remaining[i] = remaining[j]
+      remaining[j] = temp
+    }
+    this.shuffledIndices = remaining
+  }
+
+  updateShuffleControls() {
+    this.shuffleTargets.forEach((button) => {
+      button.classList.toggle("is-active", this.shuffleMode)
+      button.setAttribute("aria-pressed", String(this.shuffleMode))
+      button.setAttribute("aria-label", this.shuffleMode ? "Shuffle on" : "Shuffle off")
+    })
   }
 
   recordRecommendationStart(collectionId) {
@@ -338,8 +391,17 @@ export default class extends Controller {
     if (this.repeatMode === "one") {
       this.audioTarget.currentTime = 0
       this.monitorPlayback(this.audioTarget.play())
+    } else if (this.shuffleMode && this.shuffledIndices?.length > 0) {
+      const nextIndex = this.shuffledIndices.shift()
+      this.playQueueIndex(nextIndex)
     } else if (this.currentIndex >= this.queue.length - 1 && this.repeatMode === "all") {
-      this.playQueueIndex(0)
+      if (this.shuffleMode) {
+        this.generateShuffledOrder()
+        const nextIndex = this.shuffledIndices.shift()
+        this.playQueueIndex(nextIndex !== undefined ? nextIndex : 0)
+      } else {
+        this.playQueueIndex(0)
+      }
     } else if (this.currentIndex >= this.queue.length - 1) {
       this.stopPlayback()
     } else {
@@ -553,6 +615,7 @@ export default class extends Controller {
       this.savedPosition = Number(savedState.position) || 0
       this.queueWasOpen = savedState.queueOpen === true
       this.repeatMode = [ "off", "all", "one" ].includes(savedState.repeatMode) ? savedState.repeatMode : "off"
+      this.shuffleMode = savedState.shuffleMode === true
       this.radioEnabled = savedState.radioEnabled === true || this.radioEnabled
     } catch (_) {
       this.queue = []
@@ -560,9 +623,12 @@ export default class extends Controller {
       this.savedPosition = 0
       this.queueWasOpen = false
       this.repeatMode = "off"
+      this.shuffleMode = false
     }
     this.renderQueue()
     this.updateRepeatControls()
+    this.updateShuffleControls()
+    if (this.shuffleMode) this.generateShuffledOrder()
     this.updateRadioControls()
     this.restoreCurrentTrack()
     if (this.queueWasOpen && this.queue.length > 0 && this.hasQueuePanelTarget) {
@@ -605,6 +671,7 @@ export default class extends Controller {
         position,
         queueOpen: this.hasQueuePanelTarget && !this.queuePanelTarget.hidden && !this.queuePanelTarget.classList.contains("is-closing"),
         repeatMode: this.repeatMode || "off",
+        shuffleMode: this.shuffleMode === true,
         radioEnabled: this.radioEnabled === true
       }))
     } catch (_) {
