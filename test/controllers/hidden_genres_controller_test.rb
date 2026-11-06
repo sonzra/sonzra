@@ -62,8 +62,7 @@ class HiddenGenresControllerTest < ActionDispatch::IntegrationTest
     assert_empty users(:one).hidden_genres
   end
 
-  test "renders redesign layout structure with form-page when redesign is enabled" do
-    users(:one).update!(ui_variant: "redesign")
+  test "renders redesign layout structure with form-page" do
     get hidden_genres_url
     assert_response :success
     assert_select "main.redesign-utility-page"
