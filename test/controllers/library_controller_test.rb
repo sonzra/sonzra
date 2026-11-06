@@ -6,7 +6,7 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h1", "Connect a server to browse your library."
-    assert_select "a[href='#{server_connections_path}']", "Connect Jellyfin"
+    assert_select "a.primary-button[href='#{server_connections_path}']", "Connect media server"
   end
 
   test "uses the redesigned collection setup state when no server exists" do

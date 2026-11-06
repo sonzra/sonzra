@@ -13,10 +13,10 @@
       </header>
 
       <div class="redesign-library-content__heading redesign-downloads-content-heading">
-        <div><p class="eyebrow">Stored on this device</p><h2>Downloaded albums</h2></div>
+        <div><p class="eyebrow">Stored on this device</p><h2>Downloaded media</h2></div>
         <span class="redesign-downloads-content-heading__icon" aria-hidden="true"><%= lucide_icon "download" %></span>
       </div>
-      <p class="offline-downloads__description" data-offline-library-target="description">Your downloaded media is ready to play, even when your Jellyfin server is unavailable.</p>
+      <p class="offline-downloads__description" data-offline-library-target="description">Your downloaded media is ready to play, even when your media server is unavailable.</p>
       <p class="offline-downloads__storage" data-offline-library-target="storage" hidden></p>
     </section>
 
@@ -42,7 +42,7 @@
         <div><h1 data-offline-library-target="title">Downloads</h1><p data-offline-library-target="count">Loading downloads…</p></div>
       </div>
     </section>
-    <p class="offline-downloads__description" data-offline-library-target="description">Downloaded media is available on this device, even when your Jellyfin server is unavailable.</p>
+    <p class="offline-downloads__description" data-offline-library-target="description">Downloaded media is available on this device, even when your media server is unavailable.</p>
     <p class="offline-downloads__storage" data-offline-library-target="storage" hidden></p>
     <ol class="offline-downloads__list" data-offline-library-target="list"></ol>
     <button type="button" class="detail-back-link offline-downloads__detail-back" data-offline-library-target="detailBack" data-action="offline-library#backToAlbums" hidden><%= lucide_icon "arrow-left", aria: { hidden: true } %><span>Downloads</span></button>
