@@ -16,7 +16,9 @@ export function seedTestLibrary() {
         s.provider = :jellyfin
       end
 
-      user = User.find_by!(email_address: "one@example.com")
+      user = User.find_or_create_by!(email_address: "one@example.com") do |u|
+        u.password = "password"
+      end
       conn = ServerConnection.find_or_create_by!(user: user, media_server: server) do |c|
         c.username = "mockuser"
         c.password = "secret"
