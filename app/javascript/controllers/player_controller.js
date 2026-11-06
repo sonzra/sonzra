@@ -15,7 +15,7 @@ const QUEUE_TRANSITION_DURATION = 320
 const LOOKAHEAD_BUFFER_THRESHOLD = 15
 
 export default class extends Controller {
-  static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "shuffle", "favorite", "radio", "volume", "clearDialog", "queueView", "lyricsView", "queueTab", "lyricsTab", "lyricsStatus", "lyricsList", "lyricsFollow", "visualizer", "wifiPreload", "trackSkip", "jumpBack", "jumpForward", "playbackRate"]
+  static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "shuffle", "favorite", "radio", "volume", "clearDialog", "queueView", "lyricsView", "queueTab", "lyricsTab", "lyricsStatus", "lyricsList", "lyricsFollow", "visualizer", "wifiPreload", "trackSkip", "jumpBack", "jumpForward", "playbackRate", "muteButton", "muteIcon", "sleepButton", "sleepBadge", "sleepDialog"]
   static values = { radioEnabled: Boolean, preferencesUrl: String, offline: Boolean, preloadOnWifiOnly: Boolean }
 
   connect() {
@@ -63,6 +63,7 @@ export default class extends Controller {
     window.addEventListener("pagehide", this.boundHandlePageHide)
     window.addEventListener("pageshow", this.boundReconcilePlayback)
     window.addEventListener("pageshow", this.boundFlushOutbox)
+    window.addEventListener("keydown", this.boundHandleKeyDown)
     window.addEventListener("sonzra:native-media-command", this.boundHandleNativeMediaCommand)
     window.addEventListener("resize", this.boundUpdateQueueScrollHint)
     document.addEventListener("visibilitychange", this.boundHandleVisibilityChange)
@@ -89,6 +90,7 @@ export default class extends Controller {
     this.clearSyncRetry()
     window.removeEventListener("online", this.boundFlushOutbox)
     window.removeEventListener("pageshow", this.boundFlushOutbox)
+    window.removeEventListener("keydown", this.boundHandleKeyDown)
     this.audioTarget.removeEventListener("timeupdate", this.boundUpdateTimeline)
     this.audioTarget.removeEventListener("loadedmetadata", this.boundUpdateTimeline)
     this.audioTarget.removeEventListener("durationchange", this.boundUpdateTimeline)
@@ -238,8 +240,10 @@ export default class extends Controller {
   setVolume(event) {
     const volume = Math.min(1, Math.max(0, Number(event.currentTarget.value) || 0))
     this.audioTarget.volume = volume
+    if (volume > 0) this.unmutedVolume = volume
     sessionStorage.setItem("sonzra:volume", String(volume))
     this.updateVolumeControls(volume)
+    this.updateMuteControls(volume)
   }
 
   toggleQueue() {
@@ -536,7 +540,7 @@ export default class extends Controller {
     this.setReconnectingState(false)
     this.playbackRequested = true
     this.loadTrack(track)
-    this.ephemeralStreamStore?.touch(track.source)
+    this.ephemeralStreamStore?.touch?.(track.source)
     const playback = this.audioTarget.play()
     this.monitorPlayback(playback)
     this.maybeExtendRadioQueue()
@@ -1159,7 +1163,7 @@ export default class extends Controller {
 
     const alreadyCached = await this.ephemeralStreamStore?.has(nextTrack.source)
     if (alreadyCached) {
-      this.ephemeralStreamStore?.touch(nextTrack.source)
+      this.ephemeralStreamStore?.touch?.(nextTrack.source)
       return
     }
 
@@ -1432,9 +1436,11 @@ export default class extends Controller {
   restoreVolume() {
     if (!this.hasAudioTarget) return
 
-    const volume = sessionStorage.getItem("sonzra:volume") || "0.8"
+    const volume = Number(sessionStorage.getItem("sonzra:volume") ?? 0.8)
     this.audioTarget.volume = volume
+    this.unmutedVolume = volume > 0 ? volume : 0.8
     this.updateVolumeControls(volume)
+    this.updateMuteControls(volume)
   }
 
   updateVolumeControls(volume) {
@@ -1443,6 +1449,96 @@ export default class extends Controller {
       input.value = volume
       input.style.setProperty("--volume-progress", percentage)
     })
+  }
+
+  toggleMute() {
+    if (!this.hasAudioTarget) return
+
+    const currentVolume = Number(this.audioTarget.volume) || 0
+    if (currentVolume > 0) {
+      this.unmutedVolume = currentVolume
+      this.audioTarget.volume = 0
+      sessionStorage.setItem("sonzra:volume", "0")
+      this.updateVolumeControls(0)
+      this.updateMuteControls(0)
+    } else {
+      const restored = Number(this.unmutedVolume) || 0.8
+      this.audioTarget.volume = restored
+      sessionStorage.setItem("sonzra:volume", String(restored))
+      this.updateVolumeControls(restored)
+      this.updateMuteControls(restored)
+    }
+  }
+
+  updateMuteControls(volume = Number(this.audioTarget?.volume) || 0) {
+    const isMuted = volume === 0
+    if (this.hasMuteButtonTarget) {
+      this.muteButtonTarget.setAttribute("aria-label", isMuted ? "Unmute" : "Mute")
+    }
+    if (this.hasMuteIconTarget) {
+      this.muteIconTarget.innerHTML = this.icon(isMuted ? "volume-x" : "volume-2")
+    }
+  }
+
+  handleKeyDown(event) {
+    if (this.isEditableTarget(event.target)) return
+    if (event.metaKey || event.ctrlKey || event.altKey) return
+
+    if (event.code === "Space" || event.key === " ") {
+      if (!this.currentTrack && !this.hasAudioTarget) return
+      event.preventDefault()
+      this.toggle()
+      return
+    }
+
+    if (event.key === "m" || event.key === "M") {
+      event.preventDefault()
+      this.toggleMute()
+      return
+    }
+
+    if (event.key === "ArrowLeft") {
+      if (!this.currentTrack && !this.hasAudioTarget) return
+      event.preventDefault()
+      if (event.shiftKey) {
+        this.previous()
+      } else {
+        this.seekRelative(-5)
+      }
+      return
+    }
+
+    if (event.key === "ArrowRight") {
+      if (!this.currentTrack && !this.hasAudioTarget) return
+      event.preventDefault()
+      if (event.shiftKey) {
+        this.next()
+      } else {
+        this.seekRelative(5)
+      }
+      return
+    }
+  }
+
+  isEditableTarget(target) {
+    if (!target || !(target instanceof Element)) return false
+    if (target.matches("input, textarea, select")) return true
+    if (target.isContentEditable) return true
+    if (target.getAttribute("contenteditable") === "true") return true
+    return Boolean(target.closest("input, textarea, select, [contenteditable='true']"))
+  }
+
+  seekRelative(seconds) {
+    if (!this.hasAudioTarget) return
+    const currentTime = Number(this.audioTarget.currentTime) || 0
+    const duration = Number(this.audioTarget.duration) || 0
+    const target = duration > 0
+      ? Math.min(duration, Math.max(0, currentTime + seconds))
+      : Math.max(0, currentTime + seconds)
+    this.audioTarget.currentTime = target
+    this.updateProgress(target, duration)
+    this.syncBrowserMediaPosition()
+    this.syncNativeMedia()
   }
 
   showPlayer() {
@@ -1810,6 +1906,7 @@ export default class extends Controller {
     this.boundDismissQueueMenu = this.dismissQueueMenu.bind(this)
     this.boundUpdateQueueScrollHint = this.updateQueueScrollHint.bind(this)
     this.boundFlushOutbox = this.flushOutbox.bind(this)
+    this.boundHandleKeyDown = this.handleKeyDown.bind(this)
   }
 
   startProgressWatch() {
@@ -2042,6 +2139,8 @@ export default class extends Controller {
       , ellipsis: '<circle cx="5" cy="12" r="1.5" fill="currentColor"></circle><circle cx="12" cy="12" r="1.5" fill="currentColor"></circle><circle cx="19" cy="12" r="1.5" fill="currentColor"></circle>'
       , "list-plus": '<path d="M11 12H3"></path><path d="M16 6H3"></path><path d="M16 18H3"></path><path d="M18 9v6"></path><path d="M21 12h-6"></path>'
       , download: '<path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path>'
+      , "volume-2": '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>'
+      , "volume-x": '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="22" x2="16" y1="9" y2="15"></line><line x1="16" x2="22" y1="9" y2="15"></line>'
     }
     return `<svg class="${className}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths[name]}</svg>`
   }

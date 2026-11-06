@@ -362,6 +362,8 @@ html[data-turbo-preview] .redesign .listen-main:not(.listen-main--home), html[da
 .redesign .listen-player__speed { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; padding: 2px 6px; border-radius: 6px; border: 1px solid var(--rz-line); }
 .redesign .listen-player__jump { position: relative; display: grid; place-items: center; }
 .redesign .listen-player__jump-text { position: absolute; font-size: 8px; font-weight: 800; line-height: 1; top: 50%; left: 50%; transform: translate(-50%, -46%); pointer-events: none; }
+.redesign .listen-player__mute { display: grid; place-items: center; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; line-height: 1; }
+.redesign .listen-player__mute:hover { color: var(--rz-text); }
 @media (max-width: 700px) {
   .redesign .listen-player__controls > .listen-player__jump--back { display: grid !important; grid-column: 5; width: 30px; height: 33px; }
   .redesign .listen-player__controls > .listen-player__jump--forward { display: grid !important; grid-column: 7; width: 30px; height: 33px; }

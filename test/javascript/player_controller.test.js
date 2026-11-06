@@ -18,6 +18,7 @@ describe("player controller", () => {
     vi.stubGlobal("localStorage", persistedStorage)
     vi.stubGlobal("requestAnimationFrame", (callback) => callback())
     document.body.innerHTML = `
+      <input id="search-input" type="search">
       <div data-controller="player" data-player-radio-enabled-value="false" data-player-preferences-url-value="/player_preferences">
         <aside data-player-target="shell" hidden>
           <audio data-player-target="audio"></audio>
@@ -31,6 +32,10 @@ describe("player controller", () => {
           <button data-player-target="jumpBack" hidden></button>
           <button data-player-target="jumpForward" hidden></button>
           <button data-player-target="playbackRate" hidden>1.0x</button>
+          <button data-player-target="muteButton" data-action="player#toggleMute">
+            <span data-player-target="muteIcon"></span>
+          </button>
+          <input data-player-target="volume" type="range" min="0" max="1" step="0.01" value="0.8">
           <span data-player-target="miniProgress"></span>
         </aside>
         <dialog data-player-target="clearDialog"></dialog>
@@ -44,6 +49,7 @@ describe("player controller", () => {
   })
 
   afterEach(() => {
+    controller?.disconnect()
     application?.stop()
     vi.useRealTimers()
     vi.unstubAllGlobals()
@@ -1199,6 +1205,90 @@ describe("player controller", () => {
     // Invoke forward handler
     handlers["seekforward"]({ seekOffset: 30 })
     expect(controller.audioTarget.currentTime).toBe(65)
+  })
+
+  it("does not trigger play/pause or mute when typing Space or M inside an input (R7, R8, AE1)", () => {
+    controller.loadTrack({ source: "/audio/track.mp3", title: "Track", artist: "Artist" })
+    controller.audioTarget.volume = 0.8
+    vi.spyOn(controller, "toggle")
+    vi.spyOn(controller, "toggleMute")
+
+    const searchInput = document.getElementById("search-input")
+    searchInput.focus()
+
+    // Dispatch Space from inside input
+    const spaceEvent = new KeyboardEvent("keydown", { code: "Space", key: " ", bubbles: true, cancelable: true })
+    searchInput.dispatchEvent(spaceEvent)
+    expect(controller.toggle).not.toHaveBeenCalled()
+    expect(spaceEvent.defaultPrevented).toBe(false)
+
+    // Dispatch M from inside input
+    const mEvent = new KeyboardEvent("keydown", { key: "m", bubbles: true, cancelable: true })
+    searchInput.dispatchEvent(mEvent)
+    expect(controller.toggleMute).not.toHaveBeenCalled()
+    expect(mEvent.defaultPrevented).toBe(false)
+  })
+
+  it("toggles play/pause on Space key press when focused outside inputs (R7)", () => {
+    controller.loadTrack({ source: "/audio/track.mp3", title: "Track", artist: "Artist" })
+    vi.spyOn(controller, "toggle").mockImplementation(() => {})
+
+    const spaceEvent = new KeyboardEvent("keydown", { code: "Space", key: " ", bubbles: true, cancelable: true })
+    window.dispatchEvent(spaceEvent)
+
+    expect(controller.toggle).toHaveBeenCalled()
+    expect(spaceEvent.defaultPrevented).toBe(true)
+  })
+
+  it("seeks relative -5s and +5s on ArrowLeft and ArrowRight (R7)", () => {
+    controller.loadTrack({ source: "/audio/track.mp3", title: "Track", artist: "Artist" })
+    controller.audioTarget.currentTime = 10
+    Object.defineProperty(controller.audioTarget, "duration", { value: 100, configurable: true })
+
+    const leftEvent = new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true })
+    window.dispatchEvent(leftEvent)
+    expect(controller.audioTarget.currentTime).toBe(5)
+    expect(leftEvent.defaultPrevented).toBe(true)
+
+    const rightEvent = new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true })
+    window.dispatchEvent(rightEvent)
+    expect(controller.audioTarget.currentTime).toBe(10)
+    expect(rightEvent.defaultPrevented).toBe(true)
+  })
+
+  it("triggers previous and next on Shift+ArrowLeft and Shift+ArrowRight (R7)", () => {
+    controller.loadTrack({ source: "/audio/track.mp3", title: "Track", artist: "Artist" })
+    vi.spyOn(controller, "previous").mockImplementation(() => {})
+    vi.spyOn(controller, "next").mockImplementation(() => {})
+
+    const shiftLeft = new KeyboardEvent("keydown", { key: "ArrowLeft", shiftKey: true, bubbles: true, cancelable: true })
+    window.dispatchEvent(shiftLeft)
+    expect(controller.previous).toHaveBeenCalled()
+    expect(shiftLeft.defaultPrevented).toBe(true)
+
+    const shiftRight = new KeyboardEvent("keydown", { key: "ArrowRight", shiftKey: true, bubbles: true, cancelable: true })
+    window.dispatchEvent(shiftRight)
+    expect(controller.next).toHaveBeenCalled()
+    expect(shiftRight.defaultPrevented).toBe(true)
+  })
+
+  it("toggles mute and restores volume on M key press or mute button click (R7, R9)", () => {
+    controller.loadTrack({ source: "/audio/track.mp3", title: "Track", artist: "Artist" })
+    controller.audioTarget.volume = 0.7
+    controller.updateVolumeControls(0.7)
+    const muteBtn = document.querySelector("[data-player-target='muteButton']")
+
+    // 1. Press 'm' to mute
+    const mEvent = new KeyboardEvent("keydown", { key: "m", bubbles: true, cancelable: true })
+    window.dispatchEvent(mEvent)
+    expect(mEvent.defaultPrevented).toBe(true)
+    expect(controller.audioTarget.volume).toBe(0)
+    expect(muteBtn.getAttribute("aria-label")).toBe("Unmute")
+
+    // 2. Click mute button to unmute
+    controller.toggleMute()
+    expect(controller.audioTarget.volume).toBe(0.7)
+    expect(muteBtn.getAttribute("aria-label")).toBe("Mute")
   })
 
   function addLyricsTargets() {
