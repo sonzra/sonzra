@@ -2,6 +2,11 @@ default: &default
   adapter: sqlite3
   pool: <%= ENV.fetch("RAILS_MAX_THREADS", 5) %>
   timeout: 5000
+  pragmas:
+    journal_mode: wal
+    busy_timeout: 5000
+    synchronous: normal
+    foreign_keys: on
 
 development:
   <<: *default
