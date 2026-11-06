@@ -26,6 +26,18 @@ module ApplicationHelper
     format("%d:%02d", total_seconds / 60, total_seconds % 60)
   end
 
+  def album_runtime_summary(tracks)
+    total_seconds = Array(tracks).sum { |track| track["RunTimeTicks"].to_i } / 10_000_000
+    hours = total_seconds / 3600
+    minutes = (total_seconds % 3600) / 60
+
+    if hours.positive?
+      minutes.positive? ? "#{hours} hr #{minutes} min" : "#{hours} hr"
+    else
+      "#{minutes} min"
+    end
+  end
+
   def playback_position(item)
     item.dig("UserData", "PlaybackPositionTicks").to_i / 10_000_000.0
   end

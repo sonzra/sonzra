@@ -399,6 +399,26 @@ class Integrations::Plex::ClientTest < ActiveSupport::TestCase
     ENV["PLEX_CLIENT_ID"] = previous_value if previous_value
   end
 
+  test "normalizes Plex track parentIndex into ParentIndexNumber for multi-disc support" do
+    previous_value = ENV["PLEX_CLIENT_ID"]
+    ENV["PLEX_CLIENT_ID"] = "sonzra-installation-id"
+    album = { ratingKey: 99, type: "album", title: "Double Album" }
+    track = { ratingKey: 42, type: "track", title: "Disc 2 Track 1", index: 1, parentIndex: 2, parentRatingKey: 99, duration: 180_000 }
+    http = FakeHttp.new([
+      response(MediaContainer: { Metadata: [ track ] }),
+      response(MediaContainer: { Metadata: [ album ] }),
+      response(MediaContainer: { Metadata: [ track ] })
+    ])
+
+    result = Integrations::Plex::Client.new(base_url: "http://plex.example.test", access_token: "plex-token", http:).library_item_details("42")
+    normalized_track = result.details[:item]
+
+    assert_equal 2, normalized_track["ParentIndexNumber"]
+    assert_equal 1, normalized_track["IndexNumber"]
+  ensure
+    ENV["PLEX_CLIENT_ID"] = previous_value if previous_value
+  end
+
   test "publicly exposes access_token reader" do
     previous_value = ENV["PLEX_CLIENT_ID"]
     ENV["PLEX_CLIENT_ID"] = "test-client-id"

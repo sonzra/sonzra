@@ -34,6 +34,22 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_equal "3:21", track_duration(2_010_000_000)
   end
 
+  test "formats album runtime summary for short and multi-hour albums" do
+    tracks_short = [
+      { "RunTimeTicks" => 1_200_000_000 },
+      { "RunTimeTicks" => 1_800_000_000 }
+    ]
+    assert_equal "5 min", album_runtime_summary(tracks_short)
+
+    tracks_long = [
+      { "RunTimeTicks" => 36_000_000_000 },
+      { "RunTimeTicks" => 9_000_000_000 }
+    ]
+    assert_equal "1 hr 15 min", album_runtime_summary(tracks_long)
+
+    assert_equal "0 min", album_runtime_summary([])
+  end
+
   private
 
   def server_connection
