@@ -3,11 +3,11 @@ require "test_helper"
 class ArtworkControllerTest < ActionDispatch::IntegrationTest
   class FakeClient
     def library_collection(*, **)
-      Integrations::Jellyfin::LibraryCollectionResponseData.new(content: [], total: 0, access_token: "token")
+      Integrations::LibraryCollectionResponseData.new(content: [], total: 0, access_token: "token")
     end
 
     def artwork(item_id:, tag:, access_token:)
-      Integrations::Jellyfin::ArtworkResponseData.new(body: "image-data", content_type: "image/webp")
+      Integrations::ArtworkResponseData.new(body: "image-data", content_type: "image/webp")
     end
   end
 

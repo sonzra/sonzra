@@ -5,7 +5,7 @@ class PlaybackControllerTest < ActionDispatch::IntegrationTest
     def stream_audio(item_id:, range:, access_token:)
       @item_id = item_id
       @range = range
-      yield Integrations::Jellyfin::AudioStreamResponseData.new(
+      yield Integrations::AudioStreamResponseData.new(
         body: "audio-data",
         accept_ranges: "bytes",
         content_type: "audio/mpeg",

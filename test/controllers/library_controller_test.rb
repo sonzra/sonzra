@@ -56,7 +56,7 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
       password: "secret",
       user: users(:one)
     )
-    response = Integrations::Jellyfin::LibraryCollectionResponseData.new(
+    response = Integrations::LibraryCollectionResponseData.new(
       content: [ { "Id" => "track-1", "Name" => "A track", "Type" => "Audio" } ],
       total: 1,
       access_token: "token"
@@ -89,7 +89,7 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
       password: "secret",
       user: users(:one)
     )
-    response = Integrations::Jellyfin::LibraryCollectionResponseData.new(
+    response = Integrations::LibraryCollectionResponseData.new(
       content: [ { "Id" => "artist-1", "Name" => "Beatles", "Type" => "MusicArtist" } ],
       total: 100,
       access_token: "token"
@@ -128,7 +128,7 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
       password: "secret",
       user: users(:one)
     )
-    response = Integrations::Jellyfin::LibraryCollectionResponseData.new(
+    response = Integrations::LibraryCollectionResponseData.new(
       content: [ { "Id" => "ambient", "Name" => "Ambient", "Type" => "MusicGenre" }, { "Id" => "jazz", "Name" => "Jazz", "Type" => "MusicGenre" } ],
       total: 2,
       access_token: "token"
@@ -174,7 +174,7 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
     client.define_singleton_method(:library_collection) do |collection, page:, query:, **|
       calls << [ collection, query ]
       items = query == "Beatles" ? results.fetch(collection, []) : []
-      Integrations::Jellyfin::LibraryCollectionResponseData.new(content: items, total: items.size, access_token: "token")
+      Integrations::LibraryCollectionResponseData.new(content: items, total: items.size, access_token: "token")
     end
 
     client_class = Integrations::Jellyfin::Client
@@ -209,7 +209,7 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
       password: "secret",
       user: users(:one)
     )
-    response = Integrations::Jellyfin::LibraryCollectionResponseData.new(
+    response = Integrations::LibraryCollectionResponseData.new(
       content: [ { "Id" => "track-1", "Name" => "Come Together", "Type" => "Audio", "AlbumArtist" => "The Beatles", "RunTimeTicks" => 30_000_000, "UserData" => { "IsFavorite" => true } } ],
       total: 1,
       access_token: "token"
@@ -259,7 +259,7 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
       password: "secret",
       user: users(:one)
     )
-    mock_data_response = Integrations::Jellyfin::LibraryCollectionResponseData.new(
+    mock_data_response = Integrations::LibraryCollectionResponseData.new(
       content: [ { "Id" => "artist-2", "Name" => "Coldplay", "Type" => "MusicArtist" } ],
       total: 100,
       access_token: "token"

@@ -62,7 +62,7 @@ class RecommendationGenerator
     selected.each_with_index { |track, index| collection.recommendation_tracks.create!(track_attributes(track).merge(position: index + 1)) }
     run.update!(status: "generated", generated_at: Time.current, error_message: nil, recommendation_collection: collection)
     collection
-  rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError => error
+  rescue Integrations::AuthenticationError, Integrations::ConnectionError => error
     fail!(run, error.message)
   end
 

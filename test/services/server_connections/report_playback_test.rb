@@ -5,7 +5,7 @@ class ServerConnections::ReportPlaybackTest < ActiveSupport::TestCase
     client = Object.new
     client.define_singleton_method(:report_playback) do |**attributes|
       @attributes = attributes
-      Integrations::Jellyfin::PlaybackReportResponseData.new(access_token: "token")
+      Integrations::PlaybackReportResponseData.new(access_token: "token")
     end
     server_connection = ServerConnection.new(name: "Home", provider: :jellyfin, base_url: "https://example.com", username: "bruno", password: "secret")
 
@@ -31,7 +31,7 @@ class ServerConnections::ReportPlaybackTest < ActiveSupport::TestCase
     server_connection = ServerConnection.new(name: "Home", provider: :jellyfin, base_url: "https://example.com", username: "bruno", password: "secret")
     fake_client = Object.new
     fake_client.define_singleton_method(:report_playback) do |**|
-      Integrations::Jellyfin::PlaybackReportResponseData.new(access_token: "token")
+      Integrations::PlaybackReportResponseData.new(access_token: "token")
     end
 
     original_for = Integrations::Client.method(:for)

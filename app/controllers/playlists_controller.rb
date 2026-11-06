@@ -2,7 +2,7 @@ class PlaylistsController < ApplicationController
   def index
     render json: client.playlists
     cache_remote_user_id
-  rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError => error
+  rescue Integrations::AuthenticationError, Integrations::ConnectionError => error
     render json: { error: error.message }, status: :bad_gateway
   end
 
@@ -15,7 +15,7 @@ class PlaylistsController < ApplicationController
 
     render json: { id: playlist_id, item_included: server_connection.media_server.plex? }, status: :created
     cache_remote_user_id
-  rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError => error
+  rescue Integrations::AuthenticationError, Integrations::ConnectionError => error
     render json: { error: error.message }, status: :bad_gateway
   end
 
@@ -26,7 +26,7 @@ class PlaylistsController < ApplicationController
     )
     cache_remote_user_id
     head :no_content
-  rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError => error
+  rescue Integrations::AuthenticationError, Integrations::ConnectionError => error
     render json: { error: error.message }, status: :bad_gateway
   end
 
@@ -34,7 +34,7 @@ class PlaylistsController < ApplicationController
     client.delete_playlist(playlist_id: params.expect(:id))
     cache_remote_user_id
     head :no_content
-  rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError => error
+  rescue Integrations::AuthenticationError, Integrations::ConnectionError => error
     render json: { error: delete_error_message(error) }, status: :bad_gateway
   end
 
@@ -42,7 +42,7 @@ class PlaylistsController < ApplicationController
     client.remove_from_playlist(playlist_id: params.expect(:playlist_id), entry_id: params.expect(:entry_id))
     cache_remote_user_id
     head :no_content
-  rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError => error
+  rescue Integrations::AuthenticationError, Integrations::ConnectionError => error
     render json: { error: error.message }, status: :bad_gateway
   end
 
@@ -79,8 +79,15 @@ class PlaylistsController < ApplicationController
   end
 
   def playlist_item_ids
-    return [ params.expect(:item_id) ] unless params[:item_type] == "MusicAlbum"
-
-    client.playback_queue(params.expect(:item_id)).items.pluck("Id")
+    case params[:item_type]
+    when "MusicAlbum"
+      client.playback_queue(params.expect(:item_id)).items.pluck("Id")
+    when "MusicArtist"
+      client.artist_track_ids(params.expect(:item_id))
+    when "RecommendationCollection"
+      current_user.recommendation_collections.find(params.expect(:item_id)).recommendation_tracks.map(&:item_id)
+    else
+      [ params.expect(:item_id) ]
+    end
   end
 end

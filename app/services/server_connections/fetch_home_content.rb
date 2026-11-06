@@ -10,9 +10,9 @@ module ServerConnections
     def call
       response = client.home_content
       FetchHomeContentResultData.new(content: response.content, access_token: response.access_token, message: nil)
-    rescue Integrations::Jellyfin::Client::AuthenticationError
+    rescue Integrations::AuthenticationError
       FetchHomeContentResultData.new(content: nil, access_token: nil, message: "The saved server credentials were rejected.")
-    rescue Integrations::Jellyfin::Client::ConnectionError => error
+    rescue Integrations::ConnectionError => error
       FetchHomeContentResultData.new(content: nil, access_token: nil, message: error.message)
     end
 

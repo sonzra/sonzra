@@ -3,11 +3,11 @@ require "test_helper"
 class ResumeItemsControllerTest < ActionDispatch::IntegrationTest
   class FakeClient
     def report_playback(**)
-      Integrations::Jellyfin::PlaybackReportResponseData.new(access_token: "token")
+      Integrations::PlaybackReportResponseData.new(access_token: "token")
     end
 
     def update_playback_position(**)
-      Integrations::Jellyfin::PlaybackReportResponseData.new(access_token: "token")
+      Integrations::PlaybackReportResponseData.new(access_token: "token")
     end
   end
 

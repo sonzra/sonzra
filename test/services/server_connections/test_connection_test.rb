@@ -23,6 +23,30 @@ class ServerConnections::TestConnectionTest < ActiveSupport::TestCase
     assert_equal "The saved server credentials were rejected.", result.message
   end
 
+  test "returns a useful message for rejected credentials from Plex" do
+    client = Object.new
+    client.define_singleton_method(:authenticate) do
+      raise Integrations::Plex::Client::AuthenticationError
+    end
+
+    result = ServerConnections::TestConnection.new(server_connection, client: client).call
+
+    assert_not_predicate result, :success?
+    assert_equal "The saved server credentials were rejected.", result.message
+  end
+
+  test "returns a connection error message" do
+    client = Object.new
+    client.define_singleton_method(:authenticate) do
+      raise Integrations::ConnectionError, "Network unreachable"
+    end
+
+    result = ServerConnections::TestConnection.new(server_connection, client: client).call
+
+    assert_not_predicate result, :success?
+    assert_equal "Network unreachable", result.message
+  end
+
   test "forwards device_id to integration client when client is not injected" do
     fake_client = Object.new
     fake_client.define_singleton_method(:authenticate) { "Bruno" }

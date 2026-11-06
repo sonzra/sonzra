@@ -3,7 +3,7 @@ require "test_helper"
 class ServerConnections::FetchHomeContentTest < ActiveSupport::TestCase
   test "returns the library content from its client" do
     content = { user_name: "Bruno", recently_played: [], recently_added_albums: [], recently_added_artists: [], genres: [] }
-    response = Integrations::Jellyfin::HomeContentResponseData.new(content: content, access_token: "token")
+    response = Integrations::HomeContentResponseData.new(content: content, access_token: "token")
     client = Object.new
     client.define_singleton_method(:home_content) { response }
 

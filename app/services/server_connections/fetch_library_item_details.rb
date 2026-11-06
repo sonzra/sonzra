@@ -15,7 +15,7 @@ module ServerConnections
       return FetchLibraryItemDetailsResultData.new(details: nil, access_token: response.access_token, message: "This artist is hidden.") unless details
 
       FetchLibraryItemDetailsResultData.new(details:, access_token: response.access_token, message: nil)
-    rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError => error
+    rescue Integrations::AuthenticationError, Integrations::ConnectionError => error
       FetchLibraryItemDetailsResultData.new(details: nil, access_token: nil, message: error.message.presence || "Could not load this item.")
     end
 

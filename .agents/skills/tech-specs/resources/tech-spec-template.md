@@ -89,7 +89,8 @@ flowchart TD
     Chunk1["Chunk 1: Data Model & Migrations"] --> Chunk2["Chunk 2: Adapter & Domain Service DTOs"]
     Chunk2 --> Chunk3["Chunk 3: Controller Actions & Routing"]
     Chunk3 --> Chunk4["Chunk 4: Views & Stimulus Controller"]
-    Chunk4 --> Chunk5["Chunk 5: End-to-End Verification & Quality Gate"]
+    Chunk4 --> Chunk5["Chunk 5: End-to-End Playwright Tests"]
+    Chunk5 --> Chunk6["Chunk 6: Integration Verification & Quality Gate"]
 ```
 
 ---
@@ -174,11 +175,34 @@ flowchart TD
 
 ---
 
-### Chunk 5: [Integration Verification & Quality Gate]
+### Chunk 5: [End-to-End Playwright Tests (test/e2e/<feature>.spec.js)]
+> [!IMPORTANT]
+> Mandatory for any epic introducing or modifying user-facing UI journeys.
+**Goal:** [Verify full user journey end-to-end in real browser environments using mocked backend responses.]  
+**Files to Touch:**
+- Create: `test/e2e/<feature>.spec.js`
+- Modify: `test/e2e/support/helpers.js` (if new mock routes/fixtures needed)
+
+#### Implementation Steps:
+1. **Mocking & Isolation Strategy:**
+   - Intercept media server and backend routes using `page.route` via `test/e2e/support/helpers.js`.
+   - Never allow network calls to connect to an external or live Jellyfin/Plex server.
+2. **E2E Scenarios (Derived from PRD Observable Acceptance Criteria):**
+   - Scenario 1: [Primary user journey / happy path on desktop & mobile]
+   - Scenario 2: [Dialog, modal, or drawer interactions, form submissions, state updates]
+   - Scenario 3: [Edge case, cancellation, or error handling]
+3. **Execution Commands:**
+   - `npm run test:e2e -- test/e2e/<feature>.spec.js`
+   - `npm run test:e2e -- --project="Mobile Chrome" test/e2e/<feature>.spec.js`
+
+---
+
+### Chunk 6: [Integration Verification & Quality Gate]
 **Goal:** [Verify the complete flow and pass all automated quality checks.]  
 **Verification Steps:**
 - [ ] Run full test suite: `bin/rails test`
 - [ ] Run JavaScript test suite: `npm run test:javascript`
+- [ ] Run Playwright E2E suite: `npm run test:e2e`
 - [ ] Run Ruby linter: `bundle exec rubocop`
 - [ ] Verify `bin/quality` passes with 0 failures
 - [ ] Verify responsive layouts at 375px mobile and desktop viewports

@@ -5,7 +5,7 @@ class ServerConnections::FetchRadioTracksTest < ActiveSupport::TestCase
     client = Object.new
     client.define_singleton_method(:instant_mix) do |item_id, limit:|
       @limit = limit
-      Integrations::Jellyfin::PlaybackQueueResponseData.new(items: [ { "Id" => item_id } ], access_token: "token")
+      Integrations::PlaybackQueueResponseData.new(items: [ { "Id" => item_id } ], access_token: "token")
     end
     server_connection = ServerConnection.new(name: "Home", provider: :plex, base_url: "https://example.com", username: "bruno", access_token: "token")
 

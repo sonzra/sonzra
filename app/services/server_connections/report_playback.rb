@@ -28,7 +28,7 @@ module ServerConnections
       )
       response = client.update_playback_position(item_id: item_id, position_ticks: position_ticks, access_token: response.access_token) if update_position?
       PlaybackReportResultData.new(access_token: response.access_token, message: nil)
-    rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError => error
+    rescue Integrations::AuthenticationError, Integrations::ConnectionError => error
       PlaybackReportResultData.new(access_token: nil, message: error.message.presence || "Could not report playback.")
     end
 

@@ -10,9 +10,9 @@ module ServerConnections
       user_name = client.authenticate
 
       TestConnectionResultData.new(success: true, message: "Connected as #{user_name}.")
-    rescue Integrations::Jellyfin::Client::AuthenticationError
+    rescue Integrations::AuthenticationError
       TestConnectionResultData.new(success: false, message: "The saved server credentials were rejected.")
-    rescue Integrations::Jellyfin::Client::ConnectionError => error
+    rescue Integrations::ConnectionError => error
       TestConnectionResultData.new(success: false, message: error.message)
     end
 
