@@ -988,6 +988,131 @@ describe("player controller", () => {
     expect(global.fetch).not.toHaveBeenCalled()
   })
 
+  describe("mobile track scrubbing and timeline synchronization", () => {
+    beforeEach(() => {
+      document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", `
+        <div class="listen-player__progress" data-player-target="miniProgressBar"></div>
+        <div class="listen-player__playback">
+          <time data-player-target="elapsed">0:00</time>
+          <input class="listen-player__timeline" data-player-target="timeline" type="range" min="0" max="100" value="0">
+          <time data-player-target="duration">0:00</time>
+        </div>
+        <div class="listen-queue__progress">
+          <time data-player-target="expandedElapsed">0:00</time>
+          <input data-player-target="expandedTimeline" type="range" min="0" max="100" value="0">
+          <time data-player-target="expandedDuration">0:00</time>
+        </div>
+      `)
+      Object.defineProperty(controller.audioTarget, "duration", {
+        configurable: true,
+        writable: true,
+        value: 120
+      })
+    })
+
+    it("seeks playback and synchronizes elapsed and timeline inputs across both surfaces", () => {
+      const expandedTimeline = document.querySelector("[data-player-target='expandedTimeline']")
+      expandedTimeline.value = "60"
+      expandedTimeline.max = "120"
+
+      controller.seek({ currentTarget: expandedTimeline })
+
+      expect(controller.audioTarget.currentTime).toBe(60)
+      expect(document.querySelector("[data-player-target='elapsed']").textContent).toBe("1:00")
+      expect(document.querySelector("[data-player-target='expandedElapsed']").textContent).toBe("1:00")
+      expect(document.querySelector("[data-player-target='timeline']").value).toBe("60")
+      expect(document.querySelector("[data-player-target='miniProgress']").style.width).toBe("50%")
+    })
+
+    it("calculates ratio and commits seek on mini-progress tap", () => {
+      const container = document.querySelector("[data-player-target='miniProgressBar']")
+      vi.spyOn(container, "getBoundingClientRect").mockReturnValue({
+        left: 0,
+        top: 0,
+        width: 200,
+        height: 44,
+        right: 200,
+        bottom: 44
+      })
+
+      // Tap at 50px of 200px (25% -> 30s of 120s)
+      controller.seekMiniProgress({
+        currentTarget: container,
+        clientX: 50
+      })
+
+      expect(controller.audioTarget.currentTime).toBe(30)
+      expect(document.querySelector("[data-player-target='miniProgress']").style.width).toBe("25%")
+      expect(document.querySelector("[data-player-target='elapsed']").textContent).toBe("0:30")
+    })
+
+    it("supports drag seeking and suppresses timeupdate until commit", () => {
+      const container = document.querySelector("[data-player-target='miniProgressBar']")
+      vi.spyOn(container, "getBoundingClientRect").mockReturnValue({
+        left: 100,
+        top: 0,
+        width: 200,
+        height: 44,
+        right: 300,
+        bottom: 44
+      })
+
+      // Start seek at 50% (clientX = 200)
+      controller.startMiniSeek({
+        currentTarget: container,
+        clientX: 200
+      })
+      expect(controller.isMiniSeeking).toBe(true)
+      expect(document.querySelector("[data-player-target='miniProgress']").style.width).toBe("50%")
+
+      // Native audio timeupdate while dragging is ignored
+      controller.audioTarget.currentTime = 10
+      controller.updateTimeline()
+      expect(document.querySelector("[data-player-target='miniProgress']").style.width).toBe("50%")
+
+      // Drag to 75% (clientX = 250)
+      controller.dragMiniSeek({
+        currentTarget: container,
+        clientX: 250
+      })
+      expect(document.querySelector("[data-player-target='miniProgress']").style.width).toBe("75%")
+
+      // Release at 75% -> commits 90s out of 120s
+      controller.endMiniSeek({
+        currentTarget: container,
+        clientX: 250
+      })
+      expect(controller.isMiniSeeking).toBe(false)
+      expect(controller.audioTarget.currentTime).toBe(90)
+    })
+
+    it("clamps mini seek ratio when dragging beyond bounds", () => {
+      const container = document.querySelector("[data-player-target='miniProgressBar']")
+      vi.spyOn(container, "getBoundingClientRect").mockReturnValue({
+        left: 100,
+        top: 0,
+        width: 100,
+        height: 44,
+        right: 200,
+        bottom: 44
+      })
+
+      // Drag to left of container (< 100)
+      controller.seekMiniProgress({
+        currentTarget: container,
+        clientX: 50
+      })
+      expect(controller.audioTarget.currentTime).toBe(0)
+
+      // Drag to right of container (> 200)
+      controller.seekMiniProgress({
+        currentTarget: container,
+        clientX: 300
+      })
+      expect(controller.audioTarget.currentTime).toBe(120)
+    })
+  })
+
   function addLyricsTargets() {
     document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", `
       <button data-player-target="queueTab"></button><button data-player-target="lyricsTab"></button>

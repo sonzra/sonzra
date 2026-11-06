@@ -15,7 +15,7 @@ const QUEUE_TRANSITION_DURATION = 320
 const LOOKAHEAD_BUFFER_THRESHOLD = 15
 
 export default class extends Controller {
-  static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "favorite", "radio", "volume", "clearDialog", "queueView", "lyricsView", "queueTab", "lyricsTab", "lyricsStatus", "lyricsList", "lyricsFollow", "visualizer", "wifiPreload"]
+  static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "miniProgressBar", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "favorite", "radio", "volume", "clearDialog", "queueView", "lyricsView", "queueTab", "lyricsTab", "lyricsStatus", "lyricsList", "lyricsFollow", "visualizer", "wifiPreload"]
   static values = { radioEnabled: Boolean, preferencesUrl: String, offline: Boolean, preloadOnWifiOnly: Boolean }
 
   connect() {
@@ -177,9 +177,70 @@ export default class extends Controller {
 
   seek(event) {
     this.cancelPreload()
-    this.audioTarget.currentTime = event.currentTarget.value
-    this.updateProgress(Number(event.currentTarget.value), Number(event.currentTarget.max))
+    const targetTime = Number(event.currentTarget.value)
+    const maxDuration = Number(event.currentTarget.max) || this.audioTarget.duration || 0
+    this.audioTarget.currentTime = targetTime
+    this.updateProgress(targetTime, maxDuration)
+    if (this.hasElapsedTarget) this.elapsedTarget.textContent = this.formatTime(targetTime)
+    if (this.hasExpandedElapsedTarget) this.expandedElapsedTarget.textContent = this.formatTime(targetTime)
+    this.timelineTargets.concat(this.expandedTimelineTargets).forEach((timeline) => {
+      timeline.value = targetTime
+    })
     this.syncNativeMedia()
+    this.syncBrowserMediaPosition()
+  }
+
+  calculateMiniSeekRatio(event) {
+    const container = event.currentTarget
+    const rect = container.getBoundingClientRect()
+    if (!rect.width) return 0
+    const clientX = event.clientX ?? (event.touches && event.touches[0] ? event.touches[0].clientX : 0)
+    const offsetX = clientX - rect.left
+    return Math.max(0, Math.min(1, offsetX / rect.width))
+  }
+
+  startMiniSeek(event) {
+    if (!this.hasAudioTarget || !this.audioTarget.duration) return
+    this.isMiniSeeking = true
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+    this.handleMiniSeek(event, false)
+  }
+
+  dragMiniSeek(event) {
+    if (!this.isMiniSeeking) return
+    this.handleMiniSeek(event, false)
+  }
+
+  endMiniSeek(event) {
+    if (!this.isMiniSeeking) return
+    this.isMiniSeeking = false
+    event.currentTarget.releasePointerCapture?.(event.pointerId)
+    this.handleMiniSeek(event, true)
+  }
+
+  seekMiniProgress(event) {
+    if (!this.hasAudioTarget || !this.audioTarget.duration) return
+    this.handleMiniSeek(event, true)
+  }
+
+  handleMiniSeek(event, commit = false) {
+    if (!this.hasAudioTarget || !this.audioTarget.duration) return
+    const ratio = this.calculateMiniSeekRatio(event)
+    const targetTime = ratio * this.audioTarget.duration
+
+    this.updateProgress(targetTime, this.audioTarget.duration)
+    if (this.hasElapsedTarget) this.elapsedTarget.textContent = this.formatTime(targetTime)
+    if (this.hasExpandedElapsedTarget) this.expandedElapsedTarget.textContent = this.formatTime(targetTime)
+    this.timelineTargets.concat(this.expandedTimelineTargets).forEach((timeline) => {
+      timeline.value = targetTime
+    })
+
+    if (commit) {
+      this.cancelPreload()
+      this.audioTarget.currentTime = targetTime
+      this.syncNativeMedia()
+      this.syncBrowserMediaPosition()
+    }
   }
 
   setVolume(event) {
@@ -264,6 +325,7 @@ export default class extends Controller {
   }
 
   updateTimeline() {
+    if (this.isMiniSeeking) return
     const duration = this.audioTarget.duration
     if (this.hasElapsedTarget) this.elapsedTarget.textContent = this.formatTime(this.audioTarget.currentTime)
     if (!Number.isFinite(duration)) return
