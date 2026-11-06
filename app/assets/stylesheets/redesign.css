@@ -364,6 +364,15 @@ html[data-turbo-preview] .redesign .listen-main:not(.listen-main--home), html[da
 .redesign .listen-player__jump-text { position: absolute; font-size: 8px; font-weight: 800; line-height: 1; top: 50%; left: 50%; transform: translate(-50%, -46%); pointer-events: none; }
 .redesign .listen-player__mute { display: grid; place-items: center; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; line-height: 1; }
 .redesign .listen-player__mute:hover { color: var(--rz-text); }
+.redesign .listen-player__sleep-trigger, .redesign .listen-queue__sleep-trigger { position: relative; }
+.redesign .listen-player__sleep-badge { position: absolute; top: -4px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: var(--rz-primary); color: #fff; font-size: 9px; font-weight: 800; line-height: 16px; text-align: center; pointer-events: none; }
+.redesign .listen-player__sleep-badge[hidden] { display: none !important; }
+.redesign .listen-player__sleep-panel { max-width: 440px; }
+.redesign .listen-player__sleep-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 20px 0 16px; }
+.redesign .listen-player__sleep-option { padding: 11px 14px; border: 1px solid var(--rz-line); border-radius: 12px; background: rgb(255 255 255 / 4%); color: var(--rz-text); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: background .18s ease, border-color .18s ease; }
+.redesign .listen-player__sleep-option:hover { border-color: var(--rz-primary-light); background: rgb(122 90 248 / 18%); }
+.redesign .listen-player__sleep-option--cancel { grid-column: 1 / -1; color: var(--rz-muted); }
+.redesign .listen-player__sleep-option--cancel:hover { color: #ff8da6; border-color: rgb(255 69 104 / 30%); background: rgb(255 69 104 / 10%); }
 @media (max-width: 700px) {
   .redesign .listen-player__controls > .listen-player__jump--back { display: grid !important; grid-column: 5; width: 30px; height: 33px; }
   .redesign .listen-player__controls > .listen-player__jump--forward { display: grid !important; grid-column: 7; width: 30px; height: 33px; }

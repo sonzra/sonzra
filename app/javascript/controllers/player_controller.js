@@ -26,6 +26,11 @@ export default class extends Controller {
 
     this.shuffleMode = false
     this.shuffledIndices = []
+    this.sleepTimerInterval = null
+    this.sleepFadeInterval = null
+    this.sleepTimerEndAt = null
+    this.sleepTimerMode = null
+    this.isFadingOut = false
     this.radioEnabled = this.radioEnabledValue === true
     this.preloadOnWifiOnly = this.preloadOnWifiOnlyValue === true
     this.offlineMode = this.offlineValue === true
@@ -114,6 +119,7 @@ export default class extends Controller {
     this.stopProgressWatch()
     this.stopVisualizer()
     this.clearPlaybackRecovery()
+    this.clearSleepTimer()
     this.setReconnectingState(false)
     this.cancelPreload()
     this.lyricsRequest?.abort()
@@ -390,6 +396,12 @@ export default class extends Controller {
 
   playNext() {
     if (this.advancingQueue) return
+
+    if (this.sleepTimerMode === "track") {
+      this.clearSleepTimer()
+      this.audioTarget?.pause()
+      return
+    }
 
     this.advancingQueue = true
     if (this.repeatMode === "one") {
@@ -1056,6 +1068,7 @@ export default class extends Controller {
   }
 
   clearQueue() {
+    this.clearSleepTimer()
     this.cancelPreload()
     this.setReconnectingState(false)
     if (this.radioEnabled) this.setRadioEnabled(false)
@@ -1083,11 +1096,141 @@ export default class extends Controller {
 
   confirmClearQueue() {
     this.closeClearQueuePrompt()
+    this.clearSleepTimer()
     this.clearQueue()
   }
 
   closeClearQueueOnBackdrop(event) {
     if (event.target === this.clearDialogTarget) this.closeClearQueuePrompt()
+  }
+
+  openSleepTimer() {
+    if (!this.hasSleepDialogTarget) return
+
+    if (typeof this.sleepDialogTarget.showModal === "function") {
+      this.sleepDialogTarget.showModal()
+    } else {
+      this.sleepDialogTarget.hidden = false
+      this.sleepDialogTarget.setAttribute("open", "")
+    }
+  }
+
+  closeSleepTimer() {
+    if (!this.hasSleepDialogTarget) return
+
+    if (typeof this.sleepDialogTarget.close === "function") {
+      this.sleepDialogTarget.close()
+    } else {
+      this.sleepDialogTarget.hidden = true
+      this.sleepDialogTarget.removeAttribute("open")
+    }
+  }
+
+  closeSleepTimerOnBackdrop(event) {
+    if (event.target === this.sleepDialogTarget) this.closeSleepTimer()
+  }
+
+  setSleepTimer(event) {
+    const duration = event?.params?.duration || event?.currentTarget?.dataset?.playerDurationParam
+    this.closeSleepTimer()
+    this.clearSleepTimer()
+
+    if (duration === "track") {
+      this.sleepTimerMode = "track"
+      this.updateSleepBadge("Track")
+      this.showFeedback("Sleep timer set for end of track")
+      return
+    }
+
+    const minutes = Number(duration) || 30
+    const totalSeconds = minutes * 60
+    this.sleepTimerEndAt = Date.now() + totalSeconds * 1000
+    this.sleepOriginalVolume = Number(this.audioTarget?.volume) || 0.8
+    this.isFadingOut = false
+    this.updateSleepBadge(`${minutes}m`)
+    this.showFeedback(`Sleep timer set for ${minutes} minutes`)
+    this.sleepTimerInterval = window.setInterval(this.boundTickSleepTimer, 1000)
+  }
+
+  tickSleepTimer() {
+    if (!this.sleepTimerEndAt) return
+
+    const remainingMs = this.sleepTimerEndAt - Date.now()
+    if (remainingMs <= 0) {
+      this.clearSleepFadeInterval()
+      this.audioTarget?.pause()
+      if (this.hasAudioTarget && this.sleepOriginalVolume != null) {
+        this.audioTarget.volume = this.sleepOriginalVolume
+        this.updateVolumeControls(this.sleepOriginalVolume)
+      }
+      this.clearSleepTimer()
+      return
+    }
+
+    if (remainingMs <= 10_000 && !this.isFadingOut) {
+      this.isFadingOut = true
+      this.startSleepFadeOut()
+    }
+
+    const remainingMinutes = Math.ceil(remainingMs / 60_000)
+    this.updateSleepBadge(`${remainingMinutes}m`)
+  }
+
+  startSleepFadeOut() {
+    this.clearSleepFadeInterval()
+    const originalVol = Number(this.audioTarget?.volume) || 0.8
+    const step = originalVol / 50
+    this.sleepFadeInterval = window.setInterval(() => {
+      if (!this.hasAudioTarget) return
+      const nextVol = Math.max(0, this.audioTarget.volume - step)
+      this.audioTarget.volume = nextVol
+      this.updateVolumeControls(nextVol)
+    }, 200)
+  }
+
+  clearSleepFadeInterval() {
+    if (this.sleepFadeInterval) {
+      window.clearInterval(this.sleepFadeInterval)
+      this.sleepFadeInterval = null
+    }
+  }
+
+  cancelSleepTimer() {
+    this.clearSleepTimer()
+    this.closeSleepTimer()
+    this.showFeedback("Sleep timer turned off")
+  }
+
+  clearSleepTimer() {
+    if (this.sleepTimerInterval) {
+      window.clearInterval(this.sleepTimerInterval)
+      this.sleepTimerInterval = null
+    }
+    this.clearSleepFadeInterval()
+    if (this.isFadingOut && this.hasAudioTarget && this.sleepOriginalVolume != null) {
+      this.audioTarget.volume = this.sleepOriginalVolume
+      this.updateVolumeControls(this.sleepOriginalVolume)
+    }
+    this.isFadingOut = false
+    this.sleepTimerEndAt = null
+    this.sleepTimerMode = null
+    this.updateSleepBadge(null)
+  }
+
+  updateSleepBadge(text) {
+    this.sleepBadgeTargets.forEach((badge) => {
+      if (text) {
+        badge.textContent = text
+        badge.hidden = false
+      } else {
+        badge.textContent = ""
+        badge.hidden = true
+      }
+    })
+    this.sleepButtonTargets.forEach((btn) => {
+      btn.classList.toggle("is-active", Boolean(text))
+      btn.setAttribute("aria-label", text ? `Sleep timer ${text}` : "Sleep timer")
+    })
   }
 
   setRadioEnabled(enabled, { feedback = null } = {}) {
@@ -1907,6 +2050,7 @@ export default class extends Controller {
     this.boundUpdateQueueScrollHint = this.updateQueueScrollHint.bind(this)
     this.boundFlushOutbox = this.flushOutbox.bind(this)
     this.boundHandleKeyDown = this.handleKeyDown.bind(this)
+    this.boundTickSleepTimer = this.tickSleepTimer.bind(this)
   }
 
   startProgressWatch() {

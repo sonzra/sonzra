@@ -36,9 +36,13 @@ describe("player controller", () => {
             <span data-player-target="muteIcon"></span>
           </button>
           <input data-player-target="volume" type="range" min="0" max="1" step="0.01" value="0.8">
+          <button data-player-target="sleepButton" data-action="player#openSleepTimer">
+            <span data-player-target="sleepBadge" hidden></span>
+          </button>
           <span data-player-target="miniProgress"></span>
         </aside>
         <dialog data-player-target="clearDialog"></dialog>
+        <dialog data-player-target="sleepDialog"></dialog>
       </div>
     `
     vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {})
@@ -1289,6 +1293,100 @@ describe("player controller", () => {
     controller.toggleMute()
     expect(controller.audioTarget.volume).toBe(0.7)
     expect(muteBtn.getAttribute("aria-label")).toBe("Mute")
+  })
+
+  it("sets sleep timer preset and displays countdown badge (R10, R11, F3)", () => {
+    controller.loadTrack({ source: "/audio/track.mp3", title: "Track", artist: "Artist" })
+    const badge = document.querySelector("[data-player-target='sleepBadge']")
+    const btn = document.querySelector("[data-player-target='sleepButton']")
+
+    controller.setSleepTimer({ params: { duration: 30 } })
+    expect(badge.hidden).toBe(false)
+    expect(badge.textContent).toBe("30m")
+    expect(btn.classList.contains("is-active")).toBe(true)
+
+    // Tick forward 5 minutes
+    vi.spyOn(Date, "now").mockReturnValue(controller.sleepTimerEndAt - 25 * 60 * 1000)
+    controller.tickSleepTimer()
+    expect(badge.textContent).toBe("25m")
+  })
+
+  it("pauses playback at end of track when End of Track preset is selected (R10)", () => {
+    controller.queue = [
+      { source: "/audio/track-1.mp3", title: "Track 1" },
+      { source: "/audio/track-2.mp3", title: "Track 2" }
+    ]
+    controller.currentIndex = 0
+    controller.loadTrack(controller.queue[0])
+    vi.spyOn(controller.audioTarget, "pause")
+    vi.spyOn(controller, "playQueueIndex")
+
+    controller.setSleepTimer({ params: { duration: "track" } })
+    expect(controller.sleepTimerMode).toBe("track")
+    const badge = document.querySelector("[data-player-target='sleepBadge']")
+    expect(badge.textContent).toBe("Track")
+
+    // Track finishes
+    controller.playNext()
+    expect(controller.audioTarget.pause).toHaveBeenCalled()
+    expect(controller.playQueueIndex).not.toHaveBeenCalled()
+    expect(controller.sleepTimerMode).toBe(null)
+    expect(badge.hidden).toBe(true)
+  })
+
+  it("fades volume down linearly over final 10 seconds before pausing (R12, F3)", () => {
+    vi.useFakeTimers()
+    controller.loadTrack({ source: "/audio/track.mp3", title: "Track", artist: "Artist" })
+    controller.audioTarget.volume = 1.0
+    vi.spyOn(controller.audioTarget, "pause")
+
+    controller.setSleepTimer({ params: { duration: 15 } })
+    expect(controller.sleepOriginalVolume).toBe(1.0)
+
+    // Simulate clock reaching final 8 seconds
+    const now = Date.now()
+    vi.spyOn(Date, "now").mockReturnValue(now)
+    controller.sleepTimerEndAt = now + 8000
+
+    controller.tickSleepTimer()
+    expect(controller.isFadingOut).toBe(true)
+    expect(controller.sleepFadeInterval).not.toBe(null)
+
+    // Advance 1 second (5 intervals of 200ms)
+    vi.advanceTimersByTime(1000)
+    expect(controller.audioTarget.volume).toBeLessThan(1.0)
+    expect(controller.audioTarget.volume).toBeGreaterThan(0)
+
+    // Reach 0 seconds remaining
+    vi.spyOn(Date, "now").mockReturnValue(controller.sleepTimerEndAt + 100)
+    controller.tickSleepTimer()
+
+    expect(controller.audioTarget.pause).toHaveBeenCalled()
+    // Restores original volume so subsequent playback isn't muted
+    expect(controller.audioTarget.volume).toBe(1.0)
+    expect(controller.sleepTimerInterval).toBe(null)
+  })
+
+  it("canceling sleep timer removes badge and leaves playback volume intact (R10)", () => {
+    controller.loadTrack({ source: "/audio/track.mp3", title: "Track", artist: "Artist" })
+    controller.setSleepTimer({ params: { duration: 15 } })
+    const badge = document.querySelector("[data-player-target='sleepBadge']")
+    expect(badge.hidden).toBe(false)
+
+    controller.cancelSleepTimer()
+    expect(badge.hidden).toBe(true)
+    expect(controller.sleepTimerInterval).toBe(null)
+  })
+
+  it("clearing queue cancels active sleep timer interval (R10)", () => {
+    controller.loadTrack({ source: "/audio/track.mp3", title: "Track", artist: "Artist" })
+    controller.setSleepTimer({ params: { duration: 15 } })
+    expect(controller.sleepTimerInterval).not.toBe(null)
+
+    controller.clearQueue()
+    expect(controller.sleepTimerInterval).toBe(null)
+    const badge = document.querySelector("[data-player-target='sleepBadge']")
+    expect(badge.hidden).toBe(true)
   })
 
   function addLyricsTargets() {
