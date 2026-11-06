@@ -26,6 +26,11 @@ describe("player controller", () => {
           <span data-player-target="artist">Your player will stay here</span>
           <button data-player-target="toggle"></button>
           <button data-player-target="radio"></button>
+          <button data-player-target="shuffle"></button>
+          <button data-player-target="trackSkip"></button>
+          <button data-player-target="jumpBack" hidden></button>
+          <button data-player-target="jumpForward" hidden></button>
+          <button data-player-target="playbackRate" hidden>1.0x</button>
           <span data-player-target="miniProgress"></span>
         </aside>
         <dialog data-player-target="clearDialog"></dialog>
@@ -1076,6 +1081,124 @@ describe("player controller", () => {
     expect(controller.shuffleMode).toBe(true)
     expect(controller.queue.length).toBe(3)
     expect(controller.shuffledIndices.length).toBe(2)
+  })
+
+  it("adapts transport controls for longform spoken audio and restores music controls (R5, R6, F2)", () => {
+    const shuffleBtn = document.querySelector("[data-player-target='shuffle']")
+    const trackSkipBtn = document.querySelector("[data-player-target='trackSkip']")
+    const jumpBackBtn = document.querySelector("[data-player-target='jumpBack']")
+    const jumpForwardBtn = document.querySelector("[data-player-target='jumpForward']")
+    const rateBtn = document.querySelector("[data-player-target='playbackRate']")
+
+    // 1. Load an audiobook track
+    controller.loadTrack({
+      source: "/audio/chapter-1.mp3",
+      title: "Chapter 1",
+      artist: "Author",
+      kind: "audiobook"
+    })
+
+    expect(shuffleBtn.hidden).toBe(true)
+    expect(trackSkipBtn.hidden).toBe(true)
+    expect(jumpBackBtn.hidden).toBe(false)
+    expect(jumpForwardBtn.hidden).toBe(false)
+    expect(rateBtn.hidden).toBe(false)
+
+    // 2. Load a music track
+    controller.loadTrack({
+      source: "/audio/song.mp3",
+      title: "A Song",
+      artist: "Musician",
+      kind: "music"
+    })
+
+    expect(shuffleBtn.hidden).toBe(false)
+    expect(trackSkipBtn.hidden).toBe(false)
+    expect(jumpBackBtn.hidden).toBe(true)
+    expect(jumpForwardBtn.hidden).toBe(true)
+    expect(rateBtn.hidden).toBe(true)
+    expect(controller.audioTarget.playbackRate).toBe(1.0)
+  })
+
+  it("jumps backward 15 seconds clamped to 0 (R6)", () => {
+    controller.loadTrack({ source: "/audio/book.mp3", title: "Book", kind: "audiobook" })
+    controller.audioTarget.currentTime = 20
+    controller.skipBackward(15)
+    expect(controller.audioTarget.currentTime).toBe(5)
+
+    controller.skipBackward(15)
+    expect(controller.audioTarget.currentTime).toBe(0)
+  })
+
+  it("jumps forward 30 seconds clamped to duration (R6)", () => {
+    controller.loadTrack({ source: "/audio/book.mp3", title: "Book", kind: "audiobook" })
+    Object.defineProperty(controller.audioTarget, "duration", { value: 60, configurable: true })
+    controller.audioTarget.currentTime = 10
+
+    controller.skipForward(30)
+    expect(controller.audioTarget.currentTime).toBe(40)
+
+    controller.skipForward(30)
+    expect(controller.audioTarget.currentTime).toBe(60)
+  })
+
+  it("cycles playback rate with preservesPitch and persists to localStorage (R5)", () => {
+    controller.loadTrack({ source: "/audio/book.mp3", title: "Book", kind: "audiobook" })
+    const rateBtn = document.querySelector("[data-player-target='playbackRate']")
+
+    // Default rate is 1.0x
+    expect(controller.audioTarget.playbackRate).toBe(1.0)
+    expect(rateBtn.textContent).toBe("1x")
+
+    // Cycle 1.0 -> 1.2
+    controller.cyclePlaybackRate()
+    expect(controller.audioTarget.playbackRate).toBe(1.2)
+    expect(controller.audioTarget.preservesPitch).toBe(true)
+    expect(rateBtn.textContent).toBe("1.2x")
+    expect(localStorage.getItem("sonzra:playbackRate")).toBe("1.2")
+
+    // Cycle 1.2 -> 1.5
+    controller.cyclePlaybackRate()
+    expect(controller.audioTarget.playbackRate).toBe(1.5)
+
+    // Cycle 1.5 -> 2.0
+    controller.cyclePlaybackRate()
+    expect(controller.audioTarget.playbackRate).toBe(2)
+
+    // Cycle 2.0 -> 0.8
+    controller.cyclePlaybackRate()
+    expect(controller.audioTarget.playbackRate).toBe(0.8)
+
+    // Cycle 0.8 -> 1.0
+    controller.cyclePlaybackRate()
+    expect(controller.audioTarget.playbackRate).toBe(1)
+  })
+
+  it("registers seekbackward and seekforward mediaSession action handlers (R6)", () => {
+    const handlers = {}
+    const mockMediaSession = {
+      metadata: null,
+      playbackState: "none",
+      setActionHandler: vi.fn((action, handler) => { handlers[action] = handler }),
+      setPositionState: vi.fn()
+    }
+    vi.stubGlobal("navigator", { mediaSession: mockMediaSession })
+    vi.stubGlobal("MediaMetadata", class { constructor(meta) { Object.assign(this, meta) } })
+
+    controller.loadTrack({ source: "/audio/podcast.mp3", title: "Podcast", kind: "podcast" })
+    controller.audioTarget.currentTime = 50
+    Object.defineProperty(controller.audioTarget, "duration", { value: 100, configurable: true })
+
+    expect(mockMediaSession.setActionHandler).toHaveBeenCalledWith("seekbackward", expect.any(Function))
+    expect(mockMediaSession.setActionHandler).toHaveBeenCalledWith("seekforward", expect.any(Function))
+
+    // Invoke backward handler
+    handlers["seekbackward"]({ seekOffset: 15 })
+    expect(controller.audioTarget.currentTime).toBe(35)
+
+    // Invoke forward handler
+    handlers["seekforward"]({ seekOffset: 30 })
+    expect(controller.audioTarget.currentTime).toBe(65)
   })
 
   function addLyricsTargets() {

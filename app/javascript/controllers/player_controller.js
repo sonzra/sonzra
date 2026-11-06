@@ -15,7 +15,7 @@ const QUEUE_TRANSITION_DURATION = 320
 const LOOKAHEAD_BUFFER_THRESHOLD = 15
 
 export default class extends Controller {
-  static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "shuffle", "favorite", "radio", "volume", "clearDialog", "queueView", "lyricsView", "queueTab", "lyricsTab", "lyricsStatus", "lyricsList", "lyricsFollow", "visualizer", "wifiPreload"]
+  static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "shuffle", "favorite", "radio", "volume", "clearDialog", "queueView", "lyricsView", "queueTab", "lyricsTab", "lyricsStatus", "lyricsList", "lyricsFollow", "visualizer", "wifiPreload", "trackSkip", "jumpBack", "jumpForward", "playbackRate"]
   static values = { radioEnabled: Boolean, preferencesUrl: String, offline: Boolean, preloadOnWifiOnly: Boolean }
 
   connect() {
@@ -483,9 +483,11 @@ export default class extends Controller {
   }
 
   async tracksFor(event) {
+    const isLongformHero = Boolean(event.currentTarget?.closest(".detail-hero--longform"))
     const params = {
       ...event.params,
-      resumable: event.params.resumable || Boolean(event.currentTarget?.closest(".detail-hero--longform"))
+      resumable: event.params.resumable || isLongformHero,
+      kind: event.params.kind || (isLongformHero ? "audiobook" : undefined)
     }
     if (!params.queueUrl) return [ this.trackFrom(params) ]
 
@@ -505,7 +507,7 @@ export default class extends Controller {
     }
   }
 
-  trackFrom({ source, title, artist, artwork, duration, itemId, reportingUrl, startPosition, resumable, radioUrl, radioEligible, favorite }) {
+  trackFrom({ source, title, artist, artwork, duration, itemId, reportingUrl, startPosition, resumable, kind, mediaType, type, radioUrl, radioEligible, favorite }) {
     return {
       source,
       title,
@@ -517,6 +519,8 @@ export default class extends Controller {
       startPosition,
       favorite: favorite === true || favorite === "true",
       resumable: resumable === true || resumable === "true",
+      kind: kind || mediaType || type,
+      mediaType: mediaType || kind || type,
       radioUrl,
       radioEligible: radioEligible === true || radioEligible === "true"
     }
@@ -600,11 +604,91 @@ export default class extends Controller {
     this.resetTimeline()
     this.updateFavoriteControls()
     this.updateRadioControls()
+    this.updateLongformControls(this.isLongformTrack(track))
     this.resetLyricsView()
     if (this.activeExpandedView === "lyrics") this.loadLyrics()
     this.syncNativeMedia()
     this.syncBrowserMedia()
     this.syncPageTrackControls()
+  }
+
+  isLongformTrack(track) {
+    if (!track) return false
+    const kind = String(track.kind || track.mediaType || track.type || "").toLowerCase()
+    return kind === "audiobook" || kind === "podcast" || Boolean(track.resumable)
+  }
+
+  updateLongformControls(isLongform) {
+    this.jumpBackTargets.forEach((el) => (el.hidden = !isLongform))
+    this.jumpForwardTargets.forEach((el) => (el.hidden = !isLongform))
+    this.playbackRateTargets.forEach((el) => (el.hidden = !isLongform))
+    this.trackSkipTargets.forEach((el) => (el.hidden = Boolean(isLongform)))
+    this.shuffleTargets.forEach((el) => (el.hidden = Boolean(isLongform)))
+
+    if (isLongform) {
+      let savedRate = 1.0
+      try {
+        const stored = localStorage.getItem("sonzra:playbackRate")
+        if (stored) savedRate = Number(stored) || 1.0
+      } catch (_) {}
+      this.setPlaybackRate(savedRate)
+    } else {
+      if (this.hasAudioTarget) {
+        this.audioTarget.playbackRate = 1.0
+        this.audioTarget.preservesPitch = true
+      }
+      this.updatePlaybackRateControls(1.0)
+    }
+  }
+
+  cyclePlaybackRate() {
+    const rates = [0.8, 1.0, 1.2, 1.5, 2.0]
+    const currentRate = Number(this.audioTarget?.playbackRate) || 1.0
+    const currentIndex = rates.findIndex((r) => Math.abs(r - currentRate) < 0.05)
+    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % rates.length : rates.indexOf(1.0)
+    const nextRate = rates[nextIndex]
+    this.setPlaybackRate(nextRate)
+  }
+
+  setPlaybackRate(rate) {
+    if (!this.hasAudioTarget) return
+    const numericRate = Number(rate) || 1.0
+    this.audioTarget.playbackRate = numericRate
+    this.audioTarget.preservesPitch = true
+    try {
+      localStorage.setItem("sonzra:playbackRate", String(numericRate))
+    } catch (_) {}
+    this.updatePlaybackRateControls(numericRate)
+    this.syncBrowserMediaPosition()
+  }
+
+  updatePlaybackRateControls(rate = Number(this.audioTarget?.playbackRate) || 1.0) {
+    const formatted = `${rate}x`
+    this.playbackRateTargets.forEach((target) => {
+      target.textContent = formatted
+      target.setAttribute("aria-label", `Playback speed ${formatted}`)
+    })
+  }
+
+  skipBackward(seconds = 15) {
+    const offset = typeof seconds === "number" ? seconds : (Number(seconds?.params?.seconds) || 15)
+    const currentTime = Number(this.audioTarget?.currentTime) || 0
+    const targetTime = Math.max(0, currentTime - offset)
+    if (this.hasAudioTarget) this.audioTarget.currentTime = targetTime
+    this.updateProgress(targetTime, Number(this.audioTarget?.duration) || 0)
+    this.syncBrowserMediaPosition()
+    this.syncNativeMedia()
+  }
+
+  skipForward(seconds = 30) {
+    const offset = typeof seconds === "number" ? seconds : (Number(seconds?.params?.seconds) || 30)
+    const currentTime = Number(this.audioTarget?.currentTime) || 0
+    const duration = Number(this.audioTarget?.duration) || 0
+    const targetTime = duration > 0 ? Math.min(duration, currentTime + offset) : currentTime + offset
+    if (this.hasAudioTarget) this.audioTarget.currentTime = targetTime
+    this.updateProgress(targetTime, duration)
+    this.syncBrowserMediaPosition()
+    this.syncNativeMedia()
   }
 
   restoreQueue() {
@@ -1658,7 +1742,8 @@ export default class extends Controller {
       favorite: track.favorite === true || track.favorite === "true",
       radioEligible: !explicitlyIneligibleForRadio && Boolean(radioUrl),
       radioUrl,
-      resumable: track.resumable === true || track.resumable === "true"
+      resumable: track.resumable === true || track.resumable === "true",
+      kind: track.kind || track.mediaType || track.type || (track.resumable ? "audiobook" : undefined)
     }
   }
 
@@ -1891,6 +1976,8 @@ export default class extends Controller {
       mediaSession.setActionHandler("pause", () => this.toggle())
       mediaSession.setActionHandler("previoustrack", () => this.previous())
       mediaSession.setActionHandler("nexttrack", () => this.next())
+      mediaSession.setActionHandler("seekbackward", (details) => this.skipBackward(details?.seekOffset || 15))
+      mediaSession.setActionHandler("seekforward", (details) => this.skipForward(details?.seekOffset || 30))
       this.syncBrowserMediaPosition()
     } catch (_) {
       // Media Session support differs across browsers and must remain optional.
