@@ -1107,6 +1107,16 @@ export default class extends Controller {
   openSleepTimer() {
     if (!this.hasSleepDialogTarget) return
 
+    const activeDuration = this.sleepTimerMode === "track" ? "track" : (this.activeSleepMinutes ? String(this.activeSleepMinutes) : null)
+    this.sleepDialogTarget.querySelectorAll(".redesign-sleep-dialog__option").forEach((opt) => {
+      const param = opt.dataset.playerDurationParam
+      if (param && activeDuration && param === activeDuration) {
+        opt.classList.add("is-active")
+      } else {
+        opt.classList.remove("is-active")
+      }
+    })
+
     if (typeof this.sleepDialogTarget.showModal === "function") {
       this.sleepDialogTarget.showModal()
     } else {
@@ -1136,6 +1146,7 @@ export default class extends Controller {
     this.clearSleepTimer()
 
     if (duration === "track") {
+      this.activeSleepMinutes = null
       this.sleepTimerMode = "track"
       this.updateSleepBadge("Track")
       this.showFeedback("Sleep timer set for end of track")
@@ -1143,6 +1154,7 @@ export default class extends Controller {
     }
 
     const minutes = Number(duration) || 30
+    this.activeSleepMinutes = minutes
     const totalSeconds = minutes * 60
     this.sleepTimerEndAt = Date.now() + totalSeconds * 1000
     this.sleepOriginalVolume = Number(this.audioTarget?.volume) || 0.8
@@ -1214,6 +1226,7 @@ export default class extends Controller {
     this.isFadingOut = false
     this.sleepTimerEndAt = null
     this.sleepTimerMode = null
+    this.activeSleepMinutes = null
     this.updateSleepBadge(null)
   }
 
