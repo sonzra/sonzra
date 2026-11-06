@@ -30,4 +30,10 @@ class RegistrationsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to new_session_path
   end
+
+  test "renders registration page with neutralized media server copy" do
+    get new_registration_path
+    assert_response :success
+    assert_select ".auth-sign-in-copy", /keep your media server connection/
+  end
 end

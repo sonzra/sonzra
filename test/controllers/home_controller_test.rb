@@ -49,7 +49,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h1", "Connect a server to begin."
-    assert_select "a[href='#{server_connections_path}'][data-turbo-frame='_top']", "Connect Jellyfin"
+    assert_select "a.primary-button[href='#{server_connections_path}'][data-turbo-frame='_top']", "Connect media server"
   end
 
   test "uses the redesigned setup state when no server exists" do
