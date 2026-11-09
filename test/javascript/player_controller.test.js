@@ -18,6 +18,7 @@ describe("player controller", () => {
     vi.stubGlobal("localStorage", persistedStorage)
     vi.stubGlobal("requestAnimationFrame", (callback) => callback())
     document.body.innerHTML = `
+      <input id="search-input" type="search">
       <div data-controller="player" data-player-radio-enabled-value="false" data-player-preferences-url-value="/player_preferences">
         <aside data-player-target="shell" hidden>
           <audio data-player-target="audio"></audio>
@@ -26,9 +27,22 @@ describe("player controller", () => {
           <span data-player-target="artist">Your player will stay here</span>
           <button data-player-target="toggle"></button>
           <button data-player-target="radio"></button>
+          <button data-player-target="shuffle"></button>
+          <button data-player-target="trackSkip"></button>
+          <button data-player-target="jumpBack" hidden></button>
+          <button data-player-target="jumpForward" hidden></button>
+          <button data-player-target="playbackRate" hidden>1.0x</button>
+          <button data-player-target="muteButton" data-action="player#toggleMute">
+            <span data-player-target="muteIcon"></span>
+          </button>
+          <input data-player-target="volume" type="range" min="0" max="1" step="0.01" value="0.8">
+          <button data-player-target="sleepButton" data-action="player#openSleepTimer">
+            <span data-player-target="sleepBadge" hidden></span>
+          </button>
           <span data-player-target="miniProgress"></span>
         </aside>
         <dialog data-player-target="clearDialog"></dialog>
+        <dialog data-player-target="sleepDialog"></dialog>
       </div>
     `
     vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {})
@@ -39,6 +53,7 @@ describe("player controller", () => {
   })
 
   afterEach(() => {
+    controller?.disconnect()
     application?.stop()
     vi.useRealTimers()
     vi.unstubAllGlobals()
@@ -986,6 +1001,392 @@ describe("player controller", () => {
 
     await controller.maybePreloadNextTrack()
     expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  it("toggles shuffle mode and updates target aria-pressed and classes (R1)", () => {
+    document.querySelector("[data-player-target='shell']").insertAdjacentHTML("beforeend", `
+      <button data-player-target="shuffle" aria-label="Shuffle off" aria-pressed="false"></button>
+    `)
+    expect(controller.shuffleMode).toBe(false)
+
+    controller.toggleShuffle()
+    expect(controller.shuffleMode).toBe(true)
+    const button = document.querySelector("[data-player-target='shuffle']")
+    expect(button.classList.contains("is-active")).toBe(true)
+    expect(button.getAttribute("aria-pressed")).toBe("true")
+    expect(button.getAttribute("aria-label")).toBe("Shuffle on")
+
+    controller.toggleShuffle()
+    expect(controller.shuffleMode).toBe(false)
+    expect(button.classList.contains("is-active")).toBe(false)
+    expect(button.getAttribute("aria-pressed")).toBe("false")
+    expect(button.getAttribute("aria-label")).toBe("Shuffle off")
+  })
+
+  it("traverses remaining queue in randomized order when shuffle is enabled (R2, F1)", () => {
+    controller.queue = [
+      { source: "/audio/track-1.mp3", title: "Track 1" },
+      { source: "/audio/track-2.mp3", title: "Track 2" },
+      { source: "/audio/track-3.mp3", title: "Track 3" },
+      { source: "/audio/track-4.mp3", title: "Track 4" }
+    ]
+    controller.currentIndex = 0
+    controller.currentTrack = controller.queue[0]
+    vi.spyOn(controller, "playQueueIndex").mockImplementation((index) => {
+      controller.currentIndex = index
+      controller.currentTrack = controller.queue[index]
+    })
+
+    // Stub Math.random to return deterministically
+    vi.spyOn(Math, "random").mockReturnValue(0.99)
+    controller.shuffleMode = true
+    controller.generateShuffledOrder()
+
+    controller.playNext()
+    expect(controller.playQueueIndex).toHaveBeenCalled()
+    const firstPlayed = controller.playQueueIndex.mock.calls[0][0]
+    expect(firstPlayed).not.toBe(0)
+    expect(firstPlayed).toBeGreaterThanOrEqual(1)
+    expect(firstPlayed).toBeLessThanOrEqual(3)
+  })
+
+  it("restores natural queue order when shuffle is toggled off (R3, AE3)", () => {
+    controller.queue = [
+      { source: "/audio/track-1.mp3", title: "Track 1" },
+      { source: "/audio/track-2.mp3", title: "Track 2" },
+      { source: "/audio/track-3.mp3", title: "Track 3" },
+      { source: "/audio/track-4.mp3", title: "Track 4" }
+    ]
+    controller.currentIndex = 1 // Track 2 is active
+    controller.currentTrack = controller.queue[1]
+    controller.shuffleMode = true
+    controller.shuffledIndices = [3, 0] // random order pending
+
+    vi.spyOn(controller, "playQueueIndex").mockImplementation((index) => {
+      controller.currentIndex = index
+    })
+
+    // Toggle shuffle off
+    controller.toggleShuffle()
+    expect(controller.shuffleMode).toBe(false)
+    expect(controller.shuffledIndices).toEqual([])
+
+    controller.playNext()
+    // In natural order, next after index 1 is index 2 (Track 3)
+    expect(controller.playQueueIndex).toHaveBeenCalledWith(2)
+  })
+
+  it("starts playback in shuffled mode when queue is replaced with shuffle param (R4)", async () => {
+    vi.spyOn(controller, "tracksFor").mockResolvedValue([
+      { source: "/audio/track-1.mp3", title: "Track 1" },
+      { source: "/audio/track-2.mp3", title: "Track 2" },
+      { source: "/audio/track-3.mp3", title: "Track 3" }
+    ])
+    vi.spyOn(controller, "playCurrent").mockImplementation(() => {})
+
+    await controller.replaceQueue({
+      params: { shuffle: "true", queueUrl: "/queue/album-1" }
+    })
+
+    expect(controller.shuffleMode).toBe(true)
+    expect(controller.queue.length).toBe(3)
+    expect(controller.shuffledIndices.length).toBe(2)
+  })
+
+  it("adapts transport controls for longform spoken audio and restores music controls (R5, R6, F2)", () => {
+    const shuffleBtn = document.querySelector("[data-player-target='shuffle']")
+    const trackSkipBtn = document.querySelector("[data-player-target='trackSkip']")
+    const jumpBackBtn = document.querySelector("[data-player-target='jumpBack']")
+    const jumpForwardBtn = document.querySelector("[data-player-target='jumpForward']")
+    const rateBtn = document.querySelector("[data-player-target='playbackRate']")
+
+    // 1. Load an audiobook track
+    controller.loadTrack({
+      source: "/audio/chapter-1.mp3",
+      title: "Chapter 1",
+      artist: "Author",
+      kind: "audiobook"
+    })
+
+    expect(shuffleBtn.hidden).toBe(true)
+    expect(trackSkipBtn.hidden).toBe(true)
+    expect(jumpBackBtn.hidden).toBe(false)
+    expect(jumpForwardBtn.hidden).toBe(false)
+    expect(rateBtn.hidden).toBe(false)
+
+    // 2. Load a music track
+    controller.loadTrack({
+      source: "/audio/song.mp3",
+      title: "A Song",
+      artist: "Musician",
+      kind: "music"
+    })
+
+    expect(shuffleBtn.hidden).toBe(false)
+    expect(trackSkipBtn.hidden).toBe(false)
+    expect(jumpBackBtn.hidden).toBe(true)
+    expect(jumpForwardBtn.hidden).toBe(true)
+    expect(rateBtn.hidden).toBe(true)
+    expect(controller.audioTarget.playbackRate).toBe(1.0)
+  })
+
+  it("jumps backward 15 seconds clamped to 0 (R6)", () => {
+    controller.loadTrack({ source: "/audio/book.mp3", title: "Book", kind: "audiobook" })
+    controller.audioTarget.currentTime = 20
+    controller.skipBackward(15)
+    expect(controller.audioTarget.currentTime).toBe(5)
+
+    controller.skipBackward(15)
+    expect(controller.audioTarget.currentTime).toBe(0)
+  })
+
+  it("jumps forward 30 seconds clamped to duration (R6)", () => {
+    controller.loadTrack({ source: "/audio/book.mp3", title: "Book", kind: "audiobook" })
+    Object.defineProperty(controller.audioTarget, "duration", { value: 60, configurable: true })
+    controller.audioTarget.currentTime = 10
+
+    controller.skipForward(30)
+    expect(controller.audioTarget.currentTime).toBe(40)
+
+    controller.skipForward(30)
+    expect(controller.audioTarget.currentTime).toBe(60)
+  })
+
+  it("cycles playback rate with preservesPitch and persists to localStorage (R5)", () => {
+    controller.loadTrack({ source: "/audio/book.mp3", title: "Book", kind: "audiobook" })
+    const rateBtn = document.querySelector("[data-player-target='playbackRate']")
+
+    // Default rate is 1.0x
+    expect(controller.audioTarget.playbackRate).toBe(1.0)
+    expect(rateBtn.textContent).toBe("1x")
+
+    // Cycle 1.0 -> 1.2
+    controller.cyclePlaybackRate()
+    expect(controller.audioTarget.playbackRate).toBe(1.2)
+    expect(controller.audioTarget.preservesPitch).toBe(true)
+    expect(rateBtn.textContent).toBe("1.2x")
+    expect(localStorage.getItem("sonzra:playbackRate")).toBe("1.2")
+
+    // Cycle 1.2 -> 1.5
+    controller.cyclePlaybackRate()
+    expect(controller.audioTarget.playbackRate).toBe(1.5)
+
+    // Cycle 1.5 -> 2.0
+    controller.cyclePlaybackRate()
+    expect(controller.audioTarget.playbackRate).toBe(2)
+
+    // Cycle 2.0 -> 0.8
+    controller.cyclePlaybackRate()
+    expect(controller.audioTarget.playbackRate).toBe(0.8)
+
+    // Cycle 0.8 -> 1.0
+    controller.cyclePlaybackRate()
+    expect(controller.audioTarget.playbackRate).toBe(1)
+  })
+
+  it("registers seekbackward and seekforward mediaSession action handlers (R6)", () => {
+    const handlers = {}
+    const mockMediaSession = {
+      metadata: null,
+      playbackState: "none",
+      setActionHandler: vi.fn((action, handler) => { handlers[action] = handler }),
+      setPositionState: vi.fn()
+    }
+    vi.stubGlobal("navigator", { mediaSession: mockMediaSession })
+    vi.stubGlobal("MediaMetadata", class { constructor(meta) { Object.assign(this, meta) } })
+
+    controller.loadTrack({ source: "/audio/podcast.mp3", title: "Podcast", kind: "podcast" })
+    controller.audioTarget.currentTime = 50
+    Object.defineProperty(controller.audioTarget, "duration", { value: 100, configurable: true })
+
+    expect(mockMediaSession.setActionHandler).toHaveBeenCalledWith("seekbackward", expect.any(Function))
+    expect(mockMediaSession.setActionHandler).toHaveBeenCalledWith("seekforward", expect.any(Function))
+
+    // Invoke backward handler
+    handlers["seekbackward"]({ seekOffset: 15 })
+    expect(controller.audioTarget.currentTime).toBe(35)
+
+    // Invoke forward handler
+    handlers["seekforward"]({ seekOffset: 30 })
+    expect(controller.audioTarget.currentTime).toBe(65)
+  })
+
+  it("does not trigger play/pause or mute when typing Space or M inside an input (R7, R8, AE1)", () => {
+    controller.loadTrack({ source: "/audio/track.mp3", title: "Track", artist: "Artist" })
+    controller.audioTarget.volume = 0.8
+    vi.spyOn(controller, "toggle")
+    vi.spyOn(controller, "toggleMute")
+
+    const searchInput = document.getElementById("search-input")
+    searchInput.focus()
+
+    // Dispatch Space from inside input
+    const spaceEvent = new KeyboardEvent("keydown", { code: "Space", key: " ", bubbles: true, cancelable: true })
+    searchInput.dispatchEvent(spaceEvent)
+    expect(controller.toggle).not.toHaveBeenCalled()
+    expect(spaceEvent.defaultPrevented).toBe(false)
+
+    // Dispatch M from inside input
+    const mEvent = new KeyboardEvent("keydown", { key: "m", bubbles: true, cancelable: true })
+    searchInput.dispatchEvent(mEvent)
+    expect(controller.toggleMute).not.toHaveBeenCalled()
+    expect(mEvent.defaultPrevented).toBe(false)
+  })
+
+  it("toggles play/pause on Space key press when focused outside inputs (R7)", () => {
+    controller.loadTrack({ source: "/audio/track.mp3", title: "Track", artist: "Artist" })
+    vi.spyOn(controller, "toggle").mockImplementation(() => {})
+
+    const spaceEvent = new KeyboardEvent("keydown", { code: "Space", key: " ", bubbles: true, cancelable: true })
+    window.dispatchEvent(spaceEvent)
+
+    expect(controller.toggle).toHaveBeenCalled()
+    expect(spaceEvent.defaultPrevented).toBe(true)
+  })
+
+  it("seeks relative -5s and +5s on ArrowLeft and ArrowRight (R7)", () => {
+    controller.loadTrack({ source: "/audio/track.mp3", title: "Track", artist: "Artist" })
+    controller.audioTarget.currentTime = 10
+    Object.defineProperty(controller.audioTarget, "duration", { value: 100, configurable: true })
+
+    const leftEvent = new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true })
+    window.dispatchEvent(leftEvent)
+    expect(controller.audioTarget.currentTime).toBe(5)
+    expect(leftEvent.defaultPrevented).toBe(true)
+
+    const rightEvent = new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true })
+    window.dispatchEvent(rightEvent)
+    expect(controller.audioTarget.currentTime).toBe(10)
+    expect(rightEvent.defaultPrevented).toBe(true)
+  })
+
+  it("triggers previous and next on Shift+ArrowLeft and Shift+ArrowRight (R7)", () => {
+    controller.loadTrack({ source: "/audio/track.mp3", title: "Track", artist: "Artist" })
+    vi.spyOn(controller, "previous").mockImplementation(() => {})
+    vi.spyOn(controller, "next").mockImplementation(() => {})
+
+    const shiftLeft = new KeyboardEvent("keydown", { key: "ArrowLeft", shiftKey: true, bubbles: true, cancelable: true })
+    window.dispatchEvent(shiftLeft)
+    expect(controller.previous).toHaveBeenCalled()
+    expect(shiftLeft.defaultPrevented).toBe(true)
+
+    const shiftRight = new KeyboardEvent("keydown", { key: "ArrowRight", shiftKey: true, bubbles: true, cancelable: true })
+    window.dispatchEvent(shiftRight)
+    expect(controller.next).toHaveBeenCalled()
+    expect(shiftRight.defaultPrevented).toBe(true)
+  })
+
+  it("toggles mute and restores volume on M key press or mute button click (R7, R9)", () => {
+    controller.loadTrack({ source: "/audio/track.mp3", title: "Track", artist: "Artist" })
+    controller.audioTarget.volume = 0.7
+    controller.updateVolumeControls(0.7)
+    const muteBtn = document.querySelector("[data-player-target='muteButton']")
+
+    // 1. Press 'm' to mute
+    const mEvent = new KeyboardEvent("keydown", { key: "m", bubbles: true, cancelable: true })
+    window.dispatchEvent(mEvent)
+    expect(mEvent.defaultPrevented).toBe(true)
+    expect(controller.audioTarget.volume).toBe(0)
+    expect(muteBtn.getAttribute("aria-label")).toBe("Unmute")
+
+    // 2. Click mute button to unmute
+    controller.toggleMute()
+    expect(controller.audioTarget.volume).toBe(0.7)
+    expect(muteBtn.getAttribute("aria-label")).toBe("Mute")
+  })
+
+  it("sets sleep timer preset and displays countdown badge (R10, R11, F3)", () => {
+    controller.loadTrack({ source: "/audio/track.mp3", title: "Track", artist: "Artist" })
+    const badge = document.querySelector("[data-player-target='sleepBadge']")
+    const btn = document.querySelector("[data-player-target='sleepButton']")
+
+    controller.setSleepTimer({ params: { duration: 30 } })
+    expect(badge.hidden).toBe(false)
+    expect(badge.textContent).toBe("30m")
+    expect(btn.classList.contains("is-active")).toBe(true)
+
+    // Tick forward 5 minutes
+    vi.spyOn(Date, "now").mockReturnValue(controller.sleepTimerEndAt - 25 * 60 * 1000)
+    controller.tickSleepTimer()
+    expect(badge.textContent).toBe("25m")
+  })
+
+  it("pauses playback at end of track when End of Track preset is selected (R10)", () => {
+    controller.queue = [
+      { source: "/audio/track-1.mp3", title: "Track 1" },
+      { source: "/audio/track-2.mp3", title: "Track 2" }
+    ]
+    controller.currentIndex = 0
+    controller.loadTrack(controller.queue[0])
+    vi.spyOn(controller.audioTarget, "pause")
+    vi.spyOn(controller, "playQueueIndex")
+
+    controller.setSleepTimer({ params: { duration: "track" } })
+    expect(controller.sleepTimerMode).toBe("track")
+    const badge = document.querySelector("[data-player-target='sleepBadge']")
+    expect(badge.textContent).toBe("Track")
+
+    // Track finishes
+    controller.playNext()
+    expect(controller.audioTarget.pause).toHaveBeenCalled()
+    expect(controller.playQueueIndex).not.toHaveBeenCalled()
+    expect(controller.sleepTimerMode).toBe(null)
+    expect(badge.hidden).toBe(true)
+  })
+
+  it("fades volume down linearly over final 10 seconds before pausing (R12, F3)", () => {
+    vi.useFakeTimers()
+    controller.loadTrack({ source: "/audio/track.mp3", title: "Track", artist: "Artist" })
+    controller.audioTarget.volume = 1.0
+    vi.spyOn(controller.audioTarget, "pause")
+
+    controller.setSleepTimer({ params: { duration: 15 } })
+    expect(controller.sleepOriginalVolume).toBe(1.0)
+
+    // Simulate clock reaching final 8 seconds
+    const now = Date.now()
+    vi.spyOn(Date, "now").mockReturnValue(now)
+    controller.sleepTimerEndAt = now + 8000
+
+    controller.tickSleepTimer()
+    expect(controller.isFadingOut).toBe(true)
+    expect(controller.sleepFadeInterval).not.toBe(null)
+
+    // Advance 1 second (5 intervals of 200ms)
+    vi.advanceTimersByTime(1000)
+    expect(controller.audioTarget.volume).toBeLessThan(1.0)
+    expect(controller.audioTarget.volume).toBeGreaterThan(0)
+
+    // Reach 0 seconds remaining
+    vi.spyOn(Date, "now").mockReturnValue(controller.sleepTimerEndAt + 100)
+    controller.tickSleepTimer()
+
+    expect(controller.audioTarget.pause).toHaveBeenCalled()
+    // Restores original volume so subsequent playback isn't muted
+    expect(controller.audioTarget.volume).toBe(1.0)
+    expect(controller.sleepTimerInterval).toBe(null)
+  })
+
+  it("canceling sleep timer removes badge and leaves playback volume intact (R10)", () => {
+    controller.loadTrack({ source: "/audio/track.mp3", title: "Track", artist: "Artist" })
+    controller.setSleepTimer({ params: { duration: 15 } })
+    const badge = document.querySelector("[data-player-target='sleepBadge']")
+    expect(badge.hidden).toBe(false)
+
+    controller.cancelSleepTimer()
+    expect(badge.hidden).toBe(true)
+    expect(controller.sleepTimerInterval).toBe(null)
+  })
+
+  it("clearing queue cancels active sleep timer interval (R10)", () => {
+    controller.loadTrack({ source: "/audio/track.mp3", title: "Track", artist: "Artist" })
+    controller.setSleepTimer({ params: { duration: 15 } })
+    expect(controller.sleepTimerInterval).not.toBe(null)
+
+    controller.clearQueue()
+    expect(controller.sleepTimerInterval).toBe(null)
+    const badge = document.querySelector("[data-player-target='sleepBadge']")
+    expect(badge.hidden).toBe(true)
   })
 
   describe("mobile track scrubbing and timeline synchronization", () => {

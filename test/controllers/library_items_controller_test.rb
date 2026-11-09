@@ -47,6 +47,39 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".detail-hero__artist a[href='#{library_item_server_connection_path(@server_connection, "artist-id")}']", "Artist"
   end
 
+  test "renders multi-disc divider headers when album contains tracks from multiple discs" do
+    result = ServerConnections::FetchLibraryItemDetailsResultData.new(
+      details: {
+        item: { "Id" => "album-id", "Name" => "Double Album", "Type" => "MusicAlbum", "PremiereDate" => "2024-01-01" },
+        album: { "Id" => "album-id", "Name" => "Double Album", "Type" => "MusicAlbum", "PremiereDate" => "2024-01-01" },
+        tracks: [
+          { "Id" => "t1", "Name" => "Track 1", "IndexNumber" => 1, "ParentIndexNumber" => 1, "RunTimeTicks" => 1_800_000_000 },
+          { "Id" => "t2", "Name" => "Track 2", "IndexNumber" => 2, "ParentIndexNumber" => 1, "RunTimeTicks" => 1_800_000_000 },
+          { "Id" => "t3", "Name" => "Track 3", "IndexNumber" => 1, "ParentIndexNumber" => 2, "RunTimeTicks" => 1_800_000_000 }
+        ],
+        other_albums: [],
+        similar_albums: []
+      },
+      access_token: "token",
+      message: nil
+    )
+    service = Object.new
+    service.define_singleton_method(:call) { result }
+    service_class = ServerConnections::FetchLibraryItemDetails
+    original_new = service_class.method(:new)
+    service_class.define_singleton_method(:new) { |*_arguments| service }
+
+    get library_item_server_connection_url(@server_connection, "album-id")
+
+    assert_response :success
+    assert_select ".detail-tracks__disc-header", 2
+    assert_select ".detail-tracks__disc-header", text: /Disc 1/
+    assert_select ".detail-tracks__disc-header", text: /Disc 2/
+    assert_select ".detail-hero__release", text: /3 tracks · 9 min/
+  ensure
+    service_class.define_singleton_method(:new, original_new)
+  end
+
   test "renders dedicated audiobook controls with its saved playback position" do
     result = ServerConnections::FetchLibraryItemDetailsResultData.new(
       details: {

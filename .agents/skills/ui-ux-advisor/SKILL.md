@@ -54,19 +54,46 @@ The UI & UX Advisor evaluates frontend code changes, visual designs, and interac
 - **ARIA Context**: Icon-only buttons must carry descriptive `aria-label`s; decorative SVGs must have `aria-hidden="true"`.
 - **Dynamic Notifications**: Transient alerts must use ARIA live regions (`role="status" aria-live="polite"`).
 
+### 7. Redesign Theme Self-Sufficiency & Dialog Standards
+- **Single-Stylesheet Invariant**: When `redesign_enabled?` is active, `redesign.css` is the *only* stylesheet loaded. Styles must **never** inherit from or assume the presence of classes in classic stylesheets (`queue.css`, `application.css`, etc.).
+- **Canonical Dialog Architecture**: All `<dialog>` elements must reset native user-agent chrome and follow the `.redesign-*-dialog` pattern:
+  - Container: `border: 1px solid var(--rz-line); border-radius: 22px; background: rgb(18 18 28 / 98%); box-shadow: 0 30px 100px rgb(0 0 0 / 75%); backdrop-filter: blur(20px); overflow: hidden;`
+  - Backdrop: `background: rgb(0 0 0 / 72%); backdrop-filter: blur(8px);`
+  - Header: Uppercase `--rz-primary-light` kicker, bold 22px title with explicit `--rz-text`, and a dedicated 34x34px circular close button (`X`).
+  - Typography: Never leave headings or descriptions un-themed to prevent browser default black text on dark surfaces.
+
+### 8. Mobile Geometry & Pixel Budget Invariant
+- **Pixel Budgeting**: For mobile viewports ($\le 430\text{px}$), never place more than 2 secondary controls in the same row as artwork and track titles.
+- **3-Row Player Card Layout**: Mobile player drawers must stack playback elements:
+  - **Row 1 (Identity)**: Artwork (56x56px) + Track title and artist (usable width $\ge 180\text{px}$, clean single-line ellipsis truncation).
+  - **Row 2 (Scrubber)**: Full-width timeline slider with tabular timestamps.
+  - **Row 3 (Transport)**: Dedicated flex row with evenly spaced buttons, 100% contained within the card with zero edge overflow.
+- **Control Deduplication**: Never duplicate action toggles on the same view (e.g., shuffle or radio in both the transport card and the queue header).
+
+### 9. Multimodal Visual Verification (Mandatory Inspection)
+- **Beyond Unit Tests**: Automated tests (Vitest, minitest) only verify DOM existence and event logic; they do not calculate CSS box models, bounding boxes, or visual clipping.
+- **Mandatory Visual Inspection**: For any frontend modification, capture screenshots under desktop (`1440x900`) and mobile (`390x844`) viewports and inspect each image file directly:
+  1. **Container Containment**: No controls clipped or overflowing container edges.
+  2. **Text Legibility**: Track title and artist easily readable with zero micro-squeezing.
+  3. **Theme Integrity**: No browser-default white dialog borders or un-styled buttons.
+  4. **Clean Segregation**: No duplicate toggles across adjacent surfaces.
+
 ## Review Workflow
 
 1. **Inspect Frontend Code Changes**:
    ```bash
    git diff main...HEAD -- 'app/views' 'app/assets/stylesheets' 'app/javascript'
    ```
-2. **Audit Against Invariants**: Run through the checklist above.
-3. **Run Automated JavaScript / CSS Quality Checks**:
+2. **Audit Against Invariants**: Run through the checklist above (including Sections 7–9).
+3. **Capture and Inspect Screenshots**:
+   - Run headless browser capture on desktop (`1440x900`) and mobile (`390x844`).
+   - Visually inspect screenshots with image tools before signing off.
+4. **Run Automated JavaScript / CSS Quality Checks**:
    ```bash
    npm run test:javascript
    bundle exec rubocop
    ```
-4. **Deliver Structured Review**:
+5. **Deliver Structured Review**:
    - **Verdict**: `APPROVED`, `APPROVED WITH SUGGESTIONS`, or `CHANGES REQUESTED`
    - **Checklist**: Mark compliance across all UI/UX categories
    - **Findings**: Detail visual, responsive, or ergonomic flaws with file and line references

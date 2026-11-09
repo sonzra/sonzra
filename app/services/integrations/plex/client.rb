@@ -546,6 +546,7 @@ module Integrations
           "Genres" => Array(item["Genre"]).pluck("tag"),
           "RunTimeTicks" => item["duration"].to_i * 10_000,
           "IndexNumber" => item["index"],
+          "ParentIndexNumber" => item["parentIndex"] || 1,
           "ProductionYear" => item["year"],
           "PremiereDate" => item["originallyAvailableAt"],
           "Overview" => item["summary"],

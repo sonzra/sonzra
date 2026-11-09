@@ -126,13 +126,23 @@ bin/quality
 
 **Requirement:** The script must exit with status `0`.
 
+### Step 5: Visual Verification Quality Gate (Frontend Changes)
+For any changes modifying `app/views/`, `app/assets/stylesheets/`, or Stimulus controllers, running unit and integration tests alone is insufficient (JSDOM does not compute layout box models or detect visual clipping).
+1. **Capture Visual Evidence**: Capture screenshots under desktop (`1440x900`, 2x scale) and mobile (`390x844`, 2x scale) viewports using Playwright.
+2. **Multimodal Inspection**: Inspect every captured screenshot image directly via `read_file` to verify:
+   - **Zero Container Overflow**: Buttons and controls must remain 100% inside container boundaries with no clipping or edge spillover.
+   - **Metadata Legibility**: Track title and artist must have $\ge 180\text{px}$ usable width with clean ellipsis truncation, avoiding micro-squeezed text.
+   - **Dialog & Theme Integrity**: `<dialog>` elements must follow canonical `.redesign-*-dialog` styles with zero browser-default white padding frames or un-themed native controls.
+   - **Control Deduplication**: No duplicate action toggles on the same view (e.g. shuffle in both the player card and the queue header).
+3. **Gate Requirement**: Fail the verification gate if any visual flaw, clipping, or un-themed user-agent artifact is detected. Do not rubber-stamp screenshots.
+
 ---
 
-## 4. Advisor Regression Audit (Optional / High-Impact Changes)
+## 4. Advisor Regression Audit (High-Impact Changes)
 
-If the implementation touched core architectural boundaries or major responsive layouts, run an advisor check:
+Before committing, consult specialized advisors:
 - **Architectural Audit**: Consult [`architect_advisor`](file:///home/bruno/Projects/sonzra/.agents/skills/architect-advisor/SKILL.md) to verify that hexagonal boundaries, `Data.define` DTO contracts, Active Record encryption, and persistent player continuity (`data-turbo-permanent`) remain intact.
-- **UI/UX Audit**: Consult [`ui_ux_advisor`](file:///home/bruno/Projects/sonzra/.agents/skills/ui-ux-advisor/SKILL.md) to verify that 44px touch targets, `--rz-*` tokens, safe-area insets, and reduced-motion states were not regressed.
+- **UI/UX Audit**: Consult [`ui_ux_advisor`](file:///home/bruno/Projects/sonzra/.agents/skills/ui-ux-advisor/SKILL.md) to verify that 44px touch targets, `--rz-*` tokens, 3-row mobile player hierarchy, safe-area insets, and reduced-motion states were not regressed.
 
 ---
 

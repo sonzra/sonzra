@@ -15,7 +15,7 @@ const QUEUE_TRANSITION_DURATION = 320
 const LOOKAHEAD_BUFFER_THRESHOLD = 15
 
 export default class extends Controller {
-  static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "miniProgressBar", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "favorite", "radio", "volume", "clearDialog", "queueView", "lyricsView", "queueTab", "lyricsTab", "lyricsStatus", "lyricsList", "lyricsFollow", "visualizer", "wifiPreload"]
+  static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "miniProgressBar", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "shuffle", "favorite", "radio", "volume", "clearDialog", "queueView", "lyricsView", "queueTab", "lyricsTab", "lyricsStatus", "lyricsList", "lyricsFollow", "visualizer", "wifiPreload", "trackSkip", "jumpBack", "jumpForward", "playbackRate", "muteButton", "muteIcon", "sleepButton", "sleepBadge", "sleepDialog"]
   static values = { radioEnabled: Boolean, preferencesUrl: String, offline: Boolean, preloadOnWifiOnly: Boolean }
 
   connect() {
@@ -24,6 +24,13 @@ export default class extends Controller {
     // Do not let that incomplete markup prevent the page from connecting.
     if (!this.hasAudioTarget) return
 
+    this.shuffleMode = false
+    this.shuffledIndices = []
+    this.sleepTimerInterval = null
+    this.sleepFadeInterval = null
+    this.sleepTimerEndAt = null
+    this.sleepTimerMode = null
+    this.isFadingOut = false
     this.radioEnabled = this.radioEnabledValue === true
     this.preloadOnWifiOnly = this.preloadOnWifiOnlyValue === true
     this.offlineMode = this.offlineValue === true
@@ -61,6 +68,7 @@ export default class extends Controller {
     window.addEventListener("pagehide", this.boundHandlePageHide)
     window.addEventListener("pageshow", this.boundReconcilePlayback)
     window.addEventListener("pageshow", this.boundFlushOutbox)
+    window.addEventListener("keydown", this.boundHandleKeyDown)
     window.addEventListener("sonzra:native-media-command", this.boundHandleNativeMediaCommand)
     window.addEventListener("resize", this.boundUpdateQueueScrollHint)
     document.addEventListener("visibilitychange", this.boundHandleVisibilityChange)
@@ -87,6 +95,7 @@ export default class extends Controller {
     this.clearSyncRetry()
     window.removeEventListener("online", this.boundFlushOutbox)
     window.removeEventListener("pageshow", this.boundFlushOutbox)
+    window.removeEventListener("keydown", this.boundHandleKeyDown)
     this.audioTarget.removeEventListener("timeupdate", this.boundUpdateTimeline)
     this.audioTarget.removeEventListener("loadedmetadata", this.boundUpdateTimeline)
     this.audioTarget.removeEventListener("durationchange", this.boundUpdateTimeline)
@@ -110,6 +119,7 @@ export default class extends Controller {
     this.stopProgressWatch()
     this.stopVisualizer()
     this.clearPlaybackRecovery()
+    this.clearSleepTimer()
     this.setReconnectingState(false)
     this.cancelPreload()
     this.lyricsRequest?.abort()
@@ -124,8 +134,22 @@ export default class extends Controller {
     }
 
     const shouldEnableRadio = event.params.radioEnabled === true || event.params.radioEnabled === "true"
+    const shouldShuffle = event.params.shuffle === true || event.params.shuffle === "true"
     this.queue = tracks
-    this.currentIndex = 0
+
+    if (shouldShuffle) {
+      this.shuffleMode = true
+      const startIndex = Math.floor(Math.random() * tracks.length)
+      this.currentIndex = startIndex
+      this.generateShuffledOrder()
+      this.updateShuffleControls()
+    } else {
+      this.currentIndex = 0
+      if (this.shuffleMode) {
+        this.generateShuffledOrder()
+      }
+    }
+
     this.recordRecommendationStart(event.params.recommendationCollectionId)
     this.persistQueue({ force: true })
     this.renderQueue()
@@ -136,6 +160,43 @@ export default class extends Controller {
     } else if (event.params.queueUrl && this.radioEnabled) {
       this.setRadioEnabled(false)
     }
+  }
+
+  toggleShuffle() {
+    this.shuffleMode = !this.shuffleMode
+    if (this.shuffleMode) {
+      this.generateShuffledOrder()
+    } else {
+      this.shuffledIndices = []
+    }
+    this.updateShuffleControls()
+    this.persistQueue({ force: true })
+  }
+
+  generateShuffledOrder() {
+    if (!Array.isArray(this.queue) || this.queue.length <= 1) {
+      this.shuffledIndices = []
+      return
+    }
+    const remaining = []
+    for (let i = 0; i < this.queue.length; i++) {
+      if (i !== this.currentIndex) remaining.push(i)
+    }
+    for (let i = remaining.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      const temp = remaining[i]
+      remaining[i] = remaining[j]
+      remaining[j] = temp
+    }
+    this.shuffledIndices = remaining
+  }
+
+  updateShuffleControls() {
+    this.shuffleTargets.forEach((button) => {
+      button.classList.toggle("is-active", this.shuffleMode)
+      button.setAttribute("aria-pressed", String(this.shuffleMode))
+      button.setAttribute("aria-label", this.shuffleMode ? "Shuffle on" : "Shuffle off")
+    })
   }
 
   recordRecommendationStart(collectionId) {
@@ -246,8 +307,10 @@ export default class extends Controller {
   setVolume(event) {
     const volume = Math.min(1, Math.max(0, Number(event.currentTarget.value) || 0))
     this.audioTarget.volume = volume
+    if (volume > 0) this.unmutedVolume = volume
     sessionStorage.setItem("sonzra:volume", String(volume))
     this.updateVolumeControls(volume)
+    this.updateMuteControls(volume)
   }
 
   toggleQueue() {
@@ -396,12 +459,27 @@ export default class extends Controller {
   playNext() {
     if (this.advancingQueue) return
 
+    if (this.sleepTimerMode === "track") {
+      this.clearSleepTimer()
+      this.audioTarget?.pause()
+      return
+    }
+
     this.advancingQueue = true
     if (this.repeatMode === "one") {
       this.audioTarget.currentTime = 0
       this.monitorPlayback(this.audioTarget.play())
+    } else if (this.shuffleMode && this.shuffledIndices?.length > 0) {
+      const nextIndex = this.shuffledIndices.shift()
+      this.playQueueIndex(nextIndex)
     } else if (this.currentIndex >= this.queue.length - 1 && this.repeatMode === "all") {
-      this.playQueueIndex(0)
+      if (this.shuffleMode) {
+        this.generateShuffledOrder()
+        const nextIndex = this.shuffledIndices.shift()
+        this.playQueueIndex(nextIndex !== undefined ? nextIndex : 0)
+      } else {
+        this.playQueueIndex(0)
+      }
     } else if (this.currentIndex >= this.queue.length - 1) {
       this.stopPlayback()
     } else {
@@ -483,9 +561,11 @@ export default class extends Controller {
   }
 
   async tracksFor(event) {
+    const isLongformHero = Boolean(event.currentTarget?.closest(".detail-hero--longform"))
     const params = {
       ...event.params,
-      resumable: event.params.resumable || Boolean(event.currentTarget?.closest(".detail-hero--longform"))
+      resumable: event.params.resumable || isLongformHero,
+      kind: event.params.kind || (isLongformHero ? "audiobook" : undefined)
     }
     if (!params.queueUrl) return [ this.trackFrom(params) ]
 
@@ -505,7 +585,7 @@ export default class extends Controller {
     }
   }
 
-  trackFrom({ source, title, artist, artwork, duration, itemId, reportingUrl, startPosition, resumable, radioUrl, radioEligible, favorite }) {
+  trackFrom({ source, title, artist, artwork, duration, itemId, reportingUrl, startPosition, resumable, kind, mediaType, type, radioUrl, radioEligible, favorite }) {
     return {
       source,
       title,
@@ -517,6 +597,8 @@ export default class extends Controller {
       startPosition,
       favorite: favorite === true || favorite === "true",
       resumable: resumable === true || resumable === "true",
+      kind: kind || mediaType || type,
+      mediaType: mediaType || kind || type,
       radioUrl,
       radioEligible: radioEligible === true || radioEligible === "true"
     }
@@ -532,7 +614,7 @@ export default class extends Controller {
     this.setReconnectingState(false)
     this.playbackRequested = true
     this.loadTrack(track)
-    this.ephemeralStreamStore?.touch(track.source)
+    this.ephemeralStreamStore?.touch?.(track.source)
     const playback = this.audioTarget.play()
     this.monitorPlayback(playback)
     this.maybeExtendRadioQueue()
@@ -600,11 +682,91 @@ export default class extends Controller {
     this.resetTimeline()
     this.updateFavoriteControls()
     this.updateRadioControls()
+    this.updateLongformControls(this.isLongformTrack(track))
     this.resetLyricsView()
     if (this.activeExpandedView === "lyrics") this.loadLyrics()
     this.syncNativeMedia()
     this.syncBrowserMedia()
     this.syncPageTrackControls()
+  }
+
+  isLongformTrack(track) {
+    if (!track) return false
+    const kind = String(track.kind || track.mediaType || track.type || "").toLowerCase()
+    return kind === "audiobook" || kind === "podcast" || Boolean(track.resumable)
+  }
+
+  updateLongformControls(isLongform) {
+    this.jumpBackTargets.forEach((el) => (el.hidden = !isLongform))
+    this.jumpForwardTargets.forEach((el) => (el.hidden = !isLongform))
+    this.playbackRateTargets.forEach((el) => (el.hidden = !isLongform))
+    this.trackSkipTargets.forEach((el) => (el.hidden = Boolean(isLongform)))
+    this.shuffleTargets.forEach((el) => (el.hidden = Boolean(isLongform)))
+
+    if (isLongform) {
+      let savedRate = 1.0
+      try {
+        const stored = localStorage.getItem("sonzra:playbackRate")
+        if (stored) savedRate = Number(stored) || 1.0
+      } catch (_) {}
+      this.setPlaybackRate(savedRate)
+    } else {
+      if (this.hasAudioTarget) {
+        this.audioTarget.playbackRate = 1.0
+        this.audioTarget.preservesPitch = true
+      }
+      this.updatePlaybackRateControls(1.0)
+    }
+  }
+
+  cyclePlaybackRate() {
+    const rates = [0.8, 1.0, 1.2, 1.5, 2.0]
+    const currentRate = Number(this.audioTarget?.playbackRate) || 1.0
+    const currentIndex = rates.findIndex((r) => Math.abs(r - currentRate) < 0.05)
+    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % rates.length : rates.indexOf(1.0)
+    const nextRate = rates[nextIndex]
+    this.setPlaybackRate(nextRate)
+  }
+
+  setPlaybackRate(rate) {
+    if (!this.hasAudioTarget) return
+    const numericRate = Number(rate) || 1.0
+    this.audioTarget.playbackRate = numericRate
+    this.audioTarget.preservesPitch = true
+    try {
+      localStorage.setItem("sonzra:playbackRate", String(numericRate))
+    } catch (_) {}
+    this.updatePlaybackRateControls(numericRate)
+    this.syncBrowserMediaPosition()
+  }
+
+  updatePlaybackRateControls(rate = Number(this.audioTarget?.playbackRate) || 1.0) {
+    const formatted = `${rate}x`
+    this.playbackRateTargets.forEach((target) => {
+      target.textContent = formatted
+      target.setAttribute("aria-label", `Playback speed ${formatted}`)
+    })
+  }
+
+  skipBackward(seconds = 15) {
+    const offset = typeof seconds === "number" ? seconds : (Number(seconds?.params?.seconds) || 15)
+    const currentTime = Number(this.audioTarget?.currentTime) || 0
+    const targetTime = Math.max(0, currentTime - offset)
+    if (this.hasAudioTarget) this.audioTarget.currentTime = targetTime
+    this.updateProgress(targetTime, Number(this.audioTarget?.duration) || 0)
+    this.syncBrowserMediaPosition()
+    this.syncNativeMedia()
+  }
+
+  skipForward(seconds = 30) {
+    const offset = typeof seconds === "number" ? seconds : (Number(seconds?.params?.seconds) || 30)
+    const currentTime = Number(this.audioTarget?.currentTime) || 0
+    const duration = Number(this.audioTarget?.duration) || 0
+    const targetTime = duration > 0 ? Math.min(duration, currentTime + offset) : currentTime + offset
+    if (this.hasAudioTarget) this.audioTarget.currentTime = targetTime
+    this.updateProgress(targetTime, duration)
+    this.syncBrowserMediaPosition()
+    this.syncNativeMedia()
   }
 
   restoreQueue() {
@@ -615,6 +777,7 @@ export default class extends Controller {
       this.savedPosition = Number(savedState.position) || 0
       this.queueWasOpen = savedState.queueOpen === true
       this.repeatMode = [ "off", "all", "one" ].includes(savedState.repeatMode) ? savedState.repeatMode : "off"
+      this.shuffleMode = savedState.shuffleMode === true
       this.radioEnabled = savedState.radioEnabled === true || this.radioEnabled
     } catch (_) {
       this.queue = []
@@ -622,9 +785,12 @@ export default class extends Controller {
       this.savedPosition = 0
       this.queueWasOpen = false
       this.repeatMode = "off"
+      this.shuffleMode = false
     }
     this.renderQueue()
     this.updateRepeatControls()
+    this.updateShuffleControls()
+    if (this.shuffleMode) this.generateShuffledOrder()
     this.updateRadioControls()
     this.restoreCurrentTrack()
     if (this.queueWasOpen && this.queue.length > 0 && this.hasQueuePanelTarget) {
@@ -667,6 +833,7 @@ export default class extends Controller {
         position,
         queueOpen: this.hasQueuePanelTarget && !this.queuePanelTarget.hidden && !this.queuePanelTarget.classList.contains("is-closing"),
         repeatMode: this.repeatMode || "off",
+        shuffleMode: this.shuffleMode === true,
         radioEnabled: this.radioEnabled === true
       }))
     } catch (_) {
@@ -963,6 +1130,7 @@ export default class extends Controller {
   }
 
   clearQueue() {
+    this.clearSleepTimer()
     this.cancelPreload()
     this.setReconnectingState(false)
     if (this.radioEnabled) this.setRadioEnabled(false)
@@ -990,11 +1158,154 @@ export default class extends Controller {
 
   confirmClearQueue() {
     this.closeClearQueuePrompt()
+    this.clearSleepTimer()
     this.clearQueue()
   }
 
   closeClearQueueOnBackdrop(event) {
     if (event.target === this.clearDialogTarget) this.closeClearQueuePrompt()
+  }
+
+  openSleepTimer() {
+    if (!this.hasSleepDialogTarget) return
+
+    const activeDuration = this.sleepTimerMode === "track" ? "track" : (this.activeSleepMinutes ? String(this.activeSleepMinutes) : null)
+    this.sleepDialogTarget.querySelectorAll(".redesign-sleep-dialog__option").forEach((opt) => {
+      const param = opt.dataset.playerDurationParam
+      if (param && activeDuration && param === activeDuration) {
+        opt.classList.add("is-active")
+      } else {
+        opt.classList.remove("is-active")
+      }
+    })
+
+    if (typeof this.sleepDialogTarget.showModal === "function") {
+      this.sleepDialogTarget.showModal()
+    } else {
+      this.sleepDialogTarget.hidden = false
+      this.sleepDialogTarget.setAttribute("open", "")
+    }
+  }
+
+  closeSleepTimer() {
+    if (!this.hasSleepDialogTarget) return
+
+    if (typeof this.sleepDialogTarget.close === "function") {
+      this.sleepDialogTarget.close()
+    } else {
+      this.sleepDialogTarget.hidden = true
+      this.sleepDialogTarget.removeAttribute("open")
+    }
+  }
+
+  closeSleepTimerOnBackdrop(event) {
+    if (event.target === this.sleepDialogTarget) this.closeSleepTimer()
+  }
+
+  setSleepTimer(event) {
+    const duration = event?.params?.duration || event?.currentTarget?.dataset?.playerDurationParam
+    this.closeSleepTimer()
+    this.clearSleepTimer()
+
+    if (duration === "track") {
+      this.activeSleepMinutes = null
+      this.sleepTimerMode = "track"
+      this.updateSleepBadge("Track")
+      this.showFeedback("Sleep timer set for end of track")
+      return
+    }
+
+    const minutes = Number(duration) || 30
+    this.activeSleepMinutes = minutes
+    const totalSeconds = minutes * 60
+    this.sleepTimerEndAt = Date.now() + totalSeconds * 1000
+    this.sleepOriginalVolume = Number(this.audioTarget?.volume) || 0.8
+    this.isFadingOut = false
+    this.updateSleepBadge(`${minutes}m`)
+    this.showFeedback(`Sleep timer set for ${minutes} minutes`)
+    this.sleepTimerInterval = window.setInterval(this.boundTickSleepTimer, 1000)
+  }
+
+  tickSleepTimer() {
+    if (!this.sleepTimerEndAt) return
+
+    const remainingMs = this.sleepTimerEndAt - Date.now()
+    if (remainingMs <= 0) {
+      this.clearSleepFadeInterval()
+      this.audioTarget?.pause()
+      if (this.hasAudioTarget && this.sleepOriginalVolume != null) {
+        this.audioTarget.volume = this.sleepOriginalVolume
+        this.updateVolumeControls(this.sleepOriginalVolume)
+      }
+      this.clearSleepTimer()
+      return
+    }
+
+    if (remainingMs <= 10_000 && !this.isFadingOut) {
+      this.isFadingOut = true
+      this.startSleepFadeOut()
+    }
+
+    const remainingMinutes = Math.ceil(remainingMs / 60_000)
+    this.updateSleepBadge(`${remainingMinutes}m`)
+  }
+
+  startSleepFadeOut() {
+    this.clearSleepFadeInterval()
+    const originalVol = Number(this.audioTarget?.volume) || 0.8
+    const step = originalVol / 50
+    this.sleepFadeInterval = window.setInterval(() => {
+      if (!this.hasAudioTarget) return
+      const nextVol = Math.max(0, this.audioTarget.volume - step)
+      this.audioTarget.volume = nextVol
+      this.updateVolumeControls(nextVol)
+    }, 200)
+  }
+
+  clearSleepFadeInterval() {
+    if (this.sleepFadeInterval) {
+      window.clearInterval(this.sleepFadeInterval)
+      this.sleepFadeInterval = null
+    }
+  }
+
+  cancelSleepTimer() {
+    this.clearSleepTimer()
+    this.closeSleepTimer()
+    this.showFeedback("Sleep timer turned off")
+  }
+
+  clearSleepTimer() {
+    if (this.sleepTimerInterval) {
+      window.clearInterval(this.sleepTimerInterval)
+      this.sleepTimerInterval = null
+    }
+    this.clearSleepFadeInterval()
+    if (this.isFadingOut && this.hasAudioTarget && this.sleepOriginalVolume != null) {
+      this.audioTarget.volume = this.sleepOriginalVolume
+      this.updateVolumeControls(this.sleepOriginalVolume)
+    }
+    this.isFadingOut = false
+    this.sleepTimerEndAt = null
+    this.sleepTimerMode = null
+    this.activeSleepMinutes = null
+    this.updateSleepBadge(null)
+  }
+
+  updateSleepBadge(text) {
+    this.sleepBadgeTargets.forEach((badge) => {
+      if (text) {
+        badge.textContent = text
+        badge.hidden = false
+      } else {
+        badge.textContent = ""
+        badge.hidden = true
+      }
+    })
+    this.sleepButtonTargets.forEach((btn) => {
+      btn.classList.toggle("is-active", Boolean(text))
+      btn.setAttribute("aria-label", text ? `Sleep timer ${text}` : "Sleep timer")
+    })
   }
 
   setRadioEnabled(enabled, { feedback = null } = {}) {
@@ -1070,7 +1381,7 @@ export default class extends Controller {
 
     const alreadyCached = await this.ephemeralStreamStore?.has(nextTrack.source)
     if (alreadyCached) {
-      this.ephemeralStreamStore?.touch(nextTrack.source)
+      this.ephemeralStreamStore?.touch?.(nextTrack.source)
       return
     }
 
@@ -1343,9 +1654,11 @@ export default class extends Controller {
   restoreVolume() {
     if (!this.hasAudioTarget) return
 
-    const volume = sessionStorage.getItem("sonzra:volume") || "0.8"
+    const volume = Number(sessionStorage.getItem("sonzra:volume") ?? 0.8)
     this.audioTarget.volume = volume
+    this.unmutedVolume = volume > 0 ? volume : 0.8
     this.updateVolumeControls(volume)
+    this.updateMuteControls(volume)
   }
 
   updateVolumeControls(volume) {
@@ -1354,6 +1667,96 @@ export default class extends Controller {
       input.value = volume
       input.style.setProperty("--volume-progress", percentage)
     })
+  }
+
+  toggleMute() {
+    if (!this.hasAudioTarget) return
+
+    const currentVolume = Number(this.audioTarget.volume) || 0
+    if (currentVolume > 0) {
+      this.unmutedVolume = currentVolume
+      this.audioTarget.volume = 0
+      sessionStorage.setItem("sonzra:volume", "0")
+      this.updateVolumeControls(0)
+      this.updateMuteControls(0)
+    } else {
+      const restored = Number(this.unmutedVolume) || 0.8
+      this.audioTarget.volume = restored
+      sessionStorage.setItem("sonzra:volume", String(restored))
+      this.updateVolumeControls(restored)
+      this.updateMuteControls(restored)
+    }
+  }
+
+  updateMuteControls(volume = Number(this.audioTarget?.volume) || 0) {
+    const isMuted = volume === 0
+    if (this.hasMuteButtonTarget) {
+      this.muteButtonTarget.setAttribute("aria-label", isMuted ? "Unmute" : "Mute")
+    }
+    if (this.hasMuteIconTarget) {
+      this.muteIconTarget.innerHTML = this.icon(isMuted ? "volume-x" : "volume-2")
+    }
+  }
+
+  handleKeyDown(event) {
+    if (this.isEditableTarget(event.target)) return
+    if (event.metaKey || event.ctrlKey || event.altKey) return
+
+    if (event.code === "Space" || event.key === " ") {
+      if (!this.currentTrack && !this.hasAudioTarget) return
+      event.preventDefault()
+      this.toggle()
+      return
+    }
+
+    if (event.key === "m" || event.key === "M") {
+      event.preventDefault()
+      this.toggleMute()
+      return
+    }
+
+    if (event.key === "ArrowLeft") {
+      if (!this.currentTrack && !this.hasAudioTarget) return
+      event.preventDefault()
+      if (event.shiftKey) {
+        this.previous()
+      } else {
+        this.seekRelative(-5)
+      }
+      return
+    }
+
+    if (event.key === "ArrowRight") {
+      if (!this.currentTrack && !this.hasAudioTarget) return
+      event.preventDefault()
+      if (event.shiftKey) {
+        this.next()
+      } else {
+        this.seekRelative(5)
+      }
+      return
+    }
+  }
+
+  isEditableTarget(target) {
+    if (!target || !(target instanceof Element)) return false
+    if (target.matches("input, textarea, select")) return true
+    if (target.isContentEditable) return true
+    if (target.getAttribute("contenteditable") === "true") return true
+    return Boolean(target.closest("input, textarea, select, [contenteditable='true']"))
+  }
+
+  seekRelative(seconds) {
+    if (!this.hasAudioTarget) return
+    const currentTime = Number(this.audioTarget.currentTime) || 0
+    const duration = Number(this.audioTarget.duration) || 0
+    const target = duration > 0
+      ? Math.min(duration, Math.max(0, currentTime + seconds))
+      : Math.max(0, currentTime + seconds)
+    this.audioTarget.currentTime = target
+    this.updateProgress(target, duration)
+    this.syncBrowserMediaPosition()
+    this.syncNativeMedia()
   }
 
   showPlayer() {
@@ -1653,7 +2056,8 @@ export default class extends Controller {
       favorite: track.favorite === true || track.favorite === "true",
       radioEligible: !explicitlyIneligibleForRadio && Boolean(radioUrl),
       radioUrl,
-      resumable: track.resumable === true || track.resumable === "true"
+      resumable: track.resumable === true || track.resumable === "true",
+      kind: track.kind || track.mediaType || track.type || (track.resumable ? "audiobook" : undefined)
     }
   }
 
@@ -1720,6 +2124,8 @@ export default class extends Controller {
     this.boundDismissQueueMenu = this.dismissQueueMenu.bind(this)
     this.boundUpdateQueueScrollHint = this.updateQueueScrollHint.bind(this)
     this.boundFlushOutbox = this.flushOutbox.bind(this)
+    this.boundHandleKeyDown = this.handleKeyDown.bind(this)
+    this.boundTickSleepTimer = this.tickSleepTimer.bind(this)
   }
 
   startProgressWatch() {
@@ -1886,6 +2292,8 @@ export default class extends Controller {
       mediaSession.setActionHandler("pause", () => this.toggle())
       mediaSession.setActionHandler("previoustrack", () => this.previous())
       mediaSession.setActionHandler("nexttrack", () => this.next())
+      mediaSession.setActionHandler("seekbackward", (details) => this.skipBackward(details?.seekOffset || 15))
+      mediaSession.setActionHandler("seekforward", (details) => this.skipForward(details?.seekOffset || 30))
       this.syncBrowserMediaPosition()
     } catch (_) {
       // Media Session support differs across browsers and must remain optional.
@@ -1950,6 +2358,8 @@ export default class extends Controller {
       , ellipsis: '<circle cx="5" cy="12" r="1.5" fill="currentColor"></circle><circle cx="12" cy="12" r="1.5" fill="currentColor"></circle><circle cx="19" cy="12" r="1.5" fill="currentColor"></circle>'
       , "list-plus": '<path d="M11 12H3"></path><path d="M16 6H3"></path><path d="M16 18H3"></path><path d="M18 9v6"></path><path d="M21 12h-6"></path>'
       , download: '<path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path>'
+      , "volume-2": '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>'
+      , "volume-x": '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="22" x2="16" y1="9" y2="15"></line><line x1="16" x2="22" y1="9" y2="15"></line>'
     }
     return `<svg class="${className}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths[name]}</svg>`
   }

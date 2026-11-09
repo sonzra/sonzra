@@ -51,6 +51,12 @@ flowchart LR
 - Test controller lifecycle (`connect`, `disconnect`), event listeners, and DOM updates using **Vitest** and **JSDOM**.
 - Stub browser globals (`localStorage`, `requestAnimationFrame`, `HTMLMediaElement.prototype`) cleanly.
 
+### 5. Frontend & Mobile Component Discipline
+- **Mobile Width Budgeting**: On mobile viewports ($\le 430\text{px}$), never squeeze more than 2 secondary buttons inline next to artwork and text. Calculate available width: `viewport - container_padding - artwork - gaps`. Ensure metadata retains $\ge 180\text{px}$ usable width with clean ellipsis truncation.
+- **3-Row Player Hierarchy**: In mobile playback cards, stack Identity (Row 1), Scrubber (Row 2), and Transport (Row 3). All controls must be 100% contained within the card with zero edge overflow.
+- **Redesign Self-Sufficiency**: Only `redesign.css` is loaded in redesign mode. Never reuse legacy classes from `queue.css` or `application.css`. Modals must strictly follow the `.redesign-*-dialog` architecture.
+- **Visual Check Requirement**: Because JSDOM cannot calculate CSS layouts or detect visual clipping, always visually inspect screenshots or live pages before declaring frontend work finished.
+
 ---
 
 ## 3. Mandatory Lifecycle Checks & Commands

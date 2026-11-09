@@ -9,9 +9,49 @@
     <button type="button" aria-label="Add to favourites" class="listen-player__favorite listen-player__favorite--mobile" data-player-target="favorite" data-action="player#toggleFavorite"><%= lucide_icon "heart", aria: { hidden: true } %></button>
   </div>
   <div class="listen-player__center">
-    <div class="listen-player__controls"><button type="button" class="listen-player__utility" aria-label="Radio off" data-player-target="radio" data-action="player#toggleRadio"><%= lucide_icon "radio", aria: { hidden: true } %></button><button type="button" class="listen-player__skip" aria-label="Previous track" data-action="player#previous"><%= lucide_icon "skip-back", aria: { hidden: true } %></button><button type="button" aria-label="Play" class="listen-player__play" data-player-target="toggle" data-action="player#toggle"><%= lucide_icon "play", aria: { hidden: true } %></button><button type="button" class="listen-player__skip" aria-label="Next track" data-action="player#next"><%= lucide_icon "skip-forward", aria: { hidden: true } %></button><button type="button" class="listen-player__utility" aria-label="Repeat off" data-player-target="repeat" data-action="player#toggleRepeat"><%= lucide_icon "repeat", aria: { hidden: true } %></button></div>
+    <div class="listen-player__controls"><button type="button" class="listen-player__utility" aria-label="Shuffle off" data-player-target="shuffle" data-action="player#toggleShuffle"><%= lucide_icon "shuffle", aria: { hidden: true } %></button><button type="button" class="listen-player__utility" aria-label="Radio off" data-player-target="radio" data-action="player#toggleRadio"><%= lucide_icon "radio", aria: { hidden: true } %></button><button type="button" class="listen-player__utility listen-player__speed" aria-label="Playback speed 1.0x" data-player-target="playbackRate" data-action="player#cyclePlaybackRate" hidden>1.0x</button><button type="button" class="listen-player__skip" aria-label="Previous track" data-player-target="trackSkip" data-action="player#previous"><%= lucide_icon "skip-back", aria: { hidden: true } %></button><button type="button" class="listen-player__jump listen-player__jump--back" aria-label="Skip backward 15 seconds" data-player-target="jumpBack" data-action="player#skipBackward" hidden><%= lucide_icon "rotate-ccw", aria: { hidden: true } %><span class="listen-player__jump-text">15</span></button><button type="button" aria-label="Play" class="listen-player__play" data-player-target="toggle" data-action="player#toggle"><%= lucide_icon "play", aria: { hidden: true } %></button><button type="button" class="listen-player__jump listen-player__jump--forward" aria-label="Skip forward 30 seconds" data-player-target="jumpForward" data-action="player#skipForward" hidden><%= lucide_icon "rotate-cw", aria: { hidden: true } %><span class="listen-player__jump-text">30</span></button><button type="button" class="listen-player__skip" aria-label="Next track" data-player-target="trackSkip" data-action="player#next"><%= lucide_icon "skip-forward", aria: { hidden: true } %></button><button type="button" class="listen-player__utility" aria-label="Repeat off" data-player-target="repeat" data-action="player#toggleRepeat"><%= lucide_icon "repeat", aria: { hidden: true } %></button></div>
     <div class="listen-player__playback"><time data-player-target="elapsed">0:00</time><input class="listen-player__timeline" data-player-target="timeline" data-action="input->player#seek" type="range" min="0" max="0" value="0" step="0.1" aria-label="Playback position"><time data-player-target="duration">0:00</time></div>
   </div>
-  <div class="listen-player__right"><button type="button" aria-label="Add to favourites" class="listen-player__favorite listen-player__favorite--desktop" data-player-target="favorite" data-action="player#toggleFavorite"><%= lucide_icon "heart", aria: { hidden: true } %></button><button type="button" class="listen-player__utility" aria-label="Open lyrics" data-action="player#openLyrics"><%= lucide_icon "scroll-text", aria: { hidden: true } %></button><button type="button" class="listen-player__queue-button" aria-label="Open queue" data-action="player#toggleQueue"><%= lucide_icon "list-music", aria: { hidden: true } %></button><label class="listen-player__volume" aria-label="Volume"><%= lucide_icon "volume-2", aria: { hidden: true } %><input data-player-target="volume" data-action="input->player#setVolume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Volume"></label></div>
+  <div class="listen-player__right"><button type="button" aria-label="Add to favourites" class="listen-player__favorite listen-player__favorite--desktop" data-player-target="favorite" data-action="player#toggleFavorite"><%= lucide_icon "heart", aria: { hidden: true } %></button><button type="button" class="listen-player__utility" aria-label="Open lyrics" data-action="player#openLyrics"><%= lucide_icon "scroll-text", aria: { hidden: true } %></button><button type="button" class="listen-player__utility listen-player__sleep-trigger" aria-label="Sleep timer" data-player-target="sleepButton" data-action="player#openSleepTimer"><%= lucide_icon "moon", aria: { hidden: true } %><span data-player-target="sleepBadge" class="listen-player__sleep-badge" hidden></span></button><button type="button" class="listen-player__queue-button" aria-label="Open queue" data-action="player#toggleQueue"><%= lucide_icon "list-music", aria: { hidden: true } %></button><div class="listen-player__volume"><button type="button" class="listen-player__mute" aria-label="Mute" data-player-target="muteButton" data-action="player#toggleMute"><span data-player-target="muteIcon"><%= lucide_icon "volume-2", aria: { hidden: true } %></span></button><input data-player-target="volume" data-action="input->player#setVolume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Volume"></div></div>
   <div class="listen-player__progress" data-player-target="miniProgressBar" data-action="pointerdown->player#startMiniSeek pointermove->player#dragMiniSeek pointerup->player#endMiniSeek pointercancel->player#endMiniSeek click->player#seekMiniProgress" role="slider" aria-label="Playback position" tabindex="0"><span data-player-target="miniProgress"></span></div>
+  <dialog class="redesign-sleep-dialog listen-player__sleep-dialog" data-player-target="sleepDialog" data-action="click->player#closeSleepTimerOnBackdrop">
+    <div class="redesign-sleep-dialog__panel">
+      <div class="redesign-sleep-dialog__heading">
+        <div>
+          <p class="eyebrow">Sleep timer</p>
+          <h2>Stop audio automatically</h2>
+        </div>
+        <button type="button" class="redesign-sleep-dialog__close" aria-label="Close sleep timer" data-action="player#closeSleepTimer">
+          <%= lucide_icon "x", aria: { hidden: true } %>
+        </button>
+      </div>
+      <p class="redesign-sleep-dialog__desc">Playback will gently fade out over 10 seconds before pausing when the timer expires.</p>
+      <div class="redesign-sleep-dialog__options">
+        <button type="button" class="redesign-sleep-dialog__option" data-action="player#setSleepTimer" data-player-duration-param="15">
+          <span class="redesign-sleep-dialog__option-val">15</span>
+          <span class="redesign-sleep-dialog__option-lbl">minutes</span>
+        </button>
+        <button type="button" class="redesign-sleep-dialog__option" data-action="player#setSleepTimer" data-player-duration-param="30">
+          <span class="redesign-sleep-dialog__option-val">30</span>
+          <span class="redesign-sleep-dialog__option-lbl">minutes</span>
+        </button>
+        <button type="button" class="redesign-sleep-dialog__option" data-action="player#setSleepTimer" data-player-duration-param="45">
+          <span class="redesign-sleep-dialog__option-val">45</span>
+          <span class="redesign-sleep-dialog__option-lbl">minutes</span>
+        </button>
+        <button type="button" class="redesign-sleep-dialog__option" data-action="player#setSleepTimer" data-player-duration-param="60">
+          <span class="redesign-sleep-dialog__option-val">60</span>
+          <span class="redesign-sleep-dialog__option-lbl">minutes</span>
+        </button>
+        <button type="button" class="redesign-sleep-dialog__option redesign-sleep-dialog__option--track" data-action="player#setSleepTimer" data-player-duration-param="track">
+          <%= lucide_icon "disc-3", aria: { hidden: true } %>
+          <span class="redesign-sleep-dialog__option-lbl">End of track</span>
+        </button>
+        <button type="button" class="redesign-sleep-dialog__option redesign-sleep-dialog__option--cancel" data-action="player#cancelSleepTimer">
+          <%= lucide_icon "timer-off", aria: { hidden: true } %>
+          <span class="redesign-sleep-dialog__option-lbl">Turn off timer</span>
+        </button>
+      </div>
+    </div>
+  </dialog>
 </aside>
