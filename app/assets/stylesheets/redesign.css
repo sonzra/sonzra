@@ -88,11 +88,11 @@ body.redesign { margin: 0; overflow-x: hidden; }
 .redesign-topbar__link { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 15px; border-radius: 999px; color: var(--rz-muted); font-size: 12px; font-weight: 750; text-decoration: none; }
 .redesign-topbar__link svg { width: 15px; height: 15px; }
 .redesign-topbar__link:hover, .redesign-topbar__link[aria-current="page"] { background: rgb(255 255 255 / 11%); box-shadow: 0 5px 18px rgb(0 0 0 / 22%); color: var(--rz-text); }
-.redesign-topbar__actions { display: flex; grid-column: 3; justify-self: end; align-items: center; gap: 9px; }
-.redesign-icon-button, .redesign-profile__toggle { display: inline-flex; min-height: 38px; align-items: center; gap: 7px; border: 1px solid var(--rz-line); border-radius: 11px; background: rgb(255 255 255 / 4%); color: var(--rz-text); cursor: pointer; }
+.redesign-topbar__actions { display: flex; grid-column: 3; justify-self: end; align-items: center; gap: 9px; min-width: 0; flex-shrink: 0; }
+.redesign-icon-button, .redesign-profile__toggle { display: inline-flex; min-height: 38px; align-items: center; gap: 7px; border: 1px solid var(--rz-line); border-radius: 11px; background: rgb(255 255 255 / 4%); color: var(--rz-text); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
 .redesign-icon-button { padding: 0 10px; }
 .redesign-icon-button svg { width: 16px; }
-.redesign-icon-button kbd { padding: 2px 5px; border: 1px solid var(--rz-line); border-radius: 5px; color: var(--rz-muted); font-size: 9px; }
+.redesign-icon-button kbd { padding: 2px 5px; border: 1px solid var(--rz-line); border-radius: 5px; color: var(--rz-muted); font-size: 9px; white-space: nowrap; }
 .redesign-server-pill { display: inline-flex; max-width: 170px; min-height: 38px; align-items: center; gap: 7px; padding: 0 11px; overflow: hidden; border: 1px solid var(--rz-line); border-radius: 11px; background: rgb(255 255 255 / 4%); color: var(--rz-muted); font-size: 11px; font-weight: 750; }
 .redesign-server-pill > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .redesign-server-pill i { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--rz-accent); box-shadow: 0 0 0 3px rgb(67 215 198 / 15%); }
@@ -178,7 +178,22 @@ body.redesign { margin: 0; overflow-x: hidden; }
 @keyframes redesign-orbit { to { transform: rotate(360deg); } }
 @keyframes redesign-loading { from { transform: translateX(-110%); } to { transform: translateX(245%); } }
 
-@media (max-width: 980px) { .redesign .listen-shelf { grid-template-columns: repeat(4, minmax(0, 1fr)); }.redesign .genre-explorer__grid { grid-template-columns: repeat(3, 1fr); }.redesign .listen-player { grid-template-columns: 1fr auto; }.redesign .listen-player__time { display: none; } }
+@media (max-width: 1060px) {
+  .redesign-server-pill { display: none; }
+  .redesign-search-trigger kbd { display: none; }
+  .redesign-search-trigger { width: 38px; height: 38px; justify-content: center; padding: 0; }
+}
+@media (max-width: 980px) {
+  .redesign-topbar { padding: 0 17px; }
+  .redesign-topbar__link span { display: none; }
+  .redesign-topbar__link { width: 38px; height: 38px; justify-content: center; padding: 0; }
+  .redesign-profile__toggle span { display: none; }
+  .redesign-profile__toggle { width: 38px; height: 38px; justify-content: center; padding: 0; }
+  .redesign .listen-shelf { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .redesign .genre-explorer__grid { grid-template-columns: repeat(3, 1fr); }
+  .redesign .listen-player { grid-template-columns: 1fr auto; }
+  .redesign .listen-player__time { display: none; }
+}
 @media (max-width: 700px) {
   .redesign { padding: calc(62px + env(safe-area-inset-top)) 0 calc(143px + env(safe-area-inset-bottom)); }
   .redesign-topbar { height: calc(62px + env(safe-area-inset-top)); grid-template-columns: 1fr auto; padding: env(safe-area-inset-top) 17px 0; }.redesign-brand { font-size: 18px; }.redesign-brand__mark { width: 30px; height: 30px; }.redesign-topbar__primary, .redesign-topbar__actions { display: none; }.redesign-topbar__menu-toggle { display: grid; grid-column: 2; width: 40px; height: 40px; place-items: center; border: 1px solid var(--rz-line); border-radius: 12px; background: rgb(255 255 255 / 5%); color: var(--rz-text); }.redesign-mobile-menu { position: absolute; top: 100%; right: 12px; left: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 11px; border: 1px solid var(--rz-line); border-radius: 16px; background: rgb(18 18 28 / 99%); box-shadow: 0 24px 70px rgb(0 0 0 / 55%); }.redesign-mobile-menu.is-open { display: grid; }.redesign-mobile-menu__search { grid-column: 1 / -1; margin-bottom: 4px; }.redesign-mobile-menu a, .redesign-mobile-menu button { min-height: 40px; }
