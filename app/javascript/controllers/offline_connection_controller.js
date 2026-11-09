@@ -7,15 +7,26 @@ export default class extends Controller {
 
   connect() {
     this.boundCheck = this.check.bind(this)
+    this.boundVisibility = this.handleVisibilityChange.bind(this)
     window.addEventListener("online", this.boundCheck)
+    window.addEventListener("focus", this.boundCheck)
+    document.addEventListener("visibilitychange", this.boundVisibility)
     this.check()
     this.checkInterval = window.setInterval(this.boundCheck, CHECK_INTERVAL)
   }
 
   disconnect() {
     window.removeEventListener("online", this.boundCheck)
+    window.removeEventListener("focus", this.boundCheck)
+    document.removeEventListener("visibilitychange", this.boundVisibility)
     window.clearInterval(this.checkInterval)
     window.clearTimeout(this.reloadTimeout)
+  }
+
+  handleVisibilityChange() {
+    if (document.visibilityState === "visible") {
+      this.check()
+    }
   }
 
   preventNavigation(event) {
@@ -29,7 +40,7 @@ export default class extends Controller {
 
     this.checking = true
     this.setStatus("checking", "Checking connection…")
-    this.retryTarget.disabled = true
+    this.retryTargets.forEach((target) => { target.disabled = true })
 
     try {
       const response = await fetch("/up", { cache: "no-store" })
@@ -37,13 +48,15 @@ export default class extends Controller {
 
       this.connected = true
       this.setStatus("online", "Back online")
-      this.retryTarget.hidden = true
+      this.retryTargets.forEach((target) => { target.hidden = true })
       this.reloadTimeout = window.setTimeout(() => window.location.reload(), 700)
     } catch (_) {
       this.showOffline()
     } finally {
       this.checking = false
-      if (!this.connected) this.retryTarget.disabled = false
+      if (!this.connected) {
+        this.retryTargets.forEach((target) => { target.disabled = false })
+      }
     }
   }
 
@@ -52,9 +65,11 @@ export default class extends Controller {
   }
 
   setStatus(state, message) {
-    this.statusTarget.dataset.state = state
-    this.statusTarget.textContent = message
-    this.statusTarget.title = message
-    this.statusTarget.setAttribute("aria-label", message)
+    this.statusTargets.forEach((target) => {
+      target.dataset.state = state
+      target.textContent = message
+      target.title = message
+      target.setAttribute("aria-label", message)
+    })
   }
 }

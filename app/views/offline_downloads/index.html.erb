@@ -31,5 +31,12 @@
     <%= image_tag "/brand/sonzra-mark.svg", alt: "", class: "empty-state__mark" %>
     <h2>No downloads yet</h2>
     <p>Use an item’s menu to save it for offline playback.</p>
+    <div class="offline-downloads__recovery" <%= "hidden" unless @offline_shell %>>
+      <p class="offline-downloads__recovery-hint">Disconnected from your media server. Connect to your home network or VPN to stream music.</p>
+      <button type="button" class="redesign-button redesign-button--primary offline-downloads__retry-button" data-offline-connection-target="retry" data-action="click->offline-connection#check">
+        <%= lucide_icon "refresh-cw", aria: { hidden: true } %>
+        <span>Retry connection</span>
+      </button>
+    </div>
   </section>
 </main>
