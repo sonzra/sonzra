@@ -1,4 +1,4 @@
-<% if redesign_enabled? && local_assigns[:mixes] %>
+<% if local_assigns[:mixes] %>
   <div class="redesign-mix-card-grid">
     <% collections.each do |collection| %>
       <% track = collection.recommendation_tracks.first %>

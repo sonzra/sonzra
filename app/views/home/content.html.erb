@@ -1,6 +1,6 @@
 <turbo-frame id="home_content">
   <% if @result.success? %>
-    <%= render(redesign_enabled? ? "redesign_library_content" : "library_content", content: @result.content) %>
+    <%= render "library_content", content: @result.content %>
   <% else %>
     <% if @server_connection && @result.message.to_s.match?(/session expired|401|authentication/i) %>
       <%= turbo_stream.update "connection_alerts" do %>

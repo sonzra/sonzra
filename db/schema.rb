@@ -181,7 +181,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_05_204200) do
     t.string "email_address", null: false
     t.string "password_digest", null: false
     t.integer "preferred_server_connection_id"
-    t.string "ui_variant", default: "legacy", null: false
     t.datetime "updated_at", null: false
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
     t.index ["preferred_server_connection_id"], name: "index_users_on_preferred_server_connection_id"

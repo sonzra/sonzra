@@ -38,8 +38,7 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :success
-    assert_select "header.media-topbar[data-media-header-target='bar'] a[href='#{library_albums_path}']", 1
-    assert_select "header.media-topbar [data-media-header-target='thumbnail']"
+    assert_select "a.redesign-detail-back[href='#{library_albums_path}'][data-controller='history-back']", 1
     assert_select "header.listen-topbar", 0
     assert_select ".detail-hero__art[data-media-header-target='artwork']"
     assert_select ".detail-hero__art img[src='/brand/sonzra-mark.svg']", 1
@@ -70,7 +69,7 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     get library_item_server_connection_url(@server_connection, "book-id")
 
     assert_response :success
-    assert_select "header.media-topbar[data-media-header-target='bar'] a[href='#{library_audiobooks_path}']", 1
+    assert_select "a.redesign-detail-back[href='#{library_audiobooks_path}'][data-controller='history-back']", 1
     assert_select "header.listen-topbar", 0
     assert_select ".detail-hero__art[data-media-header-target='artwork']"
     assert_select ".detail-hero__art img[src='/brand/sonzra-mark.svg']", 1
@@ -102,10 +101,8 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     get library_item_server_connection_url(@server_connection, "artist-id")
 
     assert_response :success
-    assert_select "header.media-topbar[data-media-header-target='bar'] a[href='#{library_artists_path}']", 1
-    assert_select "header.media-topbar .media-topbar__title", "Artist name"
+    assert_select "a.redesign-detail-back[href='#{library_artists_path}'][data-controller='history-back']", 1
     assert_select "header.listen-topbar", 0
-    assert_select ".detail-back-link", count: 0
     assert_select ".detail-albums h2", "Albums"
     assert_select ".detail-albums__grid .listen-card h3", "Artist album"
     assert_select ".detail-albums__grid .listen-card__year", "2024"
@@ -138,7 +135,7 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     get library_item_server_connection_url(@server_connection, "book-id"), headers: { "Referer" => root_url }
 
     assert_response :success
-    assert_select "header.media-topbar a[href='#{library_audiobooks_path}'][data-controller='history-back']", 1
+    assert_select "a.redesign-detail-back[href='#{library_audiobooks_path}'][data-controller='history-back']", 1
   ensure
     service_class.define_singleton_method(:new, original_new)
   end
@@ -172,7 +169,6 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "shows a selected song within its album context" do
-    users(:one).update!(ui_variant: "redesign")
     result = ServerConnections::FetchLibraryItemDetailsResultData.new(
       details: {
         item: { "Id" => "song-id", "Name" => "Selected song", "Type" => "Audio", "AlbumId" => "album-id" },
@@ -236,13 +232,13 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     get library_item_server_connection_url(@server_connection, "playlist-id")
 
     assert_response :success
-    assert_select "header.media-topbar[data-media-header-target='bar'] a[href='#{library_playlists_path}']", 1
+    assert_select "a.redesign-detail-back[href='#{library_playlists_path}'][data-controller='history-back']", 1
     assert_select ".detail-hero__kind", "Playlist"
     assert_select ".detail-hero__release", "2 tracks"
     assert_select ".detail-hero h1", "Focus mix"
-    assert_select ".track-list--playlist li span", count: 0
+    assert_select ".track-list--playlist li > span", count: 0
     assert_select ".track-list--mixed strong[data-artist='Unknown artist']", "Intro"
-    assert_select ".track-list__remove[data-card-options-remove-playlist-track-url-param='#{playlist_item_server_connection_path(@server_connection, playlist_id: "playlist-id", entry_id: "entry-1")}']"
+    assert_select "button[data-action='card-options#removePlaylistTrack'][data-card-options-remove-playlist-track-url-param='#{playlist_item_server_connection_path(@server_connection, playlist_id: "playlist-id", entry_id: "entry-1")}']"
   ensure
     service_class.define_singleton_method(:new, original_new)
   end
