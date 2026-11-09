@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test"
 import { signInAs, seedTestLibrary } from "./support/helpers.js"
+import fs from "node:fs"
 import path from "node:path"
 
 test.describe("responsive topbar navigation", () => {
@@ -13,18 +14,14 @@ test.describe("responsive topbar navigation", () => {
     await signInAs(page)
     await page.waitForSelector(".redesign-topbar")
 
-    const wikiDir = "/root/Projects/sonzra-wiki/features/issue-2-topbar-sizing/screenshots/iteration-1"
-    const docDir = path.resolve("./docs/screenshots/iteration-1")
-
+    const screenshotDir = process.env.SCREENSHOT_DIR
     const saveScreenshot = async (filename, locator = null) => {
-      const p1 = path.join(wikiDir, filename)
-      const p2 = path.join(docDir, filename)
+      if (!screenshotDir || !fs.existsSync(screenshotDir)) return
+      const p = path.join(screenshotDir, filename)
       if (locator) {
-        await locator.screenshot({ path: p1 })
-        await locator.screenshot({ path: p2 })
+        await locator.screenshot({ path: p })
       } else {
-        await page.screenshot({ path: p1 })
-        await page.screenshot({ path: p2 })
+        await page.screenshot({ path: p })
       }
     }
 
@@ -54,7 +51,7 @@ test.describe("responsive topbar navigation", () => {
     expect(profileBox).not.toBeNull()
     expect(profileBox.x + profileBox.width).toBeLessThanOrEqual(768)
 
-    // Save tablet screenshots
+    // Save tablet screenshots if directory configured
     await saveScreenshot("tablet-topbar-768.png")
     const topbar = page.locator(".redesign-topbar")
     await saveScreenshot("tablet-topbar-768-detail.png", topbar)
