@@ -37,7 +37,7 @@ body.redesign { margin: 0; overflow-x: hidden; }
 .redesign [hidden] { display: none !important; }
 .redesign svg { display: block; width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
 .redesign .primary-button, .redesign .secondary-button, .redesign .ghost-button, .redesign .listen-outline-button { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 8px; padding: 0 15px; color: var(--rz-text); font-size: 12px; font-weight: 800; text-decoration: none; cursor: pointer; }
-.redesign .primary-button { box-shadow: 0 10px 30px rgb(122 90 248 / 25%); color: #fff; }
+.redesign .primary-button { border-radius: 999px; background: linear-gradient(135deg, var(--rz-primary), var(--rz-primary-dark)); box-shadow: 0 10px 30px rgb(122 90 248 / 25%); color: #fff; }
 .redesign .primary-button:hover { box-shadow: 0 14px 38px rgb(122 90 248 / 40%); transform: translateY(-2px); }
 .redesign .secondary-button, .redesign .ghost-button, .redesign .listen-outline-button { border: 1px solid var(--rz-line); }
 .redesign .listen-app, .redesign .settings-shell, .redesign .form-page, .redesign .connection-detail { min-width: 0; }
@@ -792,3 +792,41 @@ html[data-turbo-preview] .redesign .listen-main:not(.listen-main--home), html[da
   .redesign .redesign-utility-page .form-page, .redesign .redesign-utility-page .connection-detail { padding: 23px 19px; border-radius: 18px; }
   .redesign .redesign-state { min-height: min(56vh, 480px); padding: 42px 22px; border-radius: 20px; }
 }
+
+body.redesign:has(.auth-page) { padding: 0; }
+.redesign .auth-page { position: relative; isolation: isolate; display: grid; min-height: 100vh; min-height: 100dvh; padding: 40px 24px; place-items: center; overflow: hidden; background: radial-gradient(circle at 15% 18%, rgb(122 90 248 / 26%), transparent 28%), radial-gradient(circle at 88% 82%, rgb(67 215 198 / 16%), transparent 26%), var(--rz-background); }
+.redesign .auth-page::before, .redesign .auth-page::after { position: absolute; z-index: -1; width: 480px; height: 480px; border: 1px solid rgb(255 255 255 / 5%); border-radius: 50%; content: ""; }
+.redesign .auth-page::before { top: -255px; right: -135px; box-shadow: 0 0 0 55px rgb(122 90 248 / 5%), 0 0 0 110px rgb(122 90 248 / 3%); }
+.redesign .auth-page::after { bottom: -320px; left: -100px; box-shadow: 0 0 0 65px rgb(67 215 198 / 4%); }
+.redesign .auth-card { width: min(100%, 480px); padding: clamp(28px, 5vw, 48px); border: 1px solid var(--rz-line); border-radius: 28px; background: linear-gradient(145deg, rgb(29 28 46 / 92%), rgb(17 17 27 / 92%)); box-shadow: 0 28px 90px rgb(0 0 0 / 50%); backdrop-filter: blur(22px); }
+.redesign .auth-brand { display: inline-flex; align-items: center; gap: 9px; color: var(--rz-text); font-size: 22px; font-weight: 850; letter-spacing: -0.06em; text-decoration: none; }
+.redesign .auth-brand img { width: 31px; height: 28px; }
+.redesign .auth-brand--hero { gap: 14px; font-size: clamp(34px, 6vw, 46px); }
+.redesign .auth-brand--hero img { width: 58px; height: 52px; }
+.redesign .auth-sign-in-copy { margin: 18px 0 0 !important; color: var(--rz-muted); font-size: 14px; line-height: 1.5; }
+.redesign .auth-kicker { display: block; margin-top: 42px; color: var(--rz-primary-light); font-size: 11px; font-weight: 850; letter-spacing: 0.14em; text-transform: uppercase; }
+.redesign .auth-card h1 { max-width: 390px; margin: 10px 0 12px; font-size: clamp(34px, 6vw, 49px); letter-spacing: -0.06em; line-height: 0.98; }
+.redesign .auth-card > p:not(.auth-card__footer) { margin: 0; color: var(--rz-muted); line-height: 1.6; }
+.redesign .auth-form { display: grid; gap: 18px; margin-top: 31px; }
+.redesign .auth-form .field { gap: 8px; }
+.redesign .auth-form .field input { box-sizing: border-box; border: 1px solid rgb(255 255 255 / 13%); border-radius: 12px; background: rgb(8 8 14 / 62%); color: var(--rz-text); padding: 0 14px; transition: border-color 0.18s ease, box-shadow 0.18s ease; }
+.redesign .auth-form .field input:focus { border-color: rgb(155 130 255 / 72%); box-shadow: 0 0 0 3px rgb(122 90 248 / 18%); outline: 0; }
+.redesign .auth-form .primary-button { width: 100%; margin-top: 5px; min-height: 46px; padding: 13px 18px; border-radius: 999px; background: linear-gradient(135deg, var(--rz-primary), var(--rz-primary-dark)); box-shadow: 0 10px 30px rgb(122 90 248 / 25%); color: #fff; border: 0; font-size: 14px; font-weight: 800; cursor: pointer; transition: transform 0.18s ease, box-shadow 0.18s ease; }
+.redesign .auth-form .primary-button:hover { transform: translateY(-1px); box-shadow: 0 14px 38px rgb(122 90 248 / 40%); }
+.redesign .auth-form__label { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.redesign .auth-form__label a, .redesign .auth-card__footer a { color: var(--rz-primary-light); font-weight: 750; text-decoration: none; }
+.redesign .auth-form__label a { font-size: 13px; }
+.redesign .auth-form__label a:hover, .redesign .auth-card__footer a:hover { text-decoration: underline; }
+.redesign .auth-card__footer { margin: 26px 0 0 !important; color: var(--rz-muted); font-size: 14px; text-align: center; }
+.redesign .auth-flash { margin-top: 22px; padding: 12px 14px; border: 1px solid rgb(67 215 198 / 40%); border-radius: 12px; background: rgb(67 215 198 / 8%); color: #d9fffa; font-size: 14px; line-height: 1.4; }
+.redesign .auth-flash--alert { border-color: rgb(255 121 146 / 40%); background: rgb(255 69 104 / 9%); color: #ffd7df; }
+.redesign .auth-card .form-errors { margin-top: 22px; padding: 12px 14px; border: 1px solid rgb(255 121 146 / 40%); border-radius: 12px; background: rgb(255 69 104 / 9%); color: #ffd7df; }
+.redesign .auth-card .form-errors h2 { font-size: 14px; margin: 0 0 6px; }
+.redesign .auth-card .form-errors ul { font-size: 14px; margin: 0; padding-left: 20px; }
+
+@media (max-width: 760px) {
+  .redesign .auth-page { padding: 24px 16px; place-items: start center; }
+  .redesign .auth-card { margin-top: clamp(24px, 8vh, 80px); padding: 28px 24px; border-radius: 23px; }
+  .redesign .auth-kicker { margin-top: 34px; }
+}
+
