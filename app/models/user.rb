@@ -17,6 +17,7 @@ class User < ApplicationRecord
   validates :ui_variant, inclusion: { in: UI_VARIANTS }
 
   before_create :assign_administrator_role, if: :first_user?
+  after_create :lock_registrations_if_first_admin, if: :admin?
 
   private
 
@@ -26,5 +27,13 @@ class User < ApplicationRecord
 
   def assign_administrator_role
     self.admin = true
+    @was_first_user = true
+  end
+
+  def lock_registrations_if_first_admin
+    return unless @was_first_user
+    return if ENV["SONZRA_OPEN_REGISTRATION"] == "true"
+
+    ApplicationSetting.instance.update!(registrations_enabled: false)
   end
 end
