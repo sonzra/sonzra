@@ -14,6 +14,7 @@ const MAX_PLAYBACK_RECOVERY_ATTEMPTS = 2
 const QUEUE_TRANSITION_DURATION = 320
 const LOOKAHEAD_BUFFER_THRESHOLD = 15
 const BACKGROUND_HANDOFF_THRESHOLD = 0.35
+const EXTENDED_IDLE_THRESHOLD_MS = 15 * 60 * 1000
 
 export default class extends Controller {
   static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "miniProgressBar", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "shuffle", "favorite", "radio", "volume", "clearDialog", "queueView", "lyricsView", "queueTab", "lyricsTab", "lyricsStatus", "lyricsList", "lyricsFollow", "visualizer", "wifiPreload", "trackSkip", "jumpBack", "jumpForward", "playbackRate", "muteButton", "muteIcon", "sleepButton", "sleepBadge", "sleepDialog"]
@@ -27,6 +28,7 @@ export default class extends Controller {
 
     this.shuffleMode = false
     this.shuffledIndices = []
+    this.pausedAt = null
     this.sleepTimerInterval = null
     this.sleepFadeInterval = null
     this.sleepTimerEndAt = null
@@ -123,6 +125,7 @@ export default class extends Controller {
     this.clearSleepTimer()
     this.setReconnectingState(false)
     this.cancelPreload()
+    this.pausedAt = null
     this.lyricsRequest?.abort()
     window.clearTimeout(this.lyricScrollTimeout)
   }
@@ -223,10 +226,29 @@ export default class extends Controller {
     if (!this.audioTarget.src) this.playCurrent()
   }
 
+  play() {
+    this.configureAudioSession()
+
+    if (!this.audioTarget.src) {
+      this.playCurrent()
+      return
+    }
+
+    if (this.audioTarget.paused) {
+      this.refreshStaleConnectionIfIdle()
+      this.playbackRequested = true
+      const playback = this.audioTarget.play()
+      this.monitorPlayback(playback)
+    }
+  }
+
   toggle() {
+    this.configureAudioSession()
+
     if (!this.audioTarget.src) return
 
     if (this.audioTarget.paused) {
+      this.refreshStaleConnectionIfIdle()
       this.playbackRequested = true
       const playback = this.audioTarget.play()
       this.monitorPlayback(playback)
@@ -235,6 +257,18 @@ export default class extends Controller {
       this.clearPlaybackRecovery()
       this.audioTarget.pause()
     }
+  }
+
+  refreshStaleConnectionIfIdle() {
+    if (!this.pausedAt || !this.hasAudioTarget || !this.audioTarget.src) return
+
+    const idleDuration = Date.now() - this.pausedAt
+    if (idleDuration > EXTENDED_IDLE_THRESHOLD_MS) {
+      const currentPosition = Number(this.audioTarget.currentTime) || this.pendingStartPosition || 0
+      this.pendingStartPosition = currentPosition
+      this.audioTarget.load()
+    }
+    this.pausedAt = null
   }
 
   seek(event) {
@@ -442,6 +476,7 @@ export default class extends Controller {
   }
 
   handlePlay() {
+    this.pausedAt = null
     this.setReconnectingState(false)
     this.syncPlayingState()
     this.startVisualizer()
@@ -455,6 +490,7 @@ export default class extends Controller {
   }
 
   handlePause() {
+    this.pausedAt = Date.now()
     this.playbackRequested = false
     this.cancelPreload()
     this.setReconnectingState(false)
@@ -624,6 +660,7 @@ export default class extends Controller {
     const track = this.queue[this.currentIndex]
     if (!track) return
 
+    this.configureAudioSession()
     this.cancelPreload()
     if (this.currentTrack && this.currentTrack !== track) this.reportPlayback("stopped")
     this.clearPlaybackRecovery()
@@ -684,6 +721,7 @@ export default class extends Controller {
     this.lyricsFollowing = true
     this.currentTrack = track
     this.hasReportedStart = false
+    this.pausedAt = null
     this.lastReportedPosition = 0
     this.playbackRecoveryAttempts = 0
     this.playbackRecoveryPosition = 0
@@ -1162,6 +1200,7 @@ export default class extends Controller {
     this.savedPosition = 0
     this.pendingStartPosition = 0
     this.hasReportedStart = false
+    this.pausedAt = null
     this.lastReportedPosition = 0
     this.playbackRequested = false
     this.clearPlaybackRecovery()
@@ -2216,7 +2255,17 @@ export default class extends Controller {
     render()
   }
 
+  isIOS() {
+    const nav = typeof navigator !== "undefined" ? navigator : null
+    if (!nav) return false
+    return (
+      /iPad|iPhone|iPod/.test(nav.userAgent || "") ||
+      (nav.platform === "MacIntel" && (nav.maxTouchPoints || 0) > 1)
+    )
+  }
+
   prepareVisualizer() {
+    if (this.isIOS()) return false
     if (this.visualizerAnalyser) return true
 
     const AudioContext = window.AudioContext || window.webkitAudioContext
@@ -2271,6 +2320,7 @@ export default class extends Controller {
       return
     }
 
+    this.configureAudioSession()
     this.reconcilePlayback()
   }
 

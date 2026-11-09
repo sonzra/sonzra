@@ -1638,6 +1638,161 @@ describe("player controller", () => {
     })
   })
 
+  describe("iOS background playback & audio session resilience", () => {
+    it("bypasses Web Audio createMediaElementSource on iOS devices and uses CSS animation fallback", () => {
+      const mockCreateMediaElementSource = vi.fn()
+      class MockAudioContext {
+        createAnalyser() {
+          return {
+            fftSize: 64,
+            smoothingTimeConstant: 0.72,
+            frequencyBinCount: 32,
+            connect: vi.fn(),
+            getByteFrequencyData: vi.fn()
+          }
+        }
+        createMediaElementSource(elem) {
+          mockCreateMediaElementSource(elem)
+          return { connect: vi.fn() }
+        }
+      }
+      vi.stubGlobal("AudioContext", MockAudioContext)
+      vi.stubGlobal("navigator", {
+        userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+        platform: "iPhone",
+        maxTouchPoints: 5
+      })
+
+      const visualizer = document.createElement("div")
+      visualizer.dataset.playerTarget = "visualizer"
+      visualizer.innerHTML = "<i></i><i></i><i></i>"
+      document.querySelector("[data-controller='player']").appendChild(visualizer)
+
+      expect(controller.isIOS()).toBe(true)
+      expect(controller.prepareVisualizer()).toBe(false)
+      controller.startVisualizer()
+
+      expect(mockCreateMediaElementSource).not.toHaveBeenCalled()
+      expect(visualizer.classList.contains("is-reactive")).toBe(false)
+    })
+
+    it("allows Web Audio createMediaElementSource on non-iOS desktop browsers", () => {
+      const mockCreateMediaElementSource = vi.fn(() => ({ connect: vi.fn() }))
+      class MockAudioContext {
+        createAnalyser() {
+          return {
+            fftSize: 64,
+            smoothingTimeConstant: 0.72,
+            frequencyBinCount: 32,
+            connect: vi.fn(),
+            getByteFrequencyData: vi.fn()
+          }
+        }
+        createMediaElementSource(elem) {
+          return mockCreateMediaElementSource(elem)
+        }
+      }
+      vi.stubGlobal("AudioContext", MockAudioContext)
+      vi.stubGlobal("navigator", {
+        userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        platform: "MacIntel",
+        maxTouchPoints: 0
+      })
+
+      expect(controller.isIOS()).toBe(false)
+      expect(controller.prepareVisualizer()).toBe(true)
+      expect(mockCreateMediaElementSource).toHaveBeenCalledWith(controller.audioTarget)
+      expect(controller.audioTarget.__sonzraVisualizerGraph).toBeDefined()
+    })
+
+    it("re-asserts navigator.audioSession.type = 'playback' on play(), toggle(), playCurrent(), and handleVisibilityChange()", () => {
+      const mockAudioSession = { type: "" }
+      vi.stubGlobal("navigator", { audioSession: mockAudioSession })
+      controller.audioTarget.play = vi.fn(() => Promise.resolve())
+
+      // 1. play()
+      mockAudioSession.type = ""
+      controller.play()
+      expect(mockAudioSession.type).toBe("playback")
+
+      // 2. toggle() when paused
+      mockAudioSession.type = ""
+      controller.audioTarget.src = "/audio/track.mp3"
+      Object.defineProperty(controller.audioTarget, "paused", { configurable: true, value: true })
+      controller.toggle()
+      expect(mockAudioSession.type).toBe("playback")
+
+      // 3. playCurrent()
+      mockAudioSession.type = ""
+      controller.queue = [{ source: "/audio/track-1.mp3", title: "Track 1" }]
+      controller.currentIndex = 0
+      controller.playCurrent()
+      expect(mockAudioSession.type).toBe("playback")
+
+      // 4. handleVisibilityChange() when visible
+      mockAudioSession.type = ""
+      Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" })
+      controller.handleVisibilityChange()
+      expect(mockAudioSession.type).toBe("playback")
+    })
+
+    it("flushes stale TCP sockets by reloading audioTarget when resuming after extended idle (>15 min)", () => {
+      const realNow = Date.now
+      let currentTime = 1000000000
+      vi.spyOn(Date, "now").mockImplementation(() => currentTime)
+
+      controller.audioTarget.src = "/audio/track.mp3"
+      controller.audioTarget.currentTime = 45
+      controller.audioTarget.load = vi.fn()
+      controller.audioTarget.play = vi.fn(() => Promise.resolve())
+      Object.defineProperty(controller.audioTarget, "paused", { configurable: true, value: true })
+
+      // Pause playback at t = 0
+      controller.handlePause()
+      expect(controller.pausedAt).toBe(currentTime)
+
+      // Fast forward by 16 minutes (> 15 min threshold)
+      currentTime += 16 * 60 * 1000
+
+      // Resume playback via toggle()
+      controller.toggle()
+
+      expect(controller.audioTarget.load).toHaveBeenCalled()
+      expect(controller.pendingStartPosition).toBe(45)
+      expect(controller.audioTarget.play).toHaveBeenCalled()
+      expect(controller.pausedAt).toBe(null)
+
+      Date.now = realNow
+    })
+
+    it("does not reload audioTarget when resuming after short idle (<15 min)", () => {
+      const realNow = Date.now
+      let currentTime = 1000000000
+      vi.spyOn(Date, "now").mockImplementation(() => currentTime)
+
+      controller.audioTarget.src = "/audio/track.mp3"
+      controller.audioTarget.currentTime = 45
+      controller.audioTarget.load = vi.fn()
+      controller.audioTarget.play = vi.fn(() => Promise.resolve())
+      Object.defineProperty(controller.audioTarget, "paused", { configurable: true, value: true })
+
+      // Pause playback
+      controller.handlePause()
+
+      // Fast forward by only 5 minutes (< 15 min threshold)
+      currentTime += 5 * 60 * 1000
+
+      // Resume playback via toggle()
+      controller.toggle()
+
+      expect(controller.audioTarget.load).not.toHaveBeenCalled()
+      expect(controller.audioTarget.play).toHaveBeenCalled()
+      expect(controller.pausedAt).toBe(null)
+
+      Date.now = realNow
+    })
+  })
+
   function addLyricsTargets() {
     document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", `
       <button data-player-target="queueTab"></button><button data-player-target="lyricsTab"></button>
