@@ -11,8 +11,8 @@ class RecommendationCollectionsControllerTest < ActionDispatch::IntegrationTest
     get recommendation_collections_url
     assert_response :success
     assert_select "h1", "Mixes"
-    assert_select ".listen-card.recommendation-card .listen-card__cover .listen-card__art", 1
-    assert_select ".listen-card.recommendation-card .listen-card__cover .listen-card__play", 1
+    assert_select ".redesign-mix-card .redesign-mix-card__cover .redesign-mix-card__art", 1
+    assert_select ".redesign-mix-card .redesign-mix-card__cover .redesign-mix-card__play", 1
 
     get recommendation_collection_url(@collection), headers: { "Accept" => "application/json" }
     payload = JSON.parse(response.body)
@@ -31,7 +31,6 @@ class RecommendationCollectionsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "uses the standalone redesign layout for every saved mix" do
-    users(:one).update!(ui_variant: "redesign")
     older_mix = RecommendationCollection.create!(user: users(:one), server_connection: @connection, strategy: "best_of_genre", period_date: Date.yesterday, title: "Yesterday's ambient", subtitle: "A previous session", generated_at: 1.day.ago)
     older_mix.recommendation_tracks.create!(item_id: "track-2", position: 1, title: "Older track", artist: "Artist", artwork_item_id: "track-2")
 

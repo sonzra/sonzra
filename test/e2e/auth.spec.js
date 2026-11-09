@@ -34,6 +34,6 @@ test.describe("Authentication flow", () => {
     await expect(player).toHaveAttribute("data-turbo-permanent", "")
 
     // Top navigation should be visible
-    await expect(page.locator("header")).toBeVisible()
+    await expect(page.locator("header.redesign-topbar")).toBeVisible()
   })
 })

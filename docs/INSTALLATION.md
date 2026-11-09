@@ -30,6 +30,10 @@ services:
       RAILS_ASSUME_SSL: "false"
       # Required only if anyone will add a Plex connection.
       # PLEX_CLIENT_ID: "generate-once-and-keep-this-uuid"
+      # Required in production to authorize offline sonic graph analyzer ingestion.
+      # ANALYZER_API_KEY: "generate-a-secure-random-token"
+      # Optional: set "true" to keep registration open after admin account creation.
+      # SONZRA_OPEN_REGISTRATION: "false"
       # Optional but recommended when supplied through a secret manager.
       # SONZRA_SECRET_KEY: "a-stable-secret"
     volumes:

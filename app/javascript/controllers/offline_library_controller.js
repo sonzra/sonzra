@@ -184,19 +184,16 @@ export default class extends Controller {
 
     menu.append(remove)
     options.append(toggle, menu)
-    if (this.isRedesign()) {
-      const cover = document.createElement("div")
-      cover.className = "offline-downloads__album-cover"
-      cover.append(open, play, options)
-      item.append(cover, details)
-    } else {
-      item.append(open, play, options, details)
-    }
+
+    const cover = document.createElement("div")
+    cover.className = "offline-downloads__album-cover"
+    cover.append(open, play, options)
+    item.append(cover, details)
     return item
   }
 
   isRedesign() {
-    return document.body.classList.contains("redesign")
+    return true
   }
 
   renderAlbumHero(album) {

@@ -6,12 +6,10 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h1", "Connect a server to browse your library."
-    assert_select "a[href='#{server_connections_path}']", "Connect Jellyfin"
+    assert_select "a.primary-button[href='#{server_connections_path}']", "Connect media server"
   end
 
   test "uses the redesigned collection setup state when no server exists" do
-    users(:one).update!(ui_variant: "redesign")
-
     get library_audiobooks_url
 
     assert_response :success
@@ -75,14 +73,13 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :success
-    assert_select "h1", "Recently played"
+    assert_select "h2", "Recently played"
     assert_select ".library-media-list__details a", "A track"
     assert_select ".library-media-list button[aria-label='Play A track']"
     assert_select ".library-media-list button[aria-label='Add A track to queue']"
   end
 
   test "renders artists page with infinite scroll layout and alphabet sidebar for jellyfin connection" do
-    users(:one).update!(ui_variant: "redesign")
     ServerConnection.create!(
       media_server: MediaServer.create!(name: "Home", provider: :jellyfin, base_url: "https://example.com"),
       username: "bruno",
@@ -121,7 +118,6 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "renders genre cards in the standalone redesign grid" do
-    users(:one).update!(ui_variant: "redesign")
     ServerConnection.create!(
       media_server: MediaServer.create!(name: "Home", provider: :jellyfin, base_url: "https://example.com"),
       username: "bruno",
@@ -157,7 +153,6 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "searches artists, albums, and tracks from the global search route" do
-    users(:one).update!(ui_variant: "redesign")
     connection = ServerConnection.create!(
       media_server: MediaServer.create!(name: "Home", provider: :jellyfin, base_url: "https://example.com"),
       username: "bruno",
@@ -202,7 +197,6 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "renders all favorite tracks with redesign actions" do
-    users(:one).update!(ui_variant: "redesign")
     connection = ServerConnection.create!(
       media_server: MediaServer.create!(name: "Home", provider: :jellyfin, base_url: "https://example.com"),
       username: "bruno",
@@ -246,10 +240,11 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
     assert_equal connection.id.to_s, session[:server_access_tokens].keys.first
   end
 
-  test "keeps the favorites route exclusive to the redesign" do
+  test "renders no_server when accessing favorites without a server connection" do
     get favorites_url
 
-    assert_redirected_to root_url
+    assert_response :success
+    assert_select "h1", "Connect a server to browse your library."
   end
 
   test "renders turbo stream append response for infinite scroll request" do
