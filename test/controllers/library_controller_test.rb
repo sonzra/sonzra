@@ -6,12 +6,10 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h1", "Connect a server to browse your library."
-    assert_select "a[href='#{server_connections_path}']", "Connect Jellyfin"
+    assert_select "a.primary-button[href='#{server_connections_path}']", "Connect media server"
   end
 
   test "uses the redesigned collection setup state when no server exists" do
-    users(:one).update!(ui_variant: "redesign")
-
     get library_audiobooks_url
 
     assert_response :success
@@ -56,7 +54,7 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
       password: "secret",
       user: users(:one)
     )
-    response = Integrations::Jellyfin::LibraryCollectionResponseData.new(
+    response = Integrations::LibraryCollectionResponseData.new(
       content: [ { "Id" => "track-1", "Name" => "A track", "Type" => "Audio" } ],
       total: 1,
       access_token: "token"
@@ -75,21 +73,20 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :success
-    assert_select "h1", "Recently played"
+    assert_select "h2", "Recently played"
     assert_select ".library-media-list__details a", "A track"
     assert_select ".library-media-list button[aria-label='Play A track']"
     assert_select ".library-media-list button[aria-label='Add A track to queue']"
   end
 
   test "renders artists page with infinite scroll layout and alphabet sidebar for jellyfin connection" do
-    users(:one).update!(ui_variant: "redesign")
     ServerConnection.create!(
       media_server: MediaServer.create!(name: "Home", provider: :jellyfin, base_url: "https://example.com"),
       username: "bruno",
       password: "secret",
       user: users(:one)
     )
-    response = Integrations::Jellyfin::LibraryCollectionResponseData.new(
+    response = Integrations::LibraryCollectionResponseData.new(
       content: [ { "Id" => "artist-1", "Name" => "Beatles", "Type" => "MusicArtist" } ],
       total: 100,
       access_token: "token"
@@ -121,14 +118,13 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "renders genre cards in the standalone redesign grid" do
-    users(:one).update!(ui_variant: "redesign")
     ServerConnection.create!(
       media_server: MediaServer.create!(name: "Home", provider: :jellyfin, base_url: "https://example.com"),
       username: "bruno",
       password: "secret",
       user: users(:one)
     )
-    response = Integrations::Jellyfin::LibraryCollectionResponseData.new(
+    response = Integrations::LibraryCollectionResponseData.new(
       content: [ { "Id" => "ambient", "Name" => "Ambient", "Type" => "MusicGenre" }, { "Id" => "jazz", "Name" => "Jazz", "Type" => "MusicGenre" } ],
       total: 2,
       access_token: "token"
@@ -157,7 +153,6 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "searches artists, albums, and tracks from the global search route" do
-    users(:one).update!(ui_variant: "redesign")
     connection = ServerConnection.create!(
       media_server: MediaServer.create!(name: "Home", provider: :jellyfin, base_url: "https://example.com"),
       username: "bruno",
@@ -174,7 +169,7 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
     client.define_singleton_method(:library_collection) do |collection, page:, query:, **|
       calls << [ collection, query ]
       items = query == "Beatles" ? results.fetch(collection, []) : []
-      Integrations::Jellyfin::LibraryCollectionResponseData.new(content: items, total: items.size, access_token: "token")
+      Integrations::LibraryCollectionResponseData.new(content: items, total: items.size, access_token: "token")
     end
 
     client_class = Integrations::Jellyfin::Client
@@ -202,14 +197,13 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "renders all favorite tracks with redesign actions" do
-    users(:one).update!(ui_variant: "redesign")
     connection = ServerConnection.create!(
       media_server: MediaServer.create!(name: "Home", provider: :jellyfin, base_url: "https://example.com"),
       username: "bruno",
       password: "secret",
       user: users(:one)
     )
-    response = Integrations::Jellyfin::LibraryCollectionResponseData.new(
+    response = Integrations::LibraryCollectionResponseData.new(
       content: [ { "Id" => "track-1", "Name" => "Come Together", "Type" => "Audio", "AlbumArtist" => "The Beatles", "RunTimeTicks" => 30_000_000, "UserData" => { "IsFavorite" => true } } ],
       total: 1,
       access_token: "token"
@@ -246,10 +240,11 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
     assert_equal connection.id.to_s, session[:server_access_tokens].keys.first
   end
 
-  test "keeps the favorites route exclusive to the redesign" do
+  test "renders no_server when accessing favorites without a server connection" do
     get favorites_url
 
-    assert_redirected_to root_url
+    assert_response :success
+    assert_select "h1", "Connect a server to browse your library."
   end
 
   test "renders turbo stream append response for infinite scroll request" do
@@ -259,7 +254,7 @@ class LibraryControllerTest < ActionDispatch::IntegrationTest
       password: "secret",
       user: users(:one)
     )
-    mock_data_response = Integrations::Jellyfin::LibraryCollectionResponseData.new(
+    mock_data_response = Integrations::LibraryCollectionResponseData.new(
       content: [ { "Id" => "artist-2", "Name" => "Coldplay", "Type" => "MusicArtist" } ],
       total: 100,
       access_token: "token"

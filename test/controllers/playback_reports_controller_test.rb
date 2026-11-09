@@ -3,7 +3,7 @@ require "test_helper"
 class PlaybackReportsControllerTest < ActionDispatch::IntegrationTest
   class FakeClient
     def report_playback(**)
-      Integrations::Jellyfin::PlaybackReportResponseData.new(access_token: "token")
+      Integrations::PlaybackReportResponseData.new(access_token: "token")
     end
   end
 

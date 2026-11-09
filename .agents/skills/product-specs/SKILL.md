@@ -72,7 +72,7 @@ When running for an epic that does not yet have a specification document:
 2. **Draft PRD Sections** using [resources/prd-template.md](./resources/prd-template.md):
    - **Problem Statement & User Persona**: Who is the listener, what is their situation, and what pain point is addressed?
    - **User Journey**: Step-by-step narrative of how the user discovers, configures, and experiences the feature.
-   - **Functional Requirements (`FR-1`, `FR-2`, etc.)**: Explicit, testable statements of behavior and capability.
+   - **Functional Requirements & Observable Acceptance Criteria (`FR-1`, `FR-2`, etc.)**: Explicit, testable statements of capability paired with observable user-facing acceptance criteria (Given/When/Then or concrete entry point -> visual feedback -> state change -> edge cases) without technical implementation details.
    - **Edge Cases & Failure Handling**: What happens during network disconnects, track transitions, app minimizes, or manual interruptions?
    - **UX & Screen States**: Describe the visual behavior of Inactive, Active, Expired, and Error states.
    - **Product Constraints**: E.g., audio playback must remain uninterrupted across page navigation; touch targets must be comfortable (>=44px).

@@ -1,7 +1,7 @@
 <main class="auth-page">
   <section class="auth-card">
     <%= link_to root_path, class: "auth-brand auth-brand--hero", aria: { label: "Sonzra" } do %><%= image_tag "/brand/sonzra-mark.svg", alt: "" %><span>sonzra</span><% end %>
-    <p class="auth-sign-in-copy">Create an account to keep your Jellyfin connection and listening history private.</p>
+    <p class="auth-sign-in-copy">Create an account to keep your media server connection and listening history private.</p>
     <%= render "shared/form_errors", record: @user %>
     <%= form_with model: @user, url: registration_path, class: "auth-form" do |form| %>
       <div class="field"><%= form.label :email_address, "Email address" %><%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "email" %></div>

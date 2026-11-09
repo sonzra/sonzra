@@ -39,7 +39,7 @@ class ServerConnectionsController < ApplicationController
     @media_server.save! if @media_server.new_record?
     session[:quick_connect] = quick_connect_session(@media_server)
     redirect_to quick_connect_server_connections_path
-  rescue Integrations::Jellyfin::Client::ConnectionError => error
+  rescue Integrations::ConnectionError => error
     @server_connection = current_user.server_connections.new(media_server: @media_server || MediaServer.new)
     @server_connection.errors.add(:base, error.message)
     render_new_connection(status: :unprocessable_entity)
@@ -83,7 +83,7 @@ class ServerConnectionsController < ApplicationController
     store_server_access_token(connection, authentication.fetch("AccessToken"))
     session.delete(:quick_connect)
     render json: { status: "connected", redirect_url: server_connections_path }
-  rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError, ActiveRecord::RecordInvalid => error
+  rescue Integrations::AuthenticationError, Integrations::ConnectionError, ActiveRecord::RecordInvalid => error
     render json: { status: "error", message: error.message }, status: :unprocessable_entity
   end
 
@@ -135,8 +135,7 @@ class ServerConnectionsController < ApplicationController
             end
             format.html { redirect_to @server_connection, notice: "Server reconnected." }
           end
-        rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError,
-               Integrations::Plex::Client::AuthenticationError, Integrations::Plex::Client::ConnectionError => error
+        rescue Integrations::AuthenticationError, Integrations::ConnectionError => error
           @server_connection.reload
           @server_connection.errors.add(:base, error.message)
           render :reconnect, status: :unprocessable_entity

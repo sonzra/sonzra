@@ -10,8 +10,8 @@ module Integrations
       CAPABILITIES = [ Integrations::Capabilities::SONIC_GRAPH ].freeze
       include Integrations::CapabilitySupport
 
-      AuthenticationError = Integrations::Jellyfin::Client::AuthenticationError
-      ConnectionError = Integrations::Jellyfin::Client::ConnectionError
+      class AuthenticationError < Integrations::AuthenticationError; end
+      class ConnectionError < Integrations::ConnectionError; end
 
       PLEX_CLOUD_URL = "https://plex.tv".freeze
       LONGFORM_LIBRARY_NAMES = { audiobook: "audiobooks", podcast: "podcasts" }.freeze
@@ -68,7 +68,7 @@ module Integrations
           recently_added_audiobooks: audiobooks,
           recently_added_podcasts: podcasts
         }
-        Integrations::Jellyfin::HomeContentResponseData.new(content:, access_token: @access_token)
+        Integrations::HomeContentResponseData.new(content:, access_token: @access_token)
       end
 
       def library_collection(collection, page:, query:, genre: nil, letter: nil)
@@ -122,7 +122,7 @@ module Integrations
         if kind
           normalized_item = normalize_item(item, kind:)
           details = { item: normalized_item, album: normalized_item, kind:, chapters: [], tracks: [], other_albums: [], similar_albums: [] }
-          return Integrations::Jellyfin::LibraryItemDetailsResponseData.new(details:, access_token: @access_token)
+          return Integrations::LibraryItemDetailsResponseData.new(details:, access_token: @access_token)
         end
 
         case normalized_item["Type"]
@@ -139,7 +139,7 @@ module Integrations
         else
           details = { item: normalized_item, album: normalized_item, tracks: [], other_albums: [], similar_albums: [] }
         end
-        Integrations::Jellyfin::LibraryItemDetailsResponseData.new(details:, access_token: @access_token)
+        Integrations::LibraryItemDetailsResponseData.new(details:, access_token: @access_token)
       end
 
       def playback_queue(item_id)
@@ -150,7 +150,7 @@ module Integrations
         when "playlist" then playlist_items(item_id)
         else [ normalize_item(item) ]
         end
-        Integrations::Jellyfin::PlaybackQueueResponseData.new(items:, access_token: @access_token)
+        Integrations::PlaybackQueueResponseData.new(items:, access_token: @access_token)
       end
 
       def instant_mix(item_id, limit: 12)
@@ -159,7 +159,7 @@ module Integrations
         items = genre_radio_tracks(seed, limit) if items.empty?
         items = library_radio_tracks(seed, limit) if items.empty?
         items = items.reject { |item| item["Id"] == item_id.to_s || item.dig("AlbumArtists", 0, "Id") == seed["grandparentRatingKey"].to_s }.first(limit)
-        Integrations::Jellyfin::PlaybackQueueResponseData.new(items:, access_token: @access_token)
+        Integrations::PlaybackQueueResponseData.new(items:, access_token: @access_token)
       end
 
       def recommendation_tracks(strategy, period_date, excluded_genres: [])
@@ -213,12 +213,12 @@ module Integrations
 
       def lyrics(item_id)
         stream = lyric_stream(metadata(item_id))
-        return Integrations::Jellyfin::LyricsResponseData.new(lines: [], access_token: @access_token, available: false) unless stream
+        return Integrations::LyricsResponseData.new(lines: [], access_token: @access_token, available: false) unless stream
 
         response = request(:get, "#{@base_url}#{stream.fetch("key")}", allow_not_found: true)
-        return Integrations::Jellyfin::LyricsResponseData.new(lines: [], access_token: @access_token, available: false) if response.code == "404"
+        return Integrations::LyricsResponseData.new(lines: [], access_token: @access_token, available: false) if response.code == "404"
 
-        Integrations::Jellyfin::LyricsResponseData.new(lines: parsed_lyrics(response.body), access_token: @access_token, available: true)
+        Integrations::LyricsResponseData.new(lines: parsed_lyrics(response.body), access_token: @access_token, available: true)
       end
 
       def playlists
@@ -231,6 +231,10 @@ module Integrations
 
         response = request(:post, "#{@base_url}/playlists", params: { type: "audio", title: name, smart: 0, uri: playlist_uri(ids) })
         created_playlist_id(response, name) || raise(ConnectionError, "Plex created the playlist but did not return its ID.")
+      end
+
+      def artist_track_ids(artist_id)
+        artist_albums(artist_id).flat_map { |album| children(album.fetch("Id"), type: 10) }.map { |item| item["Id"] }
       end
 
       def add_to_playlist(playlist_id:, item_ids: nil, item_id: nil)
@@ -255,7 +259,7 @@ module Integrations
         raise ConnectionError, "Plex could not find artwork for this item." if thumbnail_path.blank?
 
         response = request(:get, "#{@base_url}#{thumbnail_path}")
-        Integrations::Jellyfin::ArtworkResponseData.new(body: response.body, content_type: response["Content-Type"] || "image/jpeg")
+        Integrations::ArtworkResponseData.new(body: response.body, content_type: response["Content-Type"] || "image/jpeg")
       end
 
       def stream_audio(item_id:, range:, access_token: nil)
@@ -271,7 +275,7 @@ module Integrations
             raise AuthenticationError, "Session expired." if response.code == "401"
             raise ConnectionError, "Plex returned HTTP #{response.code}." unless response.is_a?(Net::HTTPSuccess) || response.code == "206"
 
-            yield Integrations::Jellyfin::AudioStreamResponseData.new(
+            yield Integrations::AudioStreamResponseData.new(
               body: nil,
               accept_ranges: response["Accept-Ranges"],
               content_type: response["Content-Type"] || "audio/mpeg",
@@ -290,13 +294,13 @@ module Integrations
         @access_token = access_token if access_token.present?
         duration_ticks = metadata(item_id).fetch("duration", 0).to_i * 10_000 if duration_ticks.to_i.zero?
         playback_reporter.report(event:, item_id:, position_ticks:, paused:, duration_ticks:)
-        Integrations::Jellyfin::PlaybackReportResponseData.new(access_token: @access_token)
+        Integrations::PlaybackReportResponseData.new(access_token: @access_token)
       end
 
       def update_playback_position(item_id:, position_ticks:, access_token: nil)
         @access_token = access_token if access_token.present?
         playback_reporter.reset(item_id) if position_ticks.to_i.zero?
-        Integrations::Jellyfin::PlaybackReportResponseData.new(access_token: @access_token)
+        Integrations::PlaybackReportResponseData.new(access_token: @access_token)
       end
 
       def update_favorite(item_id:, favorite:)
@@ -401,7 +405,7 @@ module Integrations
       end
 
       def collection_response(items, page:, total:)
-        Integrations::Jellyfin::LibraryCollectionResponseData.new(content: items, total:, access_token: @access_token)
+        Integrations::LibraryCollectionResponseData.new(content: items, total:, access_token: @access_token)
       end
 
       def metadata(item_id)

@@ -2,7 +2,7 @@ class ApplicationController < ActionController::Base
   include Authentication
   allow_browser versions: :modern
 
-  helper_method :registrations_enabled?, :current_server_connection, :redesign_enabled?, :current_device_id, :connection_alert_server_connection
+  helper_method :registrations_enabled?, :current_server_connection, :current_device_id, :connection_alert_server_connection
 
   private
 
@@ -48,6 +48,9 @@ class ApplicationController < ActionController::Base
   end
 
   def registrations_enabled?
+    return false if ENV["SONZRA_OPEN_REGISTRATION"] == "false"
+    return true if ENV["SONZRA_OPEN_REGISTRATION"] == "true"
+
     ApplicationSetting.instance.registrations_enabled?
   end
 
@@ -59,9 +62,5 @@ class ApplicationController < ActionController::Base
     selected ||= connections.first
     session[:active_server_connection_id] = selected.id if selected
     selected
-  end
-
-  def redesign_enabled?
-    authenticated? && current_user.ui_variant == "redesign"
   end
 end

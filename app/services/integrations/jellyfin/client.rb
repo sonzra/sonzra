@@ -10,8 +10,8 @@ module Integrations
       CAPABILITIES = [ Integrations::Capabilities::LETTER_FILTERING, Integrations::Capabilities::SONIC_GRAPH ].freeze
       include Integrations::CapabilitySupport
 
-      class AuthenticationError < StandardError; end
-      class ConnectionError < StandardError; end
+      class AuthenticationError < Integrations::AuthenticationError; end
+      class ConnectionError < Integrations::ConnectionError; end
 
       def initialize(base_url:, username: nil, password: nil, access_token: nil, remote_user_id: nil, http: Net::HTTP, on_token_refreshed: nil, device_id: nil)
         @base_url = base_url
@@ -342,6 +342,13 @@ module Integrations
         request.body = { Name: name, UserId: session.dig("User", "Id"), MediaType: "Audio" }.to_json
         ensure_success!(response = perform(request))
         JSON.parse(response.body).fetch("Id")
+      end
+
+      def artist_track_ids(artist_id)
+        session = authentication
+        user_id = session.fetch("User").fetch("Id")
+        token = session.fetch("AccessToken")
+        all_items(user_id, token, sort_order: "Ascending", IncludeItemTypes: "Audio", ArtistIds: artist_id).map { |item| item["Id"] }
       end
 
       def add_to_playlist(playlist_id:, item_ids: nil, item_id: nil)

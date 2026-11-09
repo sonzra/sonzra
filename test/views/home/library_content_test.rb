@@ -22,7 +22,7 @@ class HomeLibraryContentTest < ActionView::TestCase
     }
 
     assert_select ".genre-explorer__grid .genre-tile", 9
-    assert_select ".genre-explorer__grid .genre-tile:last-child.genre-tile--all", "Browse all genres"
+    assert_select ".genre-explorer__grid .genre-tile:last-child.genre-tile--all", "All genres"
     assert_select "#genre_tile_ambient"
     assert_select "#genre_tile_ambient button[aria-label='Hide genre Ambient']"
     assert_select ".genre-explorer__all-link", 0

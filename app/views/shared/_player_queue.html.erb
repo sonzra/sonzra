@@ -1,12 +1,8 @@
 <section id="player-queue" class="listen-queue" data-player-target="queuePanel" data-turbo-permanent hidden>
-  <% if redesign_enabled? %>
-    <header class="redesign-queue-header">
-      <div><p class="eyebrow">Up next</p><h2>Queue</h2></div>
-      <button type="button" class="listen-queue__close" aria-label="Close queue" data-action="player#toggleQueue"><%= lucide_icon "x", aria: { hidden: true } %></button>
-    </header>
-  <% else %>
+  <header class="redesign-queue-header">
+    <div><p class="eyebrow">Up next</p><h2>Queue</h2></div>
     <button type="button" class="listen-queue__close" aria-label="Close queue" data-action="player#toggleQueue"><%= lucide_icon "x", aria: { hidden: true } %></button>
-  <% end %>
+  </header>
   <div class="listen-queue__now-playing">
     <img data-player-target="expandedArtwork" src="/brand/sonzra-mark.svg" alt="">
     <div class="listen-queue__now-playing-info"><p data-player-target="expandedTitle">Choose something to play</p><span data-player-target="expandedArtist">Your player will stay here</span></div>

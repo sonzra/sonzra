@@ -1,37 +1,52 @@
-<% if redesign_enabled? %>
-  <%= render "redesign_collection" %>
-<% else %>
-<main class="settings-shell">
+<main class="redesign-library-page">
   <% if @result.success? %>
     <% shelf_collection = @collection.in?([ :recently_played, :most_played_songs, :recently_added_albums ]) %>
     <% infinite_collection = @collection.in?([ :albums, :artists ]) %>
-    <section class="settings-intro library-page-intro <%= "library-page-intro--compact" if shelf_collection %>"><span class="eyebrow">Your library</span><div class="page-title"><%= link_to root_path, class: "back-link back-link--compact", aria: { label: "Back to home" }, title: "Back to home" do %><%= lucide_icon "arrow-left", aria: { hidden: true } %><% end %><h1><%= @title %></h1><%= render "shared/library_search", title: @title, path: request.path, query: @query, genre: @genre unless shelf_collection %></div><%= render "shared/redesign_library_tabs" if redesign_enabled? && !shelf_collection %></section>
-    <% if shelf_collection %>
-      <%= render "music_shelf_collection" %>
-    <% elsif infinite_collection %>
-      <div class="library-page-layout <%= "library-page-layout--browsable" if @supports_letter_filtering %>"
-           data-controller="library-pagination"
-           data-library-pagination-has-more-value="<%= @result.has_more %>"
-           data-library-pagination-page-value="<%= @page %>"
-           data-library-pagination-letter-value="<%= @letter %>"
-           data-library-pagination-url-value="<%= request.path %>">
-        <div class="library-grid-wrapper">
-          <div class="library-grid" id="library-grid" data-library-pagination-target="grid">
-            <%= render "grid_items", items: @result.items, server_connection: @server_connection %>
-          </div>
-          <div data-library-pagination-target="sentinel" class="library-infinite-sentinel" aria-hidden="true"></div>
-          <%= render "scroll_state", has_more: @result.has_more, page: @page, letter: @letter %>
+
+    <header class="redesign-library-heading">
+      <div>
+        <p class="eyebrow">Your collection</p>
+        <h1>Library</h1>
+        <p>Everything on your server, beautifully organized.</p>
+      </div>
+    </header>
+
+    <%= render "shared/redesign_library_tabs" unless shelf_collection %>
+
+    <section class="redesign-library-content" aria-labelledby="library-collection-title">
+      <div class="redesign-library-content__heading">
+        <div>
+          <p class="eyebrow">Browse</p>
+          <h2 id="library-collection-title"><%= @title %></h2>
         </div>
-        <% if @supports_letter_filtering %>
-          <%= render "alphabet_sidebar" %>
-        <% end %>
+        <%= render "shared/library_search", title: @title, path: request.path, query: @query, genre: @genre unless shelf_collection %>
       </div>
-    <% else %>
-      <div class="library-grid">
-        <%= render "grid_items", items: @result.items, server_connection: @server_connection %>
-      </div>
-      <nav class="library-pagination"><%= link_to "← Previous", url_for(page: @page - 1, q: @query, genre: @genre), class: "secondary-button" if @page > 1 %><span>Page <%= @page %> of <%= [(@result.total / Library::Pagination::PAGE_SIZE.to_f).ceil, 1].max %></span><%= link_to "Next →", url_for(page: @page + 1, q: @query, genre: @genre), class: "secondary-button" if @page * Library::Pagination::PAGE_SIZE < @result.total %></nav>
-    <% end %>
+
+      <% if shelf_collection %>
+        <%= render "music_shelf_collection" %>
+      <% elsif infinite_collection %>
+        <div class="redesign-library-layout library-page-layout <%= "library-page-layout--browsable" if @supports_letter_filtering %>"
+             data-controller="library-pagination"
+             data-library-pagination-has-more-value="<%= @result.has_more %>"
+             data-library-pagination-page-value="<%= @page %>"
+             data-library-pagination-letter-value="<%= @letter %>"
+             data-library-pagination-url-value="<%= request.path %>">
+          <div class="library-grid-wrapper">
+            <div class="library-grid redesign-library-grid" id="library-grid" data-library-pagination-target="grid">
+              <%= render "grid_items", items: @result.items, server_connection: @server_connection %>
+            </div>
+            <div data-library-pagination-target="sentinel" class="library-infinite-sentinel" aria-hidden="true"></div>
+            <%= render "scroll_state", has_more: @result.has_more, page: @page, letter: @letter %>
+          </div>
+          <%= render "alphabet_sidebar" if @supports_letter_filtering %>
+        </div>
+      <% else %>
+        <div class="library-grid redesign-library-grid">
+          <%= render "grid_items", items: @result.items, server_connection: @server_connection %>
+        </div>
+        <nav class="library-pagination"><%= link_to "← Previous", url_for(page: @page - 1, q: @query, genre: @genre), class: "secondary-button" if @page > 1 %><span>Page <%= @page %> of <%= [(@result.total / Library::Pagination::PAGE_SIZE.to_f).ceil, 1].max %></span><%= link_to "Next →", url_for(page: @page + 1, q: @query, genre: @genre), class: "secondary-button" if @page * Library::Pagination::PAGE_SIZE < @result.total %></nav>
+      <% end %>
+    </section>
   <% else %>
     <section class="listen-loading listen-loading--error" role="alert">
       <h1>We couldn’t load your <%= @title.downcase %>.</h1>
@@ -45,4 +60,3 @@
     </section>
   <% end %>
 </main>
-<% end %>

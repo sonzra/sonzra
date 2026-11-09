@@ -1,7 +1,7 @@
 {
   "name": "Sonzra",
   "short_name": "Sonzra",
-  "description": "A self-hosted Jellyfin player for music, podcasts, and audiobooks.",
+  "description": "A self-hosted media server player for music, podcasts, and audiobooks (Jellyfin & Plex).",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0c0c16",

@@ -32,8 +32,6 @@ class LibraryController < ApplicationController
   end
 
   def favorites
-    return redirect_to(root_path) unless redesign_enabled?
-
     @server_connection = current_server_connection
     return render :no_server unless @server_connection
 
@@ -88,8 +86,6 @@ class LibraryController < ApplicationController
   private
 
   def load_redesign_library_tab_counts
-    return unless redesign_enabled?
-
     server_connection = current_server_connection
     return unless server_connection
 

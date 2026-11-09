@@ -4,11 +4,11 @@ class SonicGraphsController < ApplicationController
   ARTIST_EDGE_SAMPLE_SIZE = 3
   ARTIST_MINIMUM_EVIDENCE = 2
 
-  rescue_from Integrations::Jellyfin::Client::AuthenticationError, Integrations::Plex::Client::AuthenticationError do
+  rescue_from Integrations::AuthenticationError do
     redirect_to server_connections_path, alert: "Your server session expired. Please re-authenticate your server connection."
   end
 
-  rescue_from Integrations::Jellyfin::Client::ConnectionError, Integrations::Plex::Client::ConnectionError do |error|
+  rescue_from Integrations::ConnectionError do |error|
     respond_to do |format|
       format.html { redirect_to server_connections_path, alert: "Could not connect to media server: #{error.message}" }
       format.json { render json: { error: error.message }, status: :bad_gateway }

@@ -12,7 +12,7 @@ class Library::TabCountsTest < ActiveSupport::TestCase
     calls = []
     client.define_singleton_method(:library_collection) do |collection, **|
       calls << collection
-      Integrations::Jellyfin::LibraryCollectionResponseData.new(content: [], total: collection.to_s.length, access_token: "token")
+      Integrations::LibraryCollectionResponseData.new(content: [], total: collection.to_s.length, access_token: "token")
     end
 
     client_class = Integrations::Client

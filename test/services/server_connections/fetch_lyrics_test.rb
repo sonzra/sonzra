@@ -2,7 +2,7 @@ require "test_helper"
 
 class ServerConnections::FetchLyricsTest < ActiveSupport::TestCase
   test "normalizes timed lyrics into browser seconds" do
-    response = Integrations::Jellyfin::LyricsResponseData.new(
+    response = Integrations::LyricsResponseData.new(
       lines: [ { "Text" => " First line ", "Start" => 25_000_000 }, { "Text" => "Second line", "Start" => 45_000_000 } ],
       access_token: "token",
       available: true
@@ -19,7 +19,7 @@ class ServerConnections::FetchLyricsTest < ActiveSupport::TestCase
   end
 
   test "does not expose a single URL-like lyric line" do
-    response = Integrations::Jellyfin::LyricsResponseData.new(
+    response = Integrations::LyricsResponseData.new(
       lines: [ { "Text" => "b3n4.multiply.com collections" } ],
       access_token: "token",
       available: true
@@ -35,7 +35,7 @@ class ServerConnections::FetchLyricsTest < ActiveSupport::TestCase
   end
 
   test "preserves grouped synchronized lyric text under its original timestamp" do
-    response = Integrations::Jellyfin::LyricsResponseData.new(
+    response = Integrations::LyricsResponseData.new(
       lines: [
         { "Text" => "First visual line\nSecond visual line", "Start" => 10_000_000 },
         { "Text" => "Third visual line", "Start" => 30_000_000 }

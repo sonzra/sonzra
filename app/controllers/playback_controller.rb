@@ -11,11 +11,11 @@ class PlaybackController < ApplicationController
       range: request.headers["Range"],
       access_token: token
     ) do |part|
-      part.is_a?(Integrations::Jellyfin::AudioStreamResponseData) ? start_stream(part) : response.stream.write(part)
+      part.is_a?(Integrations::AudioStreamResponseData) ? start_stream(part) : response.stream.write(part)
     end
-  rescue Integrations::Jellyfin::Client::AuthenticationError
+  rescue Integrations::AuthenticationError
     head :unauthorized
-  rescue Integrations::Jellyfin::Client::ConnectionError
+  rescue Integrations::ConnectionError
     head :bad_gateway
   rescue ActionController::Live::ClientDisconnected
   ensure
@@ -35,8 +35,12 @@ class PlaybackController < ApplicationController
   end
 
   def require_playback_access
+    if analyzer_request?
+      head :unauthorized unless valid_analyzer_token?
+      return
+    end
+
     return if authenticated?
-    return if analyzer_request? && valid_analyzer_token?
 
     request_authentication
   end
@@ -46,7 +50,14 @@ class PlaybackController < ApplicationController
   end
 
   def valid_analyzer_token?
-    expected_token = ENV.fetch("ANALYZER_API_KEY", "development_analyzer_token")
+    expected_token = if Rails.env.production?
+      ENV["ANALYZER_API_KEY"].presence
+    else
+      ENV["ANALYZER_API_KEY"].presence || "development_analyzer_token"
+    end
+
+    return false if expected_token.blank?
+
     ActiveSupport::SecurityUtils.secure_compare(request.headers["X-Sonzra-Analyzer-Token"].to_s, expected_token)
   end
 

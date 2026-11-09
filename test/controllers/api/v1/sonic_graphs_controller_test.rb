@@ -102,6 +102,56 @@ module Api
         assert_not TrackSimilarity.exists?(server_connection: @server_connection, from_item_id: "track-1", to_item_id: "old-track")
         assert TrackSimilarity.exists?(server_connection: @server_connection, from_item_id: "track-1", to_item_id: "new-track")
       end
+
+      test "rejects analyzer access in production when ANALYZER_API_KEY is unset" do
+        with_rails_env("production") do
+          with_env("ANALYZER_API_KEY" => nil) do
+            get status_api_v1_sonic_graph_url, headers: { "X-Sonzra-Analyzer-Token" => @token }
+            assert_response :unauthorized
+            assert_equal "Unauthorized analyzer token", JSON.parse(response.body)["message"]
+          end
+        end
+      end
+
+      test "accepts valid analyzer token in production when ANALYZER_API_KEY is configured" do
+        with_rails_env("production") do
+          with_env("ANALYZER_API_KEY" => "custom_prod_key") do
+            get status_api_v1_sonic_graph_url, headers: { "X-Sonzra-Analyzer-Token" => "custom_prod_key" }
+            assert_response :success
+          end
+        end
+      end
+
+      private
+
+      def with_rails_env(env)
+        old = Rails.env
+        Rails.env = ActiveSupport::StringInquirer.new(env)
+        yield
+      ensure
+        Rails.env = old
+      end
+
+      def with_env(hash)
+        old = {}
+        hash.each do |k, v|
+          old[k] = ENV[k]
+          if v.nil?
+            ENV.delete(k)
+          else
+            ENV[k] = v
+          end
+        end
+        yield
+      ensure
+        old.each do |k, v|
+          if v.nil?
+            ENV.delete(k)
+          else
+            ENV[k] = v
+          end
+        end
+      end
     end
   end
 end

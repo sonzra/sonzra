@@ -11,7 +11,7 @@ module ServerConnections
     def call
       response = client.playback_queue(@item_id)
       FetchPlaybackQueueResultData.new(items: response.items, access_token: response.access_token, message: nil)
-    rescue Integrations::Jellyfin::Client::AuthenticationError, Integrations::Jellyfin::Client::ConnectionError => error
+    rescue Integrations::AuthenticationError, Integrations::ConnectionError => error
       FetchPlaybackQueueResultData.new(items: [], access_token: nil, message: error.message.presence || "Could not prepare playback.")
     end
 
