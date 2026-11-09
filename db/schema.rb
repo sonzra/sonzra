@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_05_200000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_05_204200) do
   create_table "application_settings", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.boolean "registrations_enabled", default: true, null: false
@@ -175,17 +175,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_05_200000) do
     t.index ["server_connection_id"], name: "index_track_similarities_on_server_connection_id"
   end
 
-  create_table "tv_device_sessions", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.datetime "expires_at", null: false
-    t.datetime "last_used_at"
-    t.string "token_digest", null: false
-    t.datetime "updated_at", null: false
-    t.integer "user_id", null: false
-    t.index ["token_digest"], name: "index_tv_device_sessions_on_token_digest", unique: true
-    t.index ["user_id"], name: "index_tv_device_sessions_on_user_id"
-  end
-
   create_table "users", force: :cascade do |t|
     t.boolean "admin", default: false, null: false
     t.datetime "created_at", null: false
@@ -215,6 +204,5 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_05_200000) do
   add_foreign_key "sessions", "users"
   add_foreign_key "sonic_graph_nodes", "server_connections"
   add_foreign_key "track_similarities", "server_connections"
-  add_foreign_key "tv_device_sessions", "users"
   add_foreign_key "users", "server_connections", column: "preferred_server_connection_id"
 end

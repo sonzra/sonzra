@@ -48,6 +48,9 @@ class ApplicationController < ActionController::Base
   end
 
   def registrations_enabled?
+    return false if ENV["SONZRA_OPEN_REGISTRATION"] == "false"
+    return true if ENV["SONZRA_OPEN_REGISTRATION"] == "true"
+
     ApplicationSetting.instance.registrations_enabled?
   end
 
