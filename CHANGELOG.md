@@ -4,21 +4,41 @@
 
 No changes yet.
 
-## 1.0.0 — 2026-11-05
+## 1.0.0 — 2026-11-09
 
 ### Added
 
-- Multi-architecture container image builds supporting both `linux/amd64` and `linux/arm64` published to GitHub Container Registry.
-- Playwright End-to-End browser test automation in GitHub Actions CI workflow covering authentication and playlist operations.
-- Full playlist addition management for single tracks, complete albums, recommendation mixes, and entire artist discographies.
-- Canonical `Integrations::AuthenticationError` and `Integrations::ConnectionError` exception hierarchy.
+- **Market-Parity Audio Features:**
+  - Transport shuffle mode allowing randomized playback across active queues, albums, and playlists (#23).
+  - Playback speed controls ranging from 0.8x to 2.0x with pitch-preservation (#23).
+  - Skip 15s backward and 30s forward transport controls for longform audio like podcasts and audiobooks (#23).
+  - Multi-disc album grouping headers (`Disc 1`, `Disc 2`) for multi-volume collections (#23).
+  - Global desktop keyboard shortcuts for transport controls: toggle (`Space`), seek/scrub (`ArrowLeft`/`ArrowRight`), volume (`ArrowUp`/`ArrowDown`), mute (`M`), shuffle (`S`), and repeat (`R`) (#23).
+  - Sleep timer with configurable countdown intervals (5m, 15m, 30m, 45m, 60m, end of track) featuring smooth volume fade-out (#23).
+- **Playlist Additions & Management:** Add individual tracks, complete albums, recommendation mixes, and entire artist discographies to existing or newly created playlists with touch-accessible redesign dialogs (#4, #5, #18).
+- **Standalone PWA Offline Recovery UI:** Self-contained dark-theme HTML recovery interface for WebKit standalone PWAs when disconnected from the network, replacing raw text 503 error responses (#22, #25).
+- **Multi-Architecture Container Images:** Container image builds supporting both `linux/amd64` and `linux/arm64` published to GitHub Container Registry (`ghcr.io/sonzra/sonzra:1.0.0`) (#18).
+- **Playwright End-to-End Automation:** Comprehensive Playwright browser test automation integrated into GitHub Actions CI covering authentication, persistent player continuity, offline recovery, and playlist operations (#18).
+- **Security & Concurrency Hardening:** Development fallback keys for Active Record encryption, SQLite concurrency pragma configuration (`PRAGMA busy_timeout = 5000`, `synchronous = normal`, `journal_mode = wal`), and fail-closed analyzer token verification in production (#16).
+- **Canonical Integration Architecture:** Independent, canonical `Integrations::AuthenticationError` and `Integrations::ConnectionError` exception hierarchy (#18).
 
 ### Changed
 
-- Decoupled media server adapters into provider-neutral immutable DTOs (`Integrations::*ResponseData`), eliminating direct cross-provider dependencies between Plex and Jellyfin.
-- Updated `public/manifest.json` description to represent multi-provider streaming support (Jellyfin & Plex).
-- Updated security disclosure contact information in `SECURITY.md`.
-- Updated Docker configuration and documentation across `README.md` and `docs/INSTALLATION.md` to reference `1.0.0`.
+- **Universal Redesign Theme:** Completed legacy UI removal and transitioned universally to the standalone `.redesign` design system. Removed all 26 legacy stylesheets, duplicate partials, and the legacy `ui_variant` database column (#17).
+- **Hexagonal Architecture Decoupling:** Decoupled media server adapters into provider-neutral immutable DTOs (`Integrations::*ResponseData`), eliminating direct cross-provider inheritance or aliasing between Plex and Jellyfin (#18).
+- **PWA Cache Alignment:** Unified cache keys across `service-worker.js` and `offline_media_store.js` to `sonzra-offline-shell-v3` and `sonzra-offline-assets-v2`, automatically purging legacy caches upon activation (#22, #25).
+- **Provider-Neutral Empty States:** Updated empty state copy, illustrations, and onboarding messaging across all views to natively represent multi-provider streaming support (Jellyfin & Plex).
+- **Documentation & Deployment Synchronization:** Updated installation guides, Docker Compose configurations, and security contact policies to reflect the 1.0.0 release.
+
+### Fixed
+
+- **Authentication Page & Action Button Styling:** Ported authentication page layout, container cards, branding constraints, and primary gradient buttons into `redesign.css` with canonical design tokens (#29).
+- **iOS PWA WebKit Background Queue Advancement:** Mitigated WebKit background timer freezes via lookahead checks in `timeupdate` (~0.35s before duration) while audio decoding is sustained, preloading upcoming tracks into cache (#20, #24, #27).
+- **iOS PWA AudioSession Re-Arming:** Re-asserted `navigator.audioSession.type = "playback"` on user play interactions and visibility restore to preserve background audio after idle pauses (#21, #26, #27).
+- **PWA Auto-Reconnect on App/VPN Switches:** Added `visibilitychange` and `focus` event listeners to offline connection controllers to restore online state immediately upon app foregrounding (#22, #25, #28).
+- **Mobile Track Timeline Scrubber:** Restored touch-accessible seek and scrubbing on mobile screens preserving 44x44px ergonomic touch targets.
+- **Brakeman HTTP Verb Confusion:** Resolved Brakeman warning by handling `HEAD` requests alongside `GET` in authentication redirects (#16).
+- **Orphan Schema Cleanup:** Dropped orphaned `tv_device_sessions` database table (#16).
 
 ## 0.0.21-alpha — 2026-11-05
 
