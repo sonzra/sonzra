@@ -4,6 +4,17 @@
 
 No changes yet.
 
+## 1.0.1 — 2026-11-09
+
+### Fixed
+
+- **Responsive Top Bar Sizing & Overflow on Mid-Sized Screens:**
+  - Prevented vertical wrapping of the `<kbd>⌘ K</kbd>` search shortcut badge by adding `white-space: nowrap` and `flex-shrink: 0` (#2, #31).
+  - Added small desktop breakpoint (`<=1060px`) that suppresses the redundant server connection pill and search shortcut badge to prevent actions cluster collision with center navigation links (#2, #31).
+  - Added tablet tier breakpoint (`<=980px`) condensing primary navigation links and profile toggle to ergonomic 38x38px icon buttons, reducing topbar footprint to 412px and ensuring zero viewport overflow or clipping on 768px iPad screens (#2, #31).
+  - Added `aria-label` attributes to primary links in `_navigation.html.erb` preserving complete screen reader accessibility when text labels are hidden (#2, #31).
+  - Added Playwright responsive test automation in `test/e2e/topbar_responsive.spec.js` asserting zero overflow across desktop, tablet, and mobile viewports (#2, #31).
+
 ## 1.0.0 — 2026-11-09
 
 ### Added
