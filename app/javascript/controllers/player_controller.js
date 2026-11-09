@@ -13,6 +13,7 @@ const PLAYBACK_RECOVERY_DELAY = 8_000
 const MAX_PLAYBACK_RECOVERY_ATTEMPTS = 2
 const QUEUE_TRANSITION_DURATION = 320
 const LOOKAHEAD_BUFFER_THRESHOLD = 15
+const BACKGROUND_HANDOFF_THRESHOLD = 0.35
 
 export default class extends Controller {
   static targets = ["shell", "audio", "artwork", "title", "artist", "toggle", "timeline", "elapsed", "duration", "miniProgress", "miniProgressBar", "queuePanel", "queueList", "queueFeedback", "expandedArtwork", "expandedTitle", "expandedArtist", "expandedToggle", "expandedTimeline", "expandedElapsed", "expandedDuration", "repeat", "shuffle", "favorite", "radio", "volume", "clearDialog", "queueView", "lyricsView", "queueTab", "lyricsTab", "lyricsStatus", "lyricsList", "lyricsFollow", "visualizer", "wifiPreload", "trackSkip", "jumpBack", "jumpForward", "playbackRate", "muteButton", "muteIcon", "sleepButton", "sleepBadge", "sleepDialog"]
@@ -404,6 +405,19 @@ export default class extends Controller {
     })
     this.updateProgress(this.audioTarget.currentTime, duration)
     this.syncBrowserMediaPosition()
+
+    if (!this.audioTarget.paused && !this.advancingQueue && duration > 0 && (duration - this.audioTarget.currentTime) <= BACKGROUND_HANDOFF_THRESHOLD) {
+      const hasNextTrack = this.repeatMode === "one" ||
+                           this.repeatMode === "all" ||
+                           this.currentIndex < this.queue.length - 1 ||
+                           this.radioEnabled ||
+                           (this.shuffleMode && this.shuffledIndices?.length > 0)
+      if (hasNextTrack) {
+        this.playNext()
+        return
+      }
+    }
+
     this.maybePreloadNextTrack()
     if (this.playbackRecoveryAttempts > 0 && this.audioTarget.currentTime >= (this.playbackRecoveryPosition || 0) + 15) {
       this.playbackRecoveryAttempts = 0
@@ -441,6 +455,8 @@ export default class extends Controller {
   }
 
   handlePause() {
+    this.playbackRequested = false
+    this.cancelPreload()
     this.setReconnectingState(false)
     this.syncPlayingState()
     this.stopVisualizer()
@@ -613,6 +629,9 @@ export default class extends Controller {
     this.clearPlaybackRecovery()
     this.setReconnectingState(false)
     this.playbackRequested = true
+    if (navigator.mediaSession) {
+      navigator.mediaSession.playbackState = "playing"
+    }
     this.loadTrack(track)
     this.ephemeralStreamStore?.touch?.(track.source)
     const playback = this.audioTarget.play()
@@ -669,6 +688,9 @@ export default class extends Controller {
     this.playbackRecoveryAttempts = 0
     this.playbackRecoveryPosition = 0
     this.audioTarget.src = track.source
+    if (typeof this.audioTarget.load === "function") {
+      this.audioTarget.load()
+    }
     this.syncPlayingState()
     this.pendingStartPosition = Number(startPosition) || 0
     const artwork = track.artwork || "/brand/sonzra-mark.svg"
@@ -2093,7 +2115,18 @@ export default class extends Controller {
       // promise gives us a dependable second path to keep the player UI in
       // sync without duplicating normal event-driven updates.
       if (!this.progressWatch) this.handlePlay()
-    }).catch(this.boundHandlePlaybackError)
+    }).catch((error) => {
+      if (error?.name === "NotAllowedError") {
+        this.playbackRequested = false
+        this.clearPlaybackRecovery()
+        this.handlePause()
+        return
+      }
+      if (error?.name === "AbortError") {
+        return
+      }
+      this.handlePlaybackError()
+    })
   }
 
   relocateLegacyQueue() {
@@ -2147,8 +2180,8 @@ export default class extends Controller {
     this.updateTimeline()
     this.maybeExtendRadioQueue()
     const duration = this.audioTarget.duration
-    const finished = this.audioTarget.ended || (Number.isFinite(duration) && duration > 0 && this.audioTarget.currentTime >= duration - 0.05)
-    if (finished) this.playNext()
+    const finished = this.audioTarget.ended || (Number.isFinite(duration) && duration > 0 && this.audioTarget.currentTime >= duration - BACKGROUND_HANDOFF_THRESHOLD)
+    if (finished && (!this.audioTarget.paused || this.audioTarget.ended || this.playbackRequested)) this.playNext()
   }
 
   syncPlayingState() {
@@ -2287,7 +2320,7 @@ export default class extends Controller {
     try {
       const artwork = new URL(this.currentTrack.artwork || "/brand/sonzra-mark.svg", window.location.origin).href
       mediaSession.metadata = new MediaMetadata({ title, artist, artwork: [ { src: artwork } ] })
-      mediaSession.playbackState = this.audioTarget?.paused ? "paused" : "playing"
+      mediaSession.playbackState = (this.playbackRequested || !this.audioTarget?.paused) ? "playing" : "paused"
       mediaSession.setActionHandler("play", () => this.toggle())
       mediaSession.setActionHandler("pause", () => this.toggle())
       mediaSession.setActionHandler("previoustrack", () => this.previous())

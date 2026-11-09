@@ -1514,6 +1514,130 @@ describe("player controller", () => {
     })
   })
 
+  describe("iOS PWA background queue auto-advance resilience (#20)", () => {
+    it("advances to the next track when timeupdate reaches the near-end lookahead threshold while playing", () => {
+      controller.queue = [
+        { source: "/audio/track-1.mp3", title: "Track 1", artist: "Artist 1" },
+        { source: "/audio/track-2.mp3", title: "Track 2", artist: "Artist 2" }
+      ]
+      controller.currentIndex = 0
+      controller.currentTrack = controller.queue[0]
+      controller.audioTarget.src = "/audio/track-1.mp3"
+      Object.defineProperty(controller.audioTarget, "duration", { configurable: true, value: 100 })
+      Object.defineProperty(controller.audioTarget, "paused", { configurable: true, value: false })
+
+      // At 99.0s (1.0s before end), lookahead should not trigger yet (> 0.35s)
+      controller.audioTarget.currentTime = 99.0
+      controller.updateTimeline()
+      expect(controller.currentIndex).toBe(0)
+
+      // At 99.7s (0.3s before end), lookahead handoff triggers playNext()
+      controller.audioTarget.currentTime = 99.7
+      controller.updateTimeline()
+      expect(controller.currentIndex).toBe(1)
+      expect(controller.currentTrack.title).toBe("Track 2")
+    })
+
+    it("does not prematurely advance queue if audio is paused near the end", () => {
+      controller.queue = [
+        { source: "/audio/track-1.mp3", title: "Track 1", artist: "Artist 1" },
+        { source: "/audio/track-2.mp3", title: "Track 2", artist: "Artist 2" }
+      ]
+      controller.currentIndex = 0
+      controller.currentTrack = controller.queue[0]
+      controller.audioTarget.src = "/audio/track-1.mp3"
+      Object.defineProperty(controller.audioTarget, "duration", { configurable: true, value: 100 })
+      Object.defineProperty(controller.audioTarget, "paused", { configurable: true, value: true })
+
+      controller.audioTarget.currentTime = 99.7
+      controller.updateTimeline()
+      expect(controller.currentIndex).toBe(0)
+    })
+
+    it("calls audioTarget.load() when reassigning audioTarget.src", () => {
+      const loadSpy = vi.fn()
+      controller.audioTarget.load = loadSpy
+      controller.loadTrack({ source: "/audio/track-2.mp3", title: "Track 2", artist: "Artist 2" })
+      expect(loadSpy).toHaveBeenCalled()
+    })
+
+    it("preserves navigator.mediaSession.playbackState as 'playing' during track swap", () => {
+      const mediaSessionMock = {
+        playbackState: "none",
+        metadata: null,
+        setActionHandler: vi.fn(),
+        setPositionState: vi.fn()
+      }
+      vi.stubGlobal("MediaMetadata", class {
+        constructor(init) { Object.assign(this, init) }
+      })
+      Object.defineProperty(navigator, "mediaSession", { configurable: true, value: mediaSessionMock })
+
+      controller.queue = [
+        { source: "/audio/track-1.mp3", title: "Track 1", artist: "Artist 1" },
+        { source: "/audio/track-2.mp3", title: "Track 2", artist: "Artist 2" }
+      ]
+      controller.currentIndex = 0
+
+      // When starting playback on track 1
+      controller.playCurrent()
+      expect(navigator.mediaSession.playbackState).toBe("playing")
+
+      // Even if audioTarget is paused during src reload, playbackRequested keeps state as 'playing'
+      Object.defineProperty(controller.audioTarget, "paused", { configurable: true, value: true })
+      controller.syncBrowserMedia()
+      expect(navigator.mediaSession.playbackState).toBe("playing")
+
+      // User pauses: playbackState transitions to paused
+      controller.handlePause()
+      expect(navigator.mediaSession.playbackState).toBe("paused")
+    })
+
+    it("cancels in-flight preloads when paused", () => {
+      controller.preloadAbortController = new AbortController()
+      const abortSpy = vi.spyOn(controller.preloadAbortController, "abort")
+      controller.preloadingSource = "/audio/track-2.mp3"
+
+      controller.handlePause()
+
+      expect(abortSpy).toHaveBeenCalled()
+      expect(controller.preloadAbortController).toBeNull()
+      expect(controller.preloadingSource).toBeNull()
+    })
+
+    it("gracefully transitions to paused state when audioTarget.play() rejects with NotAllowedError", async () => {
+      const pauseSpy = vi.spyOn(controller, "handlePause")
+      const errorSpy = vi.spyOn(controller, "handlePlaybackError")
+      controller.playbackRequested = true
+
+      const notAllowedError = new DOMException("The request is not allowed by the user agent or the platform in the current context, possibly because the user denied permission.", "NotAllowedError")
+      const rejectedPromise = Promise.reject(notAllowedError)
+
+      controller.monitorPlayback(rejectedPromise)
+      await Promise.resolve()
+      await Promise.resolve()
+
+      expect(pauseSpy).toHaveBeenCalled()
+      expect(controller.playbackRequested).toBe(false)
+      expect(errorSpy).not.toHaveBeenCalled()
+      expect(controller.hasArtistTarget && controller.artistTarget.textContent).not.toBe(
+        "This track could not be played. Check the server logs and try again."
+      )
+    })
+
+    it("silently ignores AbortError in monitorPlayback without triggering playback error", async () => {
+      const errorSpy = vi.spyOn(controller, "handlePlaybackError")
+      const abortError = new DOMException("The operation was aborted.", "AbortError")
+      const rejectedPromise = Promise.reject(abortError)
+
+      controller.monitorPlayback(rejectedPromise)
+      await Promise.resolve()
+      await Promise.resolve()
+
+      expect(errorSpy).not.toHaveBeenCalled()
+    })
+  })
+
   function addLyricsTargets() {
     document.querySelector("[data-controller='player']").insertAdjacentHTML("beforeend", `
       <button data-player-target="queueTab"></button><button data-player-target="lyricsTab"></button>
