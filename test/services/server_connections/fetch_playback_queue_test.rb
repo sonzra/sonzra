@@ -2,7 +2,7 @@ require "test_helper"
 
 class ServerConnections::FetchPlaybackQueueTest < ActiveSupport::TestCase
   test "returns the tracks prepared by the integration" do
-    response = Integrations::Jellyfin::PlaybackQueueResponseData.new(items: [ { "Name" => "First" } ], access_token: "token")
+    response = Integrations::PlaybackQueueResponseData.new(items: [ { "Name" => "First" } ], access_token: "token")
     client = Object.new
     client.define_singleton_method(:playback_queue) { |_| response }
 

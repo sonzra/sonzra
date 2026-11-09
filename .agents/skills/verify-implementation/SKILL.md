@@ -8,7 +8,12 @@ description: >-
 
 # Feature Verification Skill (`verify-implementation`)
 
-The `verify-implementation` skill owns the **entire verification, testing, code coverage auditing, linting, quality gating, and committing lifecycle** after feature implementation has completed.
+The `verify-implementation` skill owns the **entire verification, testing, code coverage auditing, linting, quality gating, and committing lifecycle** after feature implementation has completed. It can be run independently or invoked as the verification gate for [`implement-feature`](file:///home/bruno/Projects/sonzra/.agents/skills/implement-feature/SKILL.md).
+
+> [!IMPORTANT]
+> **Calling Contract & Failure Policy:**
+> - **Fail Fast:** If any gate fails (deliverables missing, lint offenses, test failures, coverage gaps), `verify-implementation` produces structured failure diagnostics (error traces, uncovered lines, missing files) and halts. When called by `implement-feature`, it yields back so `implement-feature` can remediate and re-invoke.
+> - **Zero Tolerance:** No commit or spec completion occurs until all gates pass with 100% green status.
 
 ---
 
@@ -16,30 +21,31 @@ The `verify-implementation` skill owns the **entire verification, testing, code 
 
 ```mermaid
 flowchart TD
-    Handoff["Implemented Code & Specs"] --> Lint["1. RuboCop Lint Check\n(bundle exec rubocop)"]
+    Handoff["Implemented Code & Specs"] --> AuditDeliverables["0. Deliverables & Isolation Audit\n(E2E spec present? Route mocking isolated?)"]
+    AuditDeliverables --> DelivCheck{"Deliverables Present & Isolated?"}
+    DelivCheck -->|No| FailHalt["Halt & Return Diagnostics to implement-feature"]
+    
+    DelivCheck -->|Yes| Lint["1. RuboCop Lint Check\n(bundle exec rubocop)"]
     Lint --> LintFix{"0 Offenses?"}
     LintFix -->|No| AutoCorrect["Auto-correct or fix offenses"]
     AutoCorrect --> Lint
     
-    LintFix -->|Yes| RunTests["2. Run Test Suites\n(bin/rails test & npm run test:javascript)"]
+    LintFix -->|Yes| RunTests["2. Run Test Suites\n(bin/rails test, npm run test:javascript, npm run test:e2e)"]
     RunTests --> TestPass{"All Tests Pass?"}
-    TestPass -->|No| FixBugs["Diagnose & Fix Failures"]
-    FixBugs --> RunTests
+    TestPass -->|No| FailHalt
     
     TestPass -->|Yes| AuditCoverage["3. Audit Code Coverage\n(Ensure >90% across new code)"]
     AuditCoverage --> CoverageCheck{">90% Coverage\nCovering Edge Cases & Errors?"}
-    CoverageCheck -->|No: Gaps Found| AddTests["Write additional unit/integration tests"]
-    AddTests --> RunTests
+    CoverageCheck -->|No: Gaps Found| FailHalt
     
     CoverageCheck -->|Yes| QualityGate["4. Run Full Quality Gate\n(bin/quality)"]
-    QualityGate --> GateCheck{"All 4 Gates Pass?"}
-    GateCheck -->|No| FixQuality["Resolve Quality Issues"]
-    FixQuality --> QualityGate
+    QualityGate --> GateCheck{"All Gates Pass (Exit 0)?"}
+    GateCheck -->|No| FailHalt
     
     GateCheck -->|Yes| AdvisorCheck{"Advisor Audit Needed?"}
     AdvisorCheck -->|Yes: Architectural/UX Check| ConsultAdvisors["Consult architect_advisor / ui_ux_advisor"]
-    ConsultAdvisors --> Commit
-    AdvisorCheck -->|No| Commit["5. Git Commit & Documentation Update"]
+    ConsultAdvisors --> Commit["5. Git Commit & Documentation Update"]
+    AdvisorCheck -->|No| Commit
     Commit --> Report["6. Deliver Verification Report"]
 ```
 
@@ -60,6 +66,18 @@ flowchart TD
 
 ## 3. Step-by-Step Verification Procedure
 
+### Step 0: Deliverable Completeness & Mocking Isolation Audit (Pre-Flight)
+Before executing test commands, verify that all deliverables specified in `specs/<issue-number>/tech-spec-epic-*.md` were actually created:
+1. **E2E Deliverable Check (UI Epics)**:
+   - If the epic touches user-facing UI or user journeys, verify that a corresponding `test/e2e/<feature>.spec.js` exists and is non-empty.
+   - If missing, fail immediately:
+     > `Verification Failed: Tech spec requires test/e2e/<feature>.spec.js, but file was not found.`
+2. **E2E Mocking Isolation Audit**:
+   - Inspect the E2E test file to confirm it intercepts requests using `page.route` via test helpers (`test/e2e/support/helpers.js`).
+   - Connecting to a live Jellyfin or media server instance is strictly forbidden.
+3. **Unit / Integration Deliverable Check**:
+   - Confirm all model, service, controller, and Stimulus test files specified in Chunks 1–4 are present.
+
 ### Step 1: RuboCop Lint Verification
 Run the RuboCop suite to verify compliance with `rubocop-rails-omakase`:
 ```bash
@@ -69,7 +87,7 @@ bundle exec rubocop
 - If offenses exist, run safe autocorrect (`bundle exec rubocop -a`) or manually adjust code formatting and rerun until 0 offenses remain.
 
 ### Step 2: Automated Test Execution
-Run both the Rails backend and JavaScript frontend test suites:
+Run backend, frontend, and browser test suites:
 ```bash
 # 1. Rails Test Suite
 bin/rails test
@@ -81,6 +99,7 @@ npm run test:javascript
 npm run test:e2e
 ```
 - **Requirement:** 100% of tests must pass with 0 errors and 0 failures across all desktop and mobile targets.
+- Verify that newly added E2E tests in `test/e2e/<feature>.spec.js` run and pass.
 - If any test fails, inspect the failure trace, correct the defect, and rerun until green.
 
 ### Step 3: Code Coverage Audit (>90% Requirement)
@@ -147,8 +166,9 @@ Once all tests pass, coverage exceeds 90%, and `bin/quality` is clean:
 
 Deliver a final verification report containing:
 1. **Quality Status**: `PASSED & COMMITTED`.
-2. **Lint Summary**: RuboCop offense count (0).
-3. **Test Results**: Total Rails tests and assertions run, total Vitest tests run.
-4. **Coverage Audit**: Confirmation that code coverage exceeds 90% across new code with edge cases verified.
-5. **Quality Gate**: Confirmation that `bin/quality` completed with exit code 0.
-6. **Git Commit**: Commit hash and commit message.
+2. **Deliverables Audit**: Confirmation that all promised test suites (including `test/e2e/<feature>.spec.js` with route mocking) exist and passed.
+3. **Lint Summary**: RuboCop offense count (0).
+4. **Test Results**: Total Rails tests and assertions run, total Vitest tests run, total Playwright tests run.
+5. **Coverage Audit**: Confirmation that code coverage exceeds 90% across new code with edge cases verified.
+6. **Quality Gate**: Confirmation that `bin/quality` completed with exit code 0.
+7. **Git Commit**: Commit hash and commit message.
