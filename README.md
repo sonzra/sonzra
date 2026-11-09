@@ -23,7 +23,7 @@ The short version is to create `docker-compose.yml`:
 ```yaml
 services:
   sonzra:
-    image: ghcr.io/sonzra/sonzra:1.0.0
+    image: ghcr.io/sonzra/sonzra:1.0.1
     restart: unless-stopped
     ports:
       - "3000:3000"
