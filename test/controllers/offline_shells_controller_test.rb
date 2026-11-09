@@ -11,5 +11,8 @@ class OfflineShellsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-controller='offline-library']"
     assert_select ".offline-connection [data-offline-connection-target='status']", "Checking connection…"
     assert_select "a.redesign-topbar__link[aria-disabled='true']", minimum: 1
+    assert_select ".offline-downloads__recovery:not([hidden])" do
+      assert_select "button[data-offline-connection-target='retry']", text: /Retry connection/
+    end
   end
 end

@@ -13,7 +13,11 @@ describe("offline service worker", () => {
       clients: { claim: vi.fn() },
       location: { origin: "http://sonzra.test" }
     })
-    vi.stubGlobal("caches", { open: vi.fn(async () => cache) })
+    vi.stubGlobal("caches", {
+      open: vi.fn(async () => cache),
+      keys: vi.fn(async () => []),
+      delete: vi.fn(async () => true)
+    })
     vi.stubGlobal("fetch", vi.fn(async () => ({ network: true })))
 
     vi.resetModules()
@@ -122,6 +126,46 @@ describe("offline service worker", () => {
     handlers.fetch(event)
 
     await expect(event.response).resolves.toBe(offlineScreen)
+  })
+
+  it("returns an inline HTML recovery UI when navigation fails and no offline shell is cached", async () => {
+    cache.match.mockResolvedValue(undefined)
+    fetch.mockRejectedValueOnce(new Error("Network unavailable"))
+    const event = documentRequestEvent("http://sonzra.test/library/albums")
+
+    handlers.fetch(event)
+
+    const response = await event.response
+    expect(response.status).toBe(503)
+    expect(response.headers.get("Content-Type")).toBe("text/html; charset=utf-8")
+    const body = await response.text()
+    expect(body).toContain("<!DOCTYPE html>")
+    expect(body).toContain("Sonzra is offline")
+    expect(body).toContain("Retry Connection")
+    expect(body).toContain("/up")
+    expect(body).toContain("sonzra-mark")
+  })
+
+  it("prunes obsolete sonzra caches on activation", async () => {
+    caches.keys.mockResolvedValue([
+      "sonzra-offline-shell-v2",
+      "sonzra-offline-assets-v1",
+      "sonzra-offline-shell-v3",
+      "sonzra-offline-assets-v2",
+      "unrelated-cache"
+    ])
+    const waitUntilPromises = []
+    const event = { waitUntil: vi.fn((promise) => waitUntilPromises.push(promise)) }
+
+    handlers.activate(event)
+    await Promise.all(waitUntilPromises)
+
+    expect(caches.delete).toHaveBeenCalledWith("sonzra-offline-shell-v2")
+    expect(caches.delete).toHaveBeenCalledWith("sonzra-offline-assets-v1")
+    expect(caches.delete).not.toHaveBeenCalledWith("sonzra-offline-shell-v3")
+    expect(caches.delete).not.toHaveBeenCalledWith("sonzra-offline-assets-v2")
+    expect(caches.delete).not.toHaveBeenCalledWith("unrelated-cache")
+    expect(self.clients.claim).toHaveBeenCalled()
   })
 
   function requestEvent(url, range = null) {

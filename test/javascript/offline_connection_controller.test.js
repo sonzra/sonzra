@@ -52,4 +52,56 @@ describe("offline connection controller", () => {
     expect(status.textContent).toBe("Back online")
     expect(document.querySelector("[data-offline-connection-target='retry']").hidden).toBe(true)
   })
+
+  it("checks connection when document becomes visible", async () => {
+    fetchMock.mockClear()
+    Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true })
+
+    document.dispatchEvent(new Event("visibilitychange"))
+
+    expect(fetchMock).toHaveBeenCalledWith("/up", { cache: "no-store" })
+  })
+
+  it("does not check connection when document becomes hidden", async () => {
+    fetchMock.mockClear()
+    Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true })
+
+    document.dispatchEvent(new Event("visibilitychange"))
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it("checks connection when window receives focus", async () => {
+    fetchMock.mockClear()
+
+    window.dispatchEvent(new Event("focus"))
+
+    expect(fetchMock).toHaveBeenCalledWith("/up", { cache: "no-store" })
+  })
+
+  it("synchronizes multiple status and retry targets across the page", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true })
+    document.body.innerHTML = `
+      <main data-controller="offline-connection">
+        <span data-offline-connection-target="status" id="status-1"></span>
+        <span data-offline-connection-target="status" id="status-2"></span>
+        <button data-offline-connection-target="retry" id="retry-1"></button>
+        <button data-offline-connection-target="retry" id="retry-2"></button>
+      </main>
+    `
+    await Promise.resolve()
+    await Promise.resolve()
+
+    const status1 = document.getElementById("status-1")
+    const status2 = document.getElementById("status-2")
+    const retry1 = document.getElementById("retry-1")
+    const retry2 = document.getElementById("retry-2")
+
+    expect(status1.textContent).toBe("Back online")
+    expect(status2.textContent).toBe("Back online")
+    expect(status1.dataset.state).toBe("online")
+    expect(status2.dataset.state).toBe("online")
+    expect(retry1.hidden).toBe(true)
+    expect(retry2.hidden).toBe(true)
+  })
 })

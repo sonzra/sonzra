@@ -46,7 +46,8 @@ describe("offline media store", () => {
     await store.clear()
 
     expect(cacheStorage.delete).toHaveBeenCalledWith("sonzra-offline-media-v1")
-    expect(cacheStorage.delete).toHaveBeenCalledWith("sonzra-offline-shell-v2")
+    expect(cacheStorage.delete).toHaveBeenCalledWith("sonzra-offline-shell-v3")
+    expect(cacheStorage.delete).toHaveBeenCalledWith("sonzra-offline-assets-v2")
     expect(store.catalog()).toEqual([])
   })
 
@@ -56,7 +57,7 @@ describe("offline media store", () => {
 
     await store.warmOfflineShell()
 
-    expect(cacheStorage.open).toHaveBeenCalledWith("sonzra-offline-shell-v2")
+    expect(cacheStorage.open).toHaveBeenCalledWith("sonzra-offline-shell-v3")
     expect(cache.put).toHaveBeenCalledWith("/offline_shell", expect.any(Object))
   })
 
@@ -69,7 +70,7 @@ describe("offline media store", () => {
 
     await store.warmOfflineShell()
 
-    expect(cacheStorage.open).toHaveBeenCalledWith("sonzra-offline-assets-v1")
+    expect(cacheStorage.open).toHaveBeenCalledWith("sonzra-offline-assets-v2")
     expect(cache.put).toHaveBeenCalledWith(assetUrl, response)
   })
 

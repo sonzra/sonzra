@@ -1,6 +1,6 @@
 const CACHE_NAME = "sonzra-offline-media-v1"
-const OFFLINE_SHELL_CACHE = "sonzra-offline-shell-v2"
-const OFFLINE_ASSET_CACHE = "sonzra-offline-assets-v1"
+const OFFLINE_SHELL_CACHE = "sonzra-offline-shell-v3"
+const OFFLINE_ASSET_CACHE = "sonzra-offline-assets-v2"
 const OFFLINE_SHELL_PATH = "/offline_shell"
 const CATALOG_KEY_PREFIX = "sonzra:offline-media:"
 const ACTIVE_SCOPE_KEY = "sonzra:offline-media:active-scope"
@@ -118,6 +118,7 @@ export class OfflineMediaStore {
   async clear() {
     if (this.cacheStorage?.delete) await this.cacheStorage.delete(CACHE_NAME)
     if (this.cacheStorage?.delete) await this.cacheStorage.delete(OFFLINE_SHELL_CACHE)
+    if (this.cacheStorage?.delete) await this.cacheStorage.delete(OFFLINE_ASSET_CACHE)
     this.storage?.removeItem(this.catalogKey())
     this.storage?.removeItem(this.collectionCatalogKey())
     if (this.storage?.getItem(ACTIVE_SCOPE_KEY) === this.scope) this.storage.removeItem(ACTIVE_SCOPE_KEY)

@@ -6,7 +6,7 @@ export default class extends Controller {
 
   connect() {
     const store = this.store()
-    if (store.catalog().length > 0) store.warmOfflineShell()
+    store.warmOfflineShell()
     store.requestPersistentStorage()
   }
 
