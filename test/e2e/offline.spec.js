@@ -1,8 +1,7 @@
 import { expect, test } from "@playwright/test"
 import { signInAs } from "./support/helpers.js"
+import fs from "node:fs"
 import path from "node:path"
-
-const scratchDir = "/root/.gemini/antigravity-cli/brain/ce17afe7-e544-4bcd-804e-1cae1da9f698/scratch"
 
 test.describe("offline recovery UI", () => {
   test("shows the recovery banner on downloads page when offline with 0 downloads", async ({ page }, testInfo) => {
@@ -23,8 +22,11 @@ test.describe("offline recovery UI", () => {
     await expect(retryButton).toBeVisible()
     await expect(retryButton).toContainText("Retry connection")
 
-    const isMobile = testInfo.project.name.includes("mobile")
-    const screenshotPath = path.join(scratchDir, isMobile ? "downloads-offline-mobile.png" : "downloads-offline-desktop.png")
-    await page.screenshot({ path: screenshotPath, fullPage: true })
+    const scratchDir = process.env.SCREENSHOT_DIR
+    if (scratchDir && fs.existsSync(scratchDir)) {
+      const isMobile = testInfo.project.name.includes("mobile")
+      const screenshotPath = path.join(scratchDir, isMobile ? "downloads-offline-mobile.png" : "downloads-offline-desktop.png")
+      await page.screenshot({ path: screenshotPath, fullPage: true })
+    }
   })
 })
