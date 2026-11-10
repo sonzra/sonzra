@@ -47,6 +47,15 @@ Rails.application.routes.draw do
         post :resolve_paths
         post :edges
       end
+
+      namespace :library do
+        resources :artists, only: :index
+        resources :albums, only: :index
+        resources :items, only: :show
+      end
+
+      resources :playback_reports, only: :create
+      resource :session, only: %i[create destroy show]
     end
   end
   get "server_connections/:server_connection_id/library_items/:id", to: "library_items#show", as: :library_item_server_connection

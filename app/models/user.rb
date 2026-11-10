@@ -11,6 +11,8 @@ class User < ApplicationRecord
 
   normalizes :email_address, with: ->(e) { e.strip.downcase }
 
+  generates_token_for :api_token
+
   validates :email_address, presence: true
 
   before_create :assign_administrator_role, if: :first_user?
