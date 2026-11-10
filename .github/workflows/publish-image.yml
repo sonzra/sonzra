@@ -3,6 +3,18 @@ name: Publish container image
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Git tag to build and publish (e.g. v1.0.1)"
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        description: "Git tag to build and publish (e.g. v1.0.1)"
+        required: true
+        type: string
 
 env:
   REGISTRY: ghcr.io
@@ -20,6 +32,8 @@ jobs:
     steps:
       - name: Check out the release
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -40,9 +54,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}},enable=${{ !github.event.release.prerelease }}
-            type=raw,value=latest,enable=${{ !github.event.release.prerelease }}
+            type=semver,pattern={{version}},value=${{ inputs.tag || github.ref_name }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.tag || github.ref_name }},enable=${{ !(github.event.release.prerelease || contains(inputs.tag || github.ref_name, '-')) }}
+            type=raw,value=latest,enable=${{ !(github.event.release.prerelease || contains(inputs.tag || github.ref_name, '-')) }}
 
       - name: Build and publish image
         id: push
