@@ -7,11 +7,17 @@ on:
 
 permissions:
   contents: write
+  packages: write
+  attestations: write
+  id-token: write
 
 jobs:
   release:
     if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/')
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
     env:
       RELEASE_GIT_NAME: ${{ vars.RELEASE_GIT_NAME }}
       RELEASE_GIT_EMAIL: ${{ vars.RELEASE_GIT_EMAIL }}
@@ -76,3 +82,16 @@ jobs:
           options=(--verify-tag --title "${{ steps.release.outputs.tag }}" --notes-file release-notes.md)
           [[ "${{ steps.release.outputs.version }}" == *-* ]] && options+=(--prerelease)
           gh release create "${{ steps.release.outputs.tag }}" "${options[@]}"
+
+  publish:
+    name: Publish container image
+    needs: release
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/publish-image.yml
+    with:
+      tag: ${{ needs.release.outputs.tag }}
+    secrets: inherit
