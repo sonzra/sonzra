@@ -26,16 +26,50 @@ module Authentication
     end
 
     def resume_session
-      Current.session ||= find_session_by_cookie
+      Current.session ||= (find_session_by_cookie || find_session_by_header)
     end
 
     def find_session_by_cookie
       Session.find_by(id: cookies.signed[:session_id]) if cookies.signed[:session_id]
     end
 
+    def find_session_by_header
+      token = api_token_from_header
+      return unless token.present?
+
+      if token.match?(/\A\d+\z/) && (session = Session.find_by(id: token))
+        return session
+      end
+
+      if (user = User.find_by_token_for(:api_token, token))
+        return user.sessions.order(created_at: :desc).first || user.sessions.create!(user_agent: request.user_agent, ip_address: request.remote_ip)
+      end
+
+      configured_token = ENV["SONZRA_API_TOKEN"].presence || ENV["API_TOKEN"].presence
+      if configured_token.present? && ActiveSupport::SecurityUtils.secure_compare(token, configured_token)
+        user = User.first
+        return user&.sessions&.order(created_at: :desc)&.first || user&.sessions&.create!(user_agent: request.user_agent, ip_address: request.remote_ip)
+      end
+
+      nil
+    end
+
+    def api_token_from_header
+      header = request.headers["Authorization"].to_s
+      if header.start_with?("Bearer ")
+        header.delete_prefix("Bearer ").strip
+      else
+        request.headers["X-API-Token"].presence || request.headers["X-Session-ID"].presence || request.headers["X-Sonzra-Token"].presence
+      end
+    end
+
     def request_authentication
-      session[:return_to_after_authenticating] = request.url if request.get? || request.head?
-      redirect_to new_session_path
+      if request.format.json? || request.headers["Accept"]&.include?("application/json") || request.path.start_with?("/api/")
+        render json: { error: "Unauthorized" }, status: :unauthorized
+      else
+        session[:return_to_after_authenticating] = request.url if request.get? || request.head?
+        redirect_to new_session_path
+      end
     end
 
     def after_authentication_url
