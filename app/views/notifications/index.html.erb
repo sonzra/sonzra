@@ -1,0 +1,18 @@
+<%= turbo_stream_from [current_user, :notifications] %>
+
+<main class="settings-shell redesign-utility-page">
+  <header class="settings-header settings-header--page">
+    <div class="page-title">
+      <%= link_to root_path, class: "back-link back-link--compact", aria: { label: "Back to home" } do %>
+        <%= lucide_icon "arrow-left", aria: { hidden: true } %>
+      <% end %>
+      <h1>Notifications</h1>
+      <%= render partial: "notifications/badge", locals: { count: @unread_count } %>
+    </div>
+    <% if @unread_count.positive? %>
+      <%= button_to "Mark all as read", mark_all_read_notifications_path, method: :post, class: "secondary-button" %>
+    <% end %>
+  </header>
+
+  <%= render partial: "notifications/list", locals: { notifications: @notifications, current_user: current_user } %>
+</main>

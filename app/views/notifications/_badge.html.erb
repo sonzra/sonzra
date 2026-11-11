@@ -1,0 +1,4 @@
+<% count = local_assigns.fetch(:count, 0).to_i %>
+<span id="notifications_badge" class="redesign-notification-badge" <%= "hidden" if count.zero? %> aria-live="polite" role="status">
+  <%= count > 9 ? "9+" : count %>
+</span>

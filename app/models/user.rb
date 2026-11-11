@@ -7,6 +7,8 @@ class User < ApplicationRecord
   has_many :listening_events, dependent: :destroy
   has_many :hidden_artists, dependent: :destroy
   has_many :hidden_genres, dependent: :destroy
+  has_many :notifications, foreign_key: :recipient_id, dependent: :destroy, inverse_of: :recipient
+  has_many :sent_notifications, class_name: "Notification", foreign_key: :sender_id, dependent: :nullify, inverse_of: :sender
   belongs_to :preferred_server_connection, class_name: "ServerConnection", optional: true
 
   normalizes :email_address, with: ->(e) { e.strip.downcase }

@@ -1,0 +1,70 @@
+<%
+  user = local_assigns[:current_user] || (respond_to?(:current_user) ? current_user : nil)
+  server_connection = if user && notification.media_server_id.present?
+    user.server_connections.find_by(media_server_id: notification.media_server_id)
+  end
+  server_connection ||= user&.preferred_server_connection || user&.server_connections&.first
+
+  source_param = server_connection ? audio_server_connection_path(server_connection, notification.item_id) : ""
+  artwork_param = if server_connection && notification.artwork_item_id.present?
+    artwork_server_connection_path(server_connection, notification.artwork_item_id)
+  else
+    "/brand/sonzra-mark.svg"
+  end
+
+  sender_name = notification.sender&.email_address&.split("@")&.first || "Former listener"
+%>
+
+<article id="<%= dom_id(notification) %>" class="redesign-notification-card <%= 'redesign-notification-card--unread' if notification.unread? %>">
+  <div class="redesign-notification-card__header">
+    <div class="redesign-notification-card__meta">
+      <span class="redesign-notification-card__sender"><%= sender_name %></span>
+      <span class="redesign-notification-card__time"><%= time_ago_in_words(notification.created_at) %> ago</span>
+    </div>
+    <% if notification.unread? %>
+      <span class="redesign-notification-card__dot" aria-label="Unread"></span>
+    <% end %>
+  </div>
+
+  <% if notification.note.present? %>
+    <blockquote class="redesign-notification-card__note">
+      <p><%= notification.note %></p>
+    </blockquote>
+  <% end %>
+
+  <div class="redesign-notification-card__track">
+    <div class="redesign-notification-card__artwork">
+      <img src="<%= artwork_param %>" alt="<%= notification.title %>" loading="lazy">
+    </div>
+    <div class="redesign-notification-card__track-info">
+      <span class="redesign-notification-card__title"><%= notification.title %></span>
+      <span class="redesign-notification-card__artist"><%= notification.artist.presence || notification.album.presence || "Shared track" %></span>
+    </div>
+    <div class="redesign-notification-card__actions">
+      <% if source_param.present? %>
+        <button type="button"
+                class="primary-button redesign-notification-card__play"
+                aria-label="Play <%= notification.title %>"
+                data-action="player#replaceQueue"
+                data-player-title-param="<%= notification.title %>"
+                data-player-artist-param="<%= notification.artist %>"
+                data-player-artwork-param="<%= artwork_param %>"
+                data-player-source-param="<%= source_param %>"
+                data-player-item-id-param="<%= notification.item_id %>">
+          <%= lucide_icon "play", aria: { hidden: true } %>
+          <span>Play</span>
+        </button>
+      <% end %>
+      <% if notification.unread? %>
+        <%= button_to notification_path(notification),
+                      method: :patch,
+                      class: "ghost-button redesign-notification-card__read-btn",
+                      aria: { label: "Mark as read" },
+                      title: "Mark as read" do %>
+          <%= lucide_icon "check", aria: { hidden: true } %>
+          <span>Read</span>
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+</article>

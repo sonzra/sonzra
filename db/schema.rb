@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_05_204200) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_11_200000) do
   create_table "application_settings", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.boolean "registrations_enabled", default: true, null: false
@@ -60,6 +60,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_05_204200) do
     t.string "provider", null: false
     t.datetime "updated_at", null: false
     t.index ["provider", "base_url"], name: "index_media_servers_on_provider_and_base_url", unique: true
+  end
+
+  create_table "notifications", force: :cascade do |t|
+    t.string "album"
+    t.string "artist"
+    t.string "artwork_item_id"
+    t.datetime "created_at", null: false
+    t.string "item_id", null: false
+    t.integer "media_server_id"
+    t.text "note"
+    t.string "notification_type", default: "track_share", null: false
+    t.datetime "read_at"
+    t.integer "recipient_id", null: false
+    t.integer "sender_id"
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["media_server_id"], name: "index_notifications_on_media_server_id"
+    t.index ["recipient_id", "created_at"], name: "index_notifications_on_recipient_id_and_created_at"
+    t.index ["recipient_id", "read_at"], name: "index_notifications_on_recipient_id_and_read_at"
+    t.index ["recipient_id"], name: "index_notifications_on_recipient_id"
+    t.index ["sender_id"], name: "index_notifications_on_sender_id"
   end
 
   create_table "recommendation_collection_events", force: :cascade do |t|
@@ -192,6 +213,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_05_204200) do
   add_foreign_key "hidden_genres", "users"
   add_foreign_key "listening_events", "server_connections"
   add_foreign_key "listening_events", "users"
+  add_foreign_key "notifications", "media_servers"
+  add_foreign_key "notifications", "users", column: "recipient_id"
+  add_foreign_key "notifications", "users", column: "sender_id"
   add_foreign_key "recommendation_collection_events", "recommendation_collections"
   add_foreign_key "recommendation_collections", "server_connections"
   add_foreign_key "recommendation_collections", "users"
