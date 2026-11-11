@@ -146,7 +146,21 @@ Before committing, consult specialized advisors:
 
 ---
 
-## 5. Git Commit & Documentation Updates
+## 5. Cross-Project Parity Audit (sonzra -> sonzra-tizen)
+
+Before committing any feature, audio pipeline bugfix, or API contract change in `sonzra`:
+1. **Assess Sister Impact**: Determine if this bugfix (e.g. lookahead queue advancement, audio session drop recovery, buffer underrun handling) or feature parity applies to the Smart TV client (`sonzra-tizen`).
+2. **File Issue if Applicable**: If a parity gap exists, create a GitHub issue on `sonzra/sonzra-tizen` using `gh`:
+   ```bash
+   gh issue create -R sonzra/sonzra-tizen \
+     --title "[Parity] <Feature/Bugfix title from web>" \
+     --body "..."
+   ```
+3. Record the sister issue URL in the verification report.
+
+---
+
+## 6. Git Commit & Documentation Updates
 
 Once all tests pass, coverage exceeds 90%, and `bin/quality` is clean:
 
@@ -172,7 +186,7 @@ Once all tests pass, coverage exceeds 90%, and `bin/quality` is clean:
 
 ---
 
-## 6. Verification Report
+## 7. Verification Report
 
 Deliver a final verification report containing:
 1. **Quality Status**: `PASSED & COMMITTED`.
@@ -181,4 +195,5 @@ Deliver a final verification report containing:
 4. **Test Results**: Total Rails tests and assertions run, total Vitest tests run, total Playwright tests run.
 5. **Coverage Audit**: Confirmation that code coverage exceeds 90% across new code with edge cases verified.
 6. **Quality Gate**: Confirmation that `bin/quality` completed with exit code 0.
-7. **Git Commit**: Commit hash and commit message.
+7. **Cross-Project Parity**: Sister issue URL on `sonzra/sonzra-tizen` (or confirmation of no cross-impact).
+8. **Git Commit**: Commit hash and commit message.
