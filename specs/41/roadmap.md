@@ -1,7 +1,7 @@
 # Roadmap: Collaborative Shared Playlists with Jellyfin Integration
 
 **Issue:** [#41 - [Feature]: Collaborative Shared Playlists with Jellyfin Integration](https://github.com/sonzra/sonzra/issues/41)  
-**Status:** Planning  
+**Status:** Completed & Verified  
 **Target Directory:** `specs/41`  
 **Audit Verdict:** PASS (Audited via [`iss-audit`](file:///root/Projects/sonzra/.agents/skills/iss-audit/SKILL.md))  
 
