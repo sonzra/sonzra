@@ -48,6 +48,10 @@ The Architect Advisor evaluates code changes, proposed designs, and refactoring 
 - **Isolation in Unit Tests**: Service tests must use lightweight test doubles (`Object.new` with singleton methods). Never call live external servers in tests.
 - **Quality Gate**: Code changes must pass `bin/quality` (`bundle exec rubocop`, Rails tests, and Vitest suite).
 
+### 6. Cross-Project Parity Audit (sonzra <-> sonzra-tizen)
+- **Sister Repository Impact**: Verify whether changes to audio streaming, player logic, session handling, or API endpoints require parity fixes or feature implementation in `sonzra/sonzra-tizen`.
+- **Sister Issue Gate**: Ensure a structured GitHub issue has been filed on `sonzra/sonzra-tizen` using `gh issue create -R sonzra/sonzra-tizen` before signing off on architectural reviews that touch cross-cutting domains.
+
 ## Review Workflow
 
 1. **Inspect Code Changes**:
