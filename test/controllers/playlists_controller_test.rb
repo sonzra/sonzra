@@ -162,6 +162,69 @@ class PlaylistsControllerTest < ActionDispatch::IntegrationTest
     assert_equal({ playlist_id: "playlist-1", entry_id: "entry-7" }, removed_arguments)
   end
 
+  test "broadcasts live sync removal when collaborative capability is supported" do
+    client = Object.new
+    client.define_singleton_method(:supports?) { |cap| cap == Integrations::Capabilities::COLLABORATIVE_PLAYLISTS }
+    client.define_singleton_method(:remove_from_playlist) { |playlist_id:, entry_id:| true }
+
+    broadcasted = []
+    singleton = Turbo::StreamsChannel.singleton_class
+    orig_remove = Turbo::StreamsChannel.method(:broadcast_remove_to)
+    singleton.define_method(:broadcast_remove_to) do |stream, **options|
+      broadcasted << { stream: stream, **options }
+    end
+
+    begin
+      with_jellyfin_client(client) do
+        delete playlist_item_server_connection_url(@server_connection, playlist_id: "playlist-1", entry_id: "entry-7"), as: :json
+      end
+    ensure
+      singleton.define_method(:broadcast_remove_to, orig_remove)
+    end
+
+    assert_response :no_content
+    assert_equal 1, broadcasted.size
+    assert_equal "playlist_#{@server_connection.media_server_id}_playlist-1", broadcasted.first[:stream]
+    assert_equal "playlist_entry_entry-7", broadcasted.first[:target]
+  end
+
+  test "broadcasts live sync addition when collaborative capability is supported" do
+    client = Object.new
+    client.define_singleton_method(:supports?) { |cap| cap == Integrations::Capabilities::COLLABORATIVE_PLAYLISTS }
+    client.define_singleton_method(:add_to_playlist) { |**| true }
+    client.define_singleton_method(:library_item_details) do |_|
+      Integrations::LibraryItemDetailsResponseData.new(
+        details: {
+          album: { "Id" => "playlist-1", "Name" => "Party Mix" },
+          tracks: [ { "Id" => "track-10", "Name" => "Dance Track", "RunTimeTicks" => 1800000000, "PlaylistItemId" => "entry-10" } ]
+        },
+        access_token: "token"
+      )
+    end
+
+    broadcasted = []
+    singleton = Turbo::StreamsChannel.singleton_class
+    orig_append = Turbo::StreamsChannel.method(:broadcast_append_to)
+    singleton.define_method(:broadcast_append_to) do |stream, **options|
+      broadcasted << { stream: stream, **options }
+    end
+
+    begin
+      with_jellyfin_client(client) do
+        post playlist_items_server_connection_url(@server_connection, playlist_id: "playlist-1"),
+             params: { item_id: "track-10" },
+             as: :json
+      end
+    ensure
+      singleton.define_method(:broadcast_append_to, orig_append)
+    end
+
+    assert_response :no_content
+    assert_equal 1, broadcasted.size
+    assert_equal "playlist_#{@server_connection.media_server_id}_playlist-1", broadcasted.first[:stream]
+    assert_equal "playlist_tracks_playlist-1", broadcasted.first[:target]
+  end
+
   private
 
   def with_jellyfin_client(client)

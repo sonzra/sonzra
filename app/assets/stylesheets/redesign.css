@@ -890,3 +890,201 @@ body.redesign:has(.auth-page) { padding: 0; }
   .redesign .auth-kicker { margin-top: 34px; }
 }
 
+/* Collaborative Playlists */
+.redesign .redesign-detail-collaborators {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0;
+  font-size: 11px;
+  color: var(--rz-muted);
+}
+
+.redesign .redesign-collaborator-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgb(122 90 248 / 15%);
+  color: var(--rz-primary-light);
+  border: 1px solid var(--rz-line);
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.redesign .redesign-share-playlist-dialog {
+  width: min(92vw, 480px);
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--rz-line);
+  border-radius: 22px;
+  background: rgb(18 18 28 / 98%);
+  color: var(--rz-text);
+  box-shadow: 0 30px 100px rgb(0 0 0 / 75%);
+  backdrop-filter: blur(20px);
+  overflow: hidden;
+}
+
+.redesign .redesign-share-playlist-dialog::backdrop {
+  background: rgb(0 0 0 / 72%);
+  backdrop-filter: blur(8px);
+}
+
+.redesign .redesign-share-playlist-dialog__panel {
+  padding: 24px;
+}
+
+.redesign .redesign-share-playlist-dialog__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.redesign .redesign-share-playlist-dialog__kicker {
+  margin: 0;
+  color: var(--rz-primary-light);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.redesign .redesign-share-playlist-dialog__heading h2 {
+  margin: 5px 0 0;
+  font-size: 22px;
+  letter-spacing: -.04em;
+  font-weight: 800;
+  color: var(--rz-text);
+}
+
+.redesign .redesign-share-playlist-dialog__close {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--rz-line);
+  border-radius: 50%;
+  background: rgb(255 255 255 / 4%);
+  color: var(--rz-text);
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.redesign .redesign-share-playlist-dialog__description {
+  margin: 10px 0 16px;
+  color: var(--rz-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.redesign .redesign-share-playlist-dialog__list {
+  display: grid;
+  gap: 8px;
+  max-height: 280px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.redesign .redesign-share-playlist-dialog__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--rz-line);
+  border-radius: 14px;
+  background: rgb(255 255 255 / 3%);
+}
+
+.redesign .redesign-share-playlist-dialog__user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.redesign .redesign-share-playlist-dialog__user-info div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.redesign .redesign-share-playlist-dialog__user-info strong {
+  font-size: 13px;
+  font-weight: 750;
+  color: var(--rz-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.redesign .redesign-share-playlist-dialog__user-info small {
+  font-size: 11px;
+  color: var(--rz-muted);
+}
+
+.redesign .redesign-share-playlist-dialog__avatar {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--rz-primary);
+  color: #fff;
+  font-weight: 800;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.redesign .redesign-share-playlist-dialog__action-button {
+  min-height: 44px;
+  min-width: 72px;
+  padding: 0 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+  border: 0;
+}
+
+.redesign .redesign-share-playlist-dialog__action-button.primary-button {
+  background: var(--rz-primary);
+  color: #fff;
+}
+
+.redesign .redesign-share-playlist-dialog__action-button.is-danger {
+  background: rgb(255 69 104 / 15%);
+  color: #ff6e87;
+  border: 1px solid rgb(255 69 104 / 30%);
+}
+
+.redesign .redesign-share-playlist-dialog__loading,
+.redesign .redesign-share-playlist-dialog__empty,
+.redesign .redesign-share-playlist-dialog__error {
+  padding: 20px 14px;
+  text-align: center;
+  color: var(--rz-muted);
+  font-size: 13px;
+}
+
+.redesign .redesign-share-playlist-dialog__feedback {
+  min-height: 20px;
+  margin: 14px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.redesign .redesign-share-playlist-dialog__feedback.is-success {
+  color: var(--rz-accent);
+}
+
+.redesign .redesign-share-playlist-dialog__feedback.is-error {
+  color: #ff6e87;
+}
+
+

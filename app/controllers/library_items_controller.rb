@@ -14,6 +14,7 @@ class LibraryItemsController < ApplicationController
       @back_path, @back_label = detail_back_destination(@result.details)
       @media_detail_header = playable_media_detail?(@result.details)
       @media_detail_title = media_detail_title(@result.details) if @media_detail_header
+      load_collaborative_playlist_details if @result.details.fetch(:kind, :music) == :playlist
     elsif @result.message.to_s.match?(/session expired|401|authentication/i)
       record_connection_alert(@server_connection)
     end
@@ -42,5 +43,29 @@ class LibraryItemsController < ApplicationController
     return item.fetch("Name") if item["Type"] == "MusicArtist"
 
     details.fetch(:album).fetch("Name")
+  end
+
+  def load_collaborative_playlist_details
+    client = Integrations::Client.for(
+      @server_connection,
+      access_token: @result.access_token,
+      device_id: current_device_id
+    )
+    @collaborative_supported = client.supports?(Integrations::Capabilities::COLLABORATIVE_PLAYLISTS)
+    return unless @collaborative_supported
+
+    playlist_id = @result.details.fetch(:album).fetch("Id")
+    users_result = ServerConnections::CollaborativePlaylists::FetchPlaylistUsers.new(
+      @server_connection,
+      playlist_id: playlist_id,
+      client: client
+    ).call
+    remote_users = users_result.success? ? (users_result.users || []) : []
+    remote_ids = remote_users.map { |u| u["UserId"] || u["Id"] }.compact
+    @fellow_connections = @server_connection.fellow_instance_connections
+    @collaborators = @fellow_connections.select { |conn| conn.remote_user_id.present? && remote_ids.include?(conn.remote_user_id) }
+  rescue StandardError => e
+    Rails.logger.warn("Could not load playlist collaborators: #{e.message}")
+    @collaborators = []
   end
 end
