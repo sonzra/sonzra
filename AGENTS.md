@@ -29,12 +29,15 @@ When executing Compound Engineering skills (`ce-brainstorm`, `ce-plan`, `ce-work
 - **Component Layout Discipline:** Follow [`specialized-developer`](.agents/skills/specialized-developer/SKILL.md). Never compress more than 2 secondary controls next to artwork and text on mobile. Maintain $\ge 180\text{px}$ usable width for titles with clean ellipsis truncation.
 - **Redesign Self-Sufficiency:** In redesign mode, `redesign.css` is the *only* stylesheet loaded. Never rely on or reuse classes from legacy sheets (`queue.css`, `application.css`). Modals must strictly follow the canonical `.redesign-*-dialog` pattern.
 
-### 3. Verification & Review Phase (`ce-work` quality check, `ce-code-review`)
+### 3. Verification & Review Phase (`ce-code-review`, `verify-implementation`)
 - **Automated Quality Gate:** Run [`verify-implementation`](.agents/skills/verify-implementation/SKILL.md) to ensure 0 RuboCop offenses, 100% test pass on Rails and Vitest suites, and exit 0 on `bin/quality`.
 - **Multimodal Visual Verification Gate:** For any change touching views, styles, or Stimulus controllers, capture screenshots on desktop (`1440x900`) and mobile (`390x844`). The agent must inspect image files directly using `read_file` to confirm:
   1. Zero container clipping or edge overflow.
   2. Metadata legibility ($\ge 180\text{px}$ usable width, clean truncation).
   3. Dialog and theme integrity (zero browser-default white `<dialog>` frames or un-themed buttons).
   4. Control deduplication (zero redundant action toggles across adjacent surfaces).
-- Never issue an approval receipt or complete `ce-work` if visual clipping or un-themed artifacts are present.
-- **Cross-Project Parity Hook:** Immediately after `ce-work` finishes, invoke the [`cross-project-parity`](.agents/skills/cross-project-parity/SKILL.md) agent to audit changes against `sonzra-tizen` and automatically file structured GitHub issues on `sonzra/sonzra-tizen` for any needed player engine adaptations or feature parity gaps.
+- Never issue an approval receipt or complete review if visual clipping or un-themed artifacts are present.
+- **Cross-Project Parity Gate:** During code review and verification, verify that any cross-cutting changes (audio pipeline math, `/api/v1/` endpoints, playback scrobbling, resilience) have a corresponding parity issue filed on `sonzra/sonzra-tizen` (or that [`cross-project-parity`](.agents/skills/cross-project-parity/SKILL.md) confirmed no sister impact).
+
+### 4. Shipping & PR Phase (`ce-commit-push-pr`)
+- **Cross-Project Parity Hook:** When preparing, pushing, and opening a PR via `ce-commit-push-pr`, invoke the [`cross-project-parity`](.agents/skills/cross-project-parity/SKILL.md) agent. It audits the finalized PR diff against `origin/main`, checks for existing sister issues, and automatically creates a structured GitHub issue on `sonzra/sonzra-tizen` linking the newly created PR.
