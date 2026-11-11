@@ -1,0 +1,58 @@
+<dialog id="share-dialog" class="redesign-share-dialog" data-controller="share" data-share-target="dialog" data-action="click->share#closeOnBackdrop">
+  <div class="redesign-share-dialog__panel" role="dialog" aria-modal="true" aria-labelledby="share-dialog-title">
+    <div class="redesign-share-dialog__heading">
+      <div>
+        <p class="redesign-share-dialog__eyebrow">Share track</p>
+        <h2 id="share-dialog-title">Recommend to a listener</h2>
+      </div>
+      <button type="button" class="redesign-share-dialog__close" aria-label="Close share dialog" data-action="share#close">
+        <%= lucide_icon "x", aria: { hidden: true } %>
+      </button>
+    </div>
+
+    <div class="redesign-share-dialog__preview">
+      <img class="redesign-share-dialog__art" data-share-target="previewArt" src="/brand/sonzra-mark.svg" alt="" hidden>
+      <div class="redesign-share-dialog__meta">
+        <strong class="redesign-share-dialog__title" data-share-target="previewTitle">Unknown Title</strong>
+        <span class="redesign-share-dialog__artist" data-share-target="previewArtist">Unknown Artist</span>
+      </div>
+    </div>
+
+    <form class="redesign-share-dialog__form" data-share-target="form" data-action="submit->share#submit">
+      <% eligible_recipients = authenticated? ? User.where.not(id: current_user.id).order(:email_address) : [] %>
+      <% if eligible_recipients.any? %>
+        <div class="redesign-share-dialog__field">
+          <label for="share-recipient-select" class="redesign-share-dialog__label">Recipient</label>
+          <select id="share-recipient-select" class="redesign-share-dialog__select" data-share-target="recipientSelect" required>
+            <option value="" disabled selected>Select a listener</option>
+            <% eligible_recipients.each do |recipient| %>
+              <option value="<%= recipient.id %>"><%= recipient.email_address %></option>
+            <% end %>
+          </select>
+        </div>
+
+        <div class="redesign-share-dialog__field">
+          <div class="redesign-share-dialog__label-row">
+            <label for="share-note-input" class="redesign-share-dialog__label">Optional note</label>
+            <span class="redesign-share-dialog__char-count"><span data-share-target="charCount">280</span> characters left</span>
+          </div>
+          <textarea id="share-note-input" class="redesign-share-dialog__textarea" data-share-target="noteInput" data-action="input->share#updateCharCount" maxlength="280" rows="3" placeholder="Add an optional recommendation note..."></textarea>
+        </div>
+
+        <p class="redesign-share-dialog__error" data-share-target="errorFeedback" role="alert" hidden></p>
+
+        <div class="redesign-share-dialog__actions">
+          <button type="button" class="secondary-button" data-action="share#close">Cancel</button>
+          <button type="submit" class="primary-button" data-share-target="submitButton">Send recommendation</button>
+        </div>
+      <% else %>
+        <div class="redesign-share-dialog__empty">
+          <p>No other listeners registered on this instance yet. Invite users in Administration to start sharing music.</p>
+          <div class="redesign-share-dialog__actions">
+            <button type="button" class="primary-button" data-action="share#close">Close</button>
+          </div>
+        </div>
+      <% end %>
+    </form>
+  </div>
+</dialog>

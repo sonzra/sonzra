@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 import { OfflineMediaStore, OfflineMediaStoreError } from "offline_media_store"
 
 export default class extends Controller {
-  static targets = ["sheet", "queueAction", "resetAction", "favoriteAction", "favoriteLabel", "playlistAction", "offlineAction", "offlineLabel", "deletePlaylistAction", "hideArtistAction", "hideGenreAction", "playlistDialog", "playlistList", "playlistName", "playlistFeedback", "panel", "loader", "loaderMessage", "loaderCancel"]
+  static targets = ["sheet", "queueAction", "resetAction", "favoriteAction", "favoriteLabel", "playlistAction", "shareAction", "offlineAction", "offlineLabel", "deletePlaylistAction", "hideArtistAction", "hideGenreAction", "playlistDialog", "playlistList", "playlistName", "playlistFeedback", "panel", "loader", "loaderMessage", "loaderCancel"]
 
   connect() {
     this.boundCloseOnOutsideClick = this.closeOnOutsideClick.bind(this)
@@ -142,6 +142,21 @@ export default class extends Controller {
     this.playlistActionTarget.dataset.cardOptionsItemType = options?.dataset.cardOptionsItemType || ""
     this.deletePlaylistActionTarget.hidden = !options?.dataset.cardOptionsDeletePlaylistUrl
     this.deletePlaylistActionTarget.dataset.cardOptionsDeletePlaylistUrl = options?.dataset.cardOptionsDeletePlaylistUrl || ""
+    if (this.hasShareActionTarget) {
+      const isAudio = options?.dataset.cardOptionsItemType === "Audio" ||
+        (!options?.dataset.cardOptionsItemType && Boolean(playButton.dataset.playerSourceParam && !playButton.dataset.playerResumableParam))
+      this.shareActionTarget.hidden = !isAudio
+      if (isAudio) {
+        const sourceUrl = playButton.dataset.playerSourceParam || playButton.dataset.playerReportingUrlParam || options?.dataset.cardOptionsPlaylistsUrl || ""
+        const match = sourceUrl.match(/\/server_connections\/([^/]+)/)
+        this.shareActionTarget.dataset.shareItemId = playButton.dataset.playerItemIdParam || options?.dataset.cardOptionsItemId || ""
+        this.shareActionTarget.dataset.shareTitle = playButton.dataset.playerTitleParam || ""
+        this.shareActionTarget.dataset.shareArtist = playButton.dataset.playerArtistParam || ""
+        this.shareActionTarget.dataset.shareAlbum = playButton.dataset.playerAlbumParam || ""
+        this.shareActionTarget.dataset.shareArtworkUrl = playButton.dataset.playerArtworkParam || ""
+        this.shareActionTarget.dataset.shareMediaServerId = match ? match[1] : (options?.dataset.cardOptionsHideServerConnectionId || "")
+      }
+    }
     if (this.hasHideArtistActionTarget) {
       this.hideArtistActionTarget.hidden = !options?.dataset.cardOptionsHideUrl
       this.hideArtistActionTarget.dataset.cardOptionsHideUrl = options?.dataset.cardOptionsHideUrl || ""
@@ -299,6 +314,60 @@ export default class extends Controller {
     const defaultName = button.dataset.cardOptionsDefaultNameParam || button.dataset.cardOptionsDefaultName || ""
 
     this.openPlaylistPickerForItem({ playlistsUrl, itemId, itemType, defaultName })
+  }
+
+  openShareDialog(event) {
+    if (event?.type === "touchend") this.ignoreNextSheetClick()
+    if (event?.type === "click" && this.shouldIgnoreSheetClick) return
+
+    event?.preventDefault?.()
+    event?.stopPropagation?.()
+
+    const detail = {
+      itemId: this.hasShareActionTarget ? (this.shareActionTarget.dataset.shareItemId || "") : "",
+      title: this.hasShareActionTarget ? (this.shareActionTarget.dataset.shareTitle || "") : "",
+      artist: this.hasShareActionTarget ? (this.shareActionTarget.dataset.shareArtist || "") : "",
+      album: this.hasShareActionTarget ? (this.shareActionTarget.dataset.shareAlbum || "") : "",
+      artworkUrl: this.hasShareActionTarget ? (this.shareActionTarget.dataset.shareArtworkUrl || "") : "",
+      mediaServerId: this.hasShareActionTarget ? (this.shareActionTarget.dataset.shareMediaServerId || "") : ""
+    }
+
+    this.close()
+
+    window.dispatchEvent(new CustomEvent("sonzra:open-share", {
+      bubbles: true,
+      composed: true,
+      detail
+    }))
+  }
+
+  openShareDialogFromButton(event) {
+    if (event?.type === "touchend") this.ignoreNextSheetClick()
+    if (event?.type === "click" && this.shouldIgnoreSheetClick) return
+
+    event?.preventDefault?.()
+    event?.stopPropagation?.()
+
+    const button = event.currentTarget
+    const match = (button.dataset.shareSource || button.dataset.cardOptionsPlaylistsUrlParam || button.dataset.playerSourceParam || "")?.match(/\/server_connections\/([^/]+)/)
+    const mediaServerId = button.dataset.shareMediaServerId || button.dataset.cardOptionsServerConnectionId || (match ? match[1] : "")
+
+    const detail = {
+      itemId: button.dataset.shareItemId || button.dataset.cardOptionsItemIdParam || "",
+      title: button.dataset.shareTitle || button.dataset.playerTitleParam || "",
+      artist: button.dataset.shareArtist || button.dataset.playerArtistParam || "",
+      album: button.dataset.shareAlbum || button.dataset.playerAlbumParam || "",
+      artworkUrl: button.dataset.shareArtworkUrl || button.dataset.playerArtworkParam || "",
+      mediaServerId
+    }
+
+    this.close()
+
+    window.dispatchEvent(new CustomEvent("sonzra:open-share", {
+      bubbles: true,
+      composed: true,
+      detail
+    }))
   }
 
   closePlaylistPicker() {
