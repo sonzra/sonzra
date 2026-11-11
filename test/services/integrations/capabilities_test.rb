@@ -16,4 +16,20 @@ class Integrations::CapabilitiesTest < ActiveSupport::TestCase
       ENV["PLEX_CLIENT_ID"] = previous_value if previous_value
     end
   end
+
+  test "jellyfin client supports collaborative playlists capability" do
+    client = Integrations::Jellyfin::Client.new(base_url: "https://jellyfin.example.com")
+    assert client.supports?(Integrations::Capabilities::COLLABORATIVE_PLAYLISTS)
+  end
+
+  test "plex client does not support collaborative playlists capability" do
+    previous_value = ENV["PLEX_CLIENT_ID"]
+    ENV["PLEX_CLIENT_ID"] = "test-client-id"
+    begin
+      client = Integrations::Plex::Client.new(base_url: "https://plex.example.com")
+      assert_not client.supports?(Integrations::Capabilities::COLLABORATIVE_PLAYLISTS)
+    ensure
+      ENV["PLEX_CLIENT_ID"] = previous_value if previous_value
+    end
+  end
 end

@@ -38,7 +38,7 @@ class ServerConnection < ApplicationRecord
       username: username,
       password: password,
       access_token: token,
-      remote_user_id: remote_user_id.presence,
+      remote_user_id: remote_user_id.presence || self.remote_user_id.presence,
       device_id: device_id.presence
     }.compact
 
@@ -46,7 +46,18 @@ class ServerConnection < ApplicationRecord
       options_hash[:on_token_refreshed] = ->(fresh_token) { update_column(:access_token, fresh_token) }
     end
 
+    if persisted? && !options.key?(:on_user_resolved)
+      options_hash[:on_user_resolved] = ->(fresh_user_id) { update_column(:remote_user_id, fresh_user_id) if fresh_user_id.present? }
+    end
+
     options_hash.merge(options)
+  end
+
+  def fellow_instance_connections
+    return ServerConnection.none unless media_server
+
+    scope = media_server.server_connections.includes(:user)
+    persisted? ? scope.where.not(id: id) : scope
   end
 
   private
