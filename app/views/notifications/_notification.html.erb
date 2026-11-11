@@ -1,0 +1,48 @@
+<%= tag.li id: dom_id(notification), class: ["redesign-notification-item", ("is-unread" unless notification.read?)] do %>
+  <div class="redesign-notification-item__icon" aria-hidden="true">
+    <% if notification.actor_user %>
+      <span class="redesign-notification-item__avatar"><%= notification.actor_user.email_address[0].upcase %></span>
+    <% else %>
+      <%= lucide_icon "bell", aria: { hidden: true } %>
+    <% end %>
+  </div>
+
+  <div class="redesign-notification-item__body">
+    <% if notification.link_url.present? %>
+      <%= link_to notification.link_url,
+                  class: "redesign-notification-item__link",
+                  data: {
+                    action: "click->notifications#readAndNavigate",
+                    notifications_url_param: notification_path(notification)
+                  } do %>
+        <strong class="redesign-notification-item__title"><%= notification.title %></strong>
+        <p class="redesign-notification-item__message"><%= notification.message %></p>
+      <% end %>
+    <% else %>
+      <div class="redesign-notification-item__text">
+        <strong class="redesign-notification-item__title"><%= notification.title %></strong>
+        <p class="redesign-notification-item__message"><%= notification.message %></p>
+      </div>
+    <% end %>
+    <time class="redesign-notification-item__time" datetime="<%= notification.created_at.iso8601 %>"><%= time_ago_in_words(notification.created_at) %> ago</time>
+  </div>
+
+  <div class="redesign-notification-item__actions">
+    <% unless notification.read? %>
+      <%= button_to notification_path(notification),
+                    method: :patch,
+                    class: "redesign-notification-item__btn redesign-notification-item__btn--read",
+                    aria: { label: "Mark notification as read" },
+                    title: "Mark as read" do %>
+        <%= lucide_icon "check", aria: { hidden: true } %>
+      <% end %>
+    <% end %>
+    <%= button_to notification_path(notification),
+                  method: :delete,
+                  class: "redesign-notification-item__btn redesign-notification-item__btn--dismiss",
+                  aria: { label: "Dismiss notification" },
+                  title: "Dismiss" do %>
+      <%= lucide_icon "x", aria: { hidden: true } %>
+    <% end %>
+  </div>
+<% end %>
