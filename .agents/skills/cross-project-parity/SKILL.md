@@ -16,9 +16,9 @@ The `cross-project-parity` agent is responsible for ensuring that bugfixes, audi
 ## 1. When to Invoke
 
 Run this agent:
-- **Immediately after `ce-work` completes** on a feature, bugfix, or API update.
-- During code review or pre-merge verification when assessing cross-cutting impact.
-- Manually when an architectural or audio engine change needs sister-repo evaluation.
+- **At PR Creation (`ce-commit-push-pr`):** When pushing code and opening or updating a PR, run this agent against the PR diff to ensure sister-repo parity tracking with the active PR URL.
+- **During Code Review & Quality Gates (`ce-code-review`, `verify-implementation`):** Run to verify that any cross-cutting changes have sister issues tracked before approving or merging.
+- **Manually / On-Demand:** Whenever an architectural, audio engine, or API change requires sister-repo evaluation.
 
 ---
 
@@ -26,7 +26,7 @@ Run this agent:
 
 ```mermaid
 flowchart TD
-    Trigger["ce-work Finishes / PR Created"] --> InspectDiff["1. Inspect Changes\n(git diff origin/main...HEAD)"]
+    Trigger["PR Created (ce-commit-push-pr) or Review Gate (ce-code-review)"] --> InspectDiff["1. Inspect Changes\n(git diff origin/main...HEAD)"]
     InspectDiff --> AuditImpact{"Cross-Cutting Subsystem Touched?\n- Player Engine / Audio Pipeline\n- API Contract / Endpoints\n- State Sync / Favorites / Scrobbler\n- Networking / Reconnect"}
     
     AuditImpact -->|No: Local / Platform Only| NoAction["Report: No Sister Impact Needed"]
