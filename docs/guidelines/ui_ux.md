@@ -172,6 +172,35 @@ Rendered in [`app/views/shared/_redesign_navigation.html.erb`](file:///home/brun
 - Native HTML `<dialog>` element with backdrop blur.
 - Instant access to quick destination shortcuts (Albums, Artists, Your Mixes).
 
+### 6. Modal Dialogs & Shared Confirmation (`.redesign-dialog`)
+
+All dialogs and confirmation modals must adhere to the canonical `.redesign-dialog` component specification or render the shared UI partial [`app/views/shared/ui/_confirm_dialog.html.erb`](file:///root/Projects/sonzra/app/views/shared/ui/_confirm_dialog.html.erb):
+- **Container Semantics:** Native HTML `<dialog>` with `aria-modal="true"` and `aria-labelledby`. Closed state is enforced with `:not([open]) { display: none !important; }`.
+- **Surfaces & Backdrop:** Elevated dark surface (`var(--rz-raised)` / `#191927`) with 1px `var(--rz-line)` border, 22px border radius, deep shadow (`0 30px 100px rgb(0 0 0 / 75%)`), and frosted glass backdrop blur (`rgb(0 0 0 / 72%)`, `backdrop-filter: blur(8px)`).
+- **Typography & Structure:**
+  - Eyebrow: `.redesign-dialog__eyebrow` in uppercase bold `var(--rz-primary-light)` (`10px`).
+  - Title: `.redesign-dialog__title` in bold `var(--rz-text)` (`20px`).
+  - Description: `.redesign-dialog__desc` in `var(--rz-muted)` (`13px`).
+  - Close button: `.redesign-dialog__close` circular button with `lucide_icon "x"`.
+- **Action Buttons & Mobile Ergonomics:**
+  - Desktop: Right-aligned horizontal row (`.redesign-dialog__actions`).
+  - Mobile ($\le 760\text{px}$): Full-width stacked buttons (`flex-direction: column-reverse`) with $\ge 44\text{px}$ touch targets.
+  - Button tokens: `.primary-button` (purple gradient), `.secondary-button` (hairline outline pill), `.danger-button` (destructive coral/pink gradient).
+- **Reusable Partial Usage:**
+  ```erb
+  <%= render "shared/ui/confirm_dialog",
+        dialog_class: "my-dialog",
+        data: { controller: "my-controller", action: "cancel->my-controller#close" },
+        title_id: "confirm-title",
+        eyebrow: "Destructive Action",
+        title: "Are you sure?",
+        description: "This operation cannot be undone.",
+        cancel_action: "my-controller#close",
+        confirm_action: "my-controller#execute",
+        confirm_label: "Confirm",
+        confirm_variant: :danger %>
+  ```
+
 ---
 
 ## 6. Motion & Animation Standards
