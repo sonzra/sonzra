@@ -63,6 +63,32 @@ class ServerConnectionTest < ActiveSupport::TestCase
     assert_equal "new-access-token", connection.reload.access_token
   end
 
+  test "configures on_user_resolved write-through to update remote_user_id column" do
+    connection = create_connection
+    callback = connection.client_options[:on_user_resolved]
+    assert callback.respond_to?(:call)
+
+    callback.call("fresh-remote-user-id")
+    assert_equal "fresh-remote-user-id", connection.reload.remote_user_id
+    assert_equal "fresh-remote-user-id", connection.client_options[:remote_user_id]
+  end
+
+  test "fellow_instance_connections returns other connections on the same media server" do
+    server = MediaServer.create!(name: "Home Shared", provider: :jellyfin, base_url: "https://jellyfin.example.com")
+    connection1 = ServerConnection.create!(user: users(:one), media_server: server, username: "user1", password: "pw1")
+    second_user = User.create!(email_address: "fellow@example.com", password: "password", password_confirmation: "password")
+    connection2 = ServerConnection.create!(user: second_user, media_server: server, username: "user2", password: "pw2")
+
+    other_server = MediaServer.create!(name: "Other Server", provider: :jellyfin, base_url: "https://other.example.com")
+    third_user = User.create!(email_address: "other@example.com", password: "password", password_confirmation: "password")
+    connection3 = ServerConnection.create!(user: third_user, media_server: other_server, username: "user3", password: "pw3")
+
+    fellows = connection1.fellow_instance_connections
+    assert_includes fellows, connection2
+    assert_not_includes fellows, connection1
+    assert_not_includes fellows, connection3
+  end
+
   test "destroys dependent recommendation runs and collections without foreign key violation" do
     connection = create_connection
     collection = RecommendationCollection.create!(

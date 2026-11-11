@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_05_204200) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_11_194000) do
   create_table "application_settings", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.boolean "registrations_enabled", default: true, null: false
@@ -128,10 +128,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_05_204200) do
     t.datetime "created_at", null: false
     t.integer "media_server_id", null: false
     t.text "password"
+    t.string "remote_user_id"
     t.datetime "updated_at", null: false
     t.integer "user_id"
     t.text "username", null: false
     t.index ["media_server_id"], name: "index_server_connections_on_media_server_id"
+    t.index ["remote_user_id"], name: "index_server_connections_on_remote_user_id"
     t.index ["user_id", "media_server_id"], name: "index_server_connections_on_user_id_and_media_server_id", unique: true
     t.index ["user_id"], name: "index_server_connections_on_user_id"
   end
