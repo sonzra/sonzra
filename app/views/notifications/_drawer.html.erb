@@ -1,0 +1,43 @@
+<% notifications = local_assigns.fetch(:notifications, []) %>
+<% standalone = local_assigns.fetch(:standalone, false) %>
+
+<div class="<%= standalone ? 'redesign-notifications__standalone' : 'redesign-notifications__drawer' %>"
+     <% unless standalone %>data-notifications-target="drawer" hidden<% end %>
+     role="region"
+     aria-label="Notifications panel">
+  <div class="redesign-notifications__header">
+    <div class="redesign-notifications__header-title">
+      <h3>Notifications</h3>
+    </div>
+    <div class="redesign-notifications__header-actions" id="notifications_header_actions">
+      <% if notifications.any?(&:unread?) %>
+        <%= button_to mark_all_read_notifications_path,
+                      method: :post,
+                      class: "redesign-notifications__mark-all",
+                      aria: { label: "Mark all as read" } do %>
+          <%= lucide_icon "check-check", aria: { hidden: true } %>
+          <span>Mark all read</span>
+        <% end %>
+      <% end %>
+    </div>
+    <% unless standalone %>
+      <button type="button"
+              class="redesign-notifications__close"
+              aria-label="Close notifications drawer"
+              data-action="notifications#close">
+        <%= lucide_icon "x", aria: { hidden: true } %>
+      </button>
+    <% end %>
+  </div>
+
+  <ul id="notifications_list" class="redesign-notifications__list" data-notifications-target="list">
+    <%= render partial: "notifications/notification", collection: notifications, as: :notification %>
+  </ul>
+
+  <div id="notifications_empty" class="redesign-notifications__empty">
+    <div class="redesign-notifications__empty-icon" aria-hidden="true">
+      <%= lucide_icon "bell-off", aria: { hidden: true } %>
+    </div>
+    <p>No new notifications. Your listening room is quiet.</p>
+  </div>
+</div>

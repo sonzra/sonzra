@@ -9,6 +9,11 @@ Rails.application.routes.draw do
   root "home#index"
   get "offline_shell", to: "offline_shells#show", as: :offline_shell
   resources :offline_downloads, only: :index
+  resources :notifications, only: [ :index, :update, :destroy ] do
+    collection do
+      post :mark_all_read
+    end
+  end
   resource :active_server_connection, only: :update
   resources :hidden_artists, only: %i[index create destroy]
   resources :hidden_genres, only: %i[index create destroy]

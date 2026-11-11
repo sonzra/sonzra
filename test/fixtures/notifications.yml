@@ -1,0 +1,21 @@
+one:
+  user: one
+  actor_user: two
+  title: "Playlist shared"
+  message: "Alex shared Late Night Beats with you"
+  link_url: "/playlists/123"
+  read_at: nil
+
+two:
+  user: one
+  title: "System update"
+  message: "Library scan complete"
+  link_url: nil
+  read_at: 2026-11-11 12:00:00
+
+three:
+  user: two
+  title: "Mix ready"
+  message: "Your new weekly mix is ready"
+  link_url: nil
+  read_at: nil
