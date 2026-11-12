@@ -1139,7 +1139,8 @@ export default class extends Controller {
     const track = this.queue[index]
     if (!track?.itemId) return
     const match = track?.source?.match(/\/server_connections\/([^/]+)/)
-    const mediaServerId = match ? match[1] : ""
+    const serverConnectionId = match ? match[1] : ""
+    const mediaServerId = serverConnectionId
 
     window.dispatchEvent(new CustomEvent("sonzra:open-share", {
       bubbles: true,
@@ -1150,7 +1151,8 @@ export default class extends Controller {
         artist: track.artist || "",
         album: track.album || "",
         artworkUrl: track.artwork || "",
-        mediaServerId
+        mediaServerId,
+        serverConnectionId
       }
     }))
   }

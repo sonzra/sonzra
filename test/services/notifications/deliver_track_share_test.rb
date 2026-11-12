@@ -93,5 +93,59 @@ module Notifications
       assert_nil result.notification
       assert_includes result.error, "Note is too long"
     end
+
+    test "resolves media_server_id from server_connection_id" do
+      media_server = MediaServer.create!(name: "Test Jellyfin", provider: "jellyfin", base_url: "http://example.com")
+      connection = ServerConnection.create!(user: @sender, media_server: media_server, username: "user1", password: "password")
+
+      params = @valid_params.merge(server_connection_id: connection.id)
+      result = DeliverTrackShare.call(
+        sender: @sender,
+        recipient_id: @recipient.id,
+        params: params
+      )
+
+      assert result.success?
+      assert_equal media_server.id, result.notification.media_server_id
+    end
+
+    test "resolves media_server_id when client sends server_connection_id as media_server_id" do
+      media_server = MediaServer.create!(name: "Test Jellyfin 2", provider: "jellyfin", base_url: "http://example.com")
+      connection = ServerConnection.create!(user: @sender, media_server: media_server, username: "user1", password: "password")
+
+      params = @valid_params.merge(media_server_id: connection.id)
+      result = DeliverTrackShare.call(
+        sender: @sender,
+        recipient_id: @recipient.id,
+        params: params
+      )
+
+      assert result.success?
+      assert_equal media_server.id, result.notification.media_server_id
+    end
+
+    test "extracts clean artwork item ID from artwork path" do
+      params = @valid_params.merge(artwork_item_id: "/server_connections/99/artwork/clean-art-id?fillWidth=300")
+      result = DeliverTrackShare.call(
+        sender: @sender,
+        recipient_id: @recipient.id,
+        params: params
+      )
+
+      assert result.success?
+      assert_equal "clean-art-id", result.notification.artwork_item_id
+    end
+
+    test "handles unknown media server IDs without crashing" do
+      params = @valid_params.merge(media_server_id: 999_999)
+      result = DeliverTrackShare.call(
+        sender: @sender,
+        recipient_id: @recipient.id,
+        params: params
+      )
+
+      assert result.success?
+      assert_nil result.notification.media_server_id
+    end
   end
 end

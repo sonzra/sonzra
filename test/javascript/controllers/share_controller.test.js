@@ -170,6 +170,7 @@ describe("share controller", () => {
         artist: "Timecop1983",
         album: "Night Drive Album",
         media_server_id: "srv-2",
+        server_connection_id: "srv-2",
         artwork_item_id: "/covers/nightdrive.jpg",
         note: "Loved this synthwave track!"
       })

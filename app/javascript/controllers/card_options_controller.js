@@ -154,7 +154,8 @@ export default class extends Controller {
         this.shareActionTarget.dataset.shareArtist = playButton.dataset.playerArtistParam || ""
         this.shareActionTarget.dataset.shareAlbum = playButton.dataset.playerAlbumParam || ""
         this.shareActionTarget.dataset.shareArtworkUrl = playButton.dataset.playerArtworkParam || ""
-        this.shareActionTarget.dataset.shareMediaServerId = match ? match[1] : (options?.dataset.cardOptionsHideServerConnectionId || "")
+        this.shareActionTarget.dataset.shareServerConnectionId = match ? match[1] : (options?.dataset.cardOptionsHideServerConnectionId || "")
+        this.shareActionTarget.dataset.shareMediaServerId = this.shareActionTarget.dataset.shareServerConnectionId
       }
     }
     if (this.hasHideArtistActionTarget) {
@@ -329,7 +330,8 @@ export default class extends Controller {
       artist: this.hasShareActionTarget ? (this.shareActionTarget.dataset.shareArtist || "") : "",
       album: this.hasShareActionTarget ? (this.shareActionTarget.dataset.shareAlbum || "") : "",
       artworkUrl: this.hasShareActionTarget ? (this.shareActionTarget.dataset.shareArtworkUrl || "") : "",
-      mediaServerId: this.hasShareActionTarget ? (this.shareActionTarget.dataset.shareMediaServerId || "") : ""
+      mediaServerId: this.hasShareActionTarget ? (this.shareActionTarget.dataset.shareMediaServerId || "") : "",
+      serverConnectionId: this.hasShareActionTarget ? (this.shareActionTarget.dataset.shareServerConnectionId || "") : ""
     }
 
     this.close()
@@ -350,7 +352,8 @@ export default class extends Controller {
 
     const button = event.currentTarget
     const match = (button.dataset.shareSource || button.dataset.cardOptionsPlaylistsUrlParam || button.dataset.playerSourceParam || "")?.match(/\/server_connections\/([^/]+)/)
-    const mediaServerId = button.dataset.shareMediaServerId || button.dataset.cardOptionsServerConnectionId || (match ? match[1] : "")
+    const serverConnectionId = button.dataset.shareServerConnectionId || button.dataset.cardOptionsServerConnectionId || (match ? match[1] : "")
+    const mediaServerId = button.dataset.shareMediaServerId || serverConnectionId
 
     const detail = {
       itemId: button.dataset.shareItemId || button.dataset.cardOptionsItemIdParam || "",
@@ -358,7 +361,8 @@ export default class extends Controller {
       artist: button.dataset.shareArtist || button.dataset.playerArtistParam || "",
       album: button.dataset.shareAlbum || button.dataset.playerAlbumParam || "",
       artworkUrl: button.dataset.shareArtworkUrl || button.dataset.playerArtworkParam || "",
-      mediaServerId
+      mediaServerId,
+      serverConnectionId
     }
 
     this.close()

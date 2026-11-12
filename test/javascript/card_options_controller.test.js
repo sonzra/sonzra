@@ -423,7 +423,8 @@ describe("card options controller", () => {
       artist: "Pink Floyd",
       album: "Dark Side of the Moon",
       artworkUrl: "/art/dsotm.jpg",
-      mediaServerId: "9"
+      mediaServerId: "9",
+      serverConnectionId: ""
     })
   })
 })

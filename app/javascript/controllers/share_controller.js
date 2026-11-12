@@ -38,8 +38,16 @@ export default class extends Controller {
     return Boolean(this.dialogTarget.open || this.dialogTarget.hasAttribute("open"))
   }
 
-  openForTrack({ itemId, title, artist, album, artworkUrl, mediaServerId } = {}) {
-    this.trackData = { itemId, title, artist, album, artworkUrl, mediaServerId }
+  openForTrack({ itemId, title, artist, album, artworkUrl, mediaServerId, serverConnectionId } = {}) {
+    this.trackData = {
+      itemId,
+      title,
+      artist,
+      album,
+      artworkUrl,
+      mediaServerId,
+      serverConnectionId: serverConnectionId || mediaServerId
+    }
     if (this.hasPreviewTitleTarget) {
       this.previewTitleTarget.textContent = title || "Unknown Title"
     }
@@ -108,6 +116,7 @@ export default class extends Controller {
           artist: this.trackData?.artist,
           album: this.trackData?.album,
           media_server_id: this.trackData?.mediaServerId,
+          server_connection_id: this.trackData?.serverConnectionId || this.trackData?.mediaServerId,
           artwork_item_id: this.trackData?.artworkUrl,
           note: this.hasNoteInputTarget ? this.noteInputTarget.value : ""
         })

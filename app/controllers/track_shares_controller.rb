@@ -26,6 +26,6 @@ class TrackSharesController < ApplicationController
 
   def track_share_params
     raw_params = params[:track_share].presence || params
-    raw_params.permit(:recipient_id, :item_id, :title, :artist, :album, :artwork_item_id, :media_server_id, :note)
+    raw_params.permit(:recipient_id, :item_id, :title, :artist, :album, :artwork_item_id, :media_server_id, :server_connection_id, :note)
   end
 end

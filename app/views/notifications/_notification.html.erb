@@ -5,13 +5,22 @@
   end
   server_connection ||= user&.preferred_server_connection || user&.server_connections&.first
 
-  source_param = server_connection ? audio_server_connection_path(server_connection, notification.item_id) : ""
   artwork_param = if server_connection && notification.artwork_item_id.present?
-    artwork_server_connection_path(server_connection, notification.artwork_item_id)
+    art_id = notification.artwork_item_id
+    if art_id.include?("/artwork/")
+      art_id = art_id.split("/artwork/").last.split("?").first
+    end
+
+    if art_id.start_with?("/") || art_id.start_with?("http")
+      art_id
+    else
+      artwork_server_connection_path(server_connection, art_id)
+    end
   else
     "/brand/sonzra-mark.svg"
   end
 
+  source_param = server_connection ? audio_server_connection_path(server_connection, notification.item_id) : ""
   sender_name = notification.sender&.email_address&.split("@")&.first || "Former listener"
 %>
 
