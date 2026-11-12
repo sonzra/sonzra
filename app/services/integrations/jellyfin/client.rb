@@ -377,9 +377,8 @@ module Integrations
         ensure_success!(perform(Net::HTTP::Delete.new(uri, authorization_headers(session.fetch("AccessToken")))))
       end
 
-      def playlist_users(playlist_id)
-        session = authentication
-        token = session.fetch("AccessToken")
+      def playlist_users(playlist_id, token: nil)
+        token ||= authentication.fetch("AccessToken")
         data = get("Playlists/#{playlist_id}/Users", token)
         data.is_a?(Array) ? data : data.fetch("Users", [])
       rescue ConnectionError => error
@@ -393,20 +392,59 @@ module Integrations
       def share_playlist(playlist_id:, user_id:, can_edit: true)
         session = authentication
         token = session.fetch("AccessToken")
-        uri = URI.parse("#{base_url}/Playlists/#{playlist_id}/Users/#{user_id}")
-        headers = authorization_headers(token).merge("Content-Type" => "application/json")
-        request = Net::HTTP::Post.new(uri, headers)
-        request.body = JSON.generate(CanEdit: can_edit)
-        ensure_success!(perform(request))
+        json_headers = authorization_headers(token).merge("Content-Type" => "application/json")
+
+        current_users = playlist_users(playlist_id, token: token)
+        user_entry = current_users.find { |u| (u["UserId"] || u["Id"]) == user_id }
+        updated_users = if user_entry
+          current_users.map do |u|
+            uid = u["UserId"] || u["Id"]
+            uid == user_id ? { UserId: user_id, CanEdit: can_edit } : { UserId: uid, CanEdit: u["CanEdit"] != false }
+          end
+        else
+          current_users.map { |u| { UserId: (u["UserId"] || u["Id"]), CanEdit: u["CanEdit"] != false } } + [ { UserId: user_id, CanEdit: can_edit } ]
+        end
+
+        playlist_uri = URI.parse("#{base_url}/Playlists/#{playlist_id}")
+        playlist_request = Net::HTTP::Post.new(playlist_uri, json_headers)
+        playlist_request.body = JSON.generate(Users: updated_users, IsPublic: false)
+        ensure_success!(perform(playlist_request))
+
+        begin
+          user_uri = URI.parse("#{base_url}/Playlists/#{playlist_id}/Users/#{user_id}")
+          user_request = Net::HTTP::Post.new(user_uri, json_headers)
+          user_request.body = JSON.generate(CanEdit: can_edit)
+          perform(user_request)
+        rescue StandardError
+          nil
+        end
+
         true
       end
 
       def unshare_playlist(playlist_id:, user_id:)
         session = authentication
         token = session.fetch("AccessToken")
-        uri = URI.parse("#{base_url}/Playlists/#{playlist_id}/Users/#{user_id}")
-        request = Net::HTTP::Delete.new(uri, authorization_headers(token))
-        ensure_success!(perform(request))
+        json_headers = authorization_headers(token).merge("Content-Type" => "application/json")
+
+        current_users = playlist_users(playlist_id, token: token)
+        remaining_users = current_users.reject { |u| (u["UserId"] || u["Id"]) == user_id }.map do |u|
+          { UserId: (u["UserId"] || u["Id"]), CanEdit: u["CanEdit"] != false }
+        end
+
+        playlist_uri = URI.parse("#{base_url}/Playlists/#{playlist_id}")
+        playlist_request = Net::HTTP::Post.new(playlist_uri, json_headers)
+        playlist_request.body = JSON.generate(Users: remaining_users, IsPublic: false)
+        ensure_success!(perform(playlist_request))
+
+        begin
+          user_uri = URI.parse("#{base_url}/Playlists/#{playlist_id}/Users/#{user_id}")
+          delete_request = Net::HTTP::Delete.new(user_uri, authorization_headers(token))
+          perform(delete_request)
+        rescue StandardError
+          nil
+        end
+
         true
       end
 
@@ -476,6 +514,7 @@ module Integrations
         end
 
         session = raw_authenticate_by_name
+        @access_token = session["AccessToken"]
         @resolved_user = session["User"]
         @on_user_resolved&.call(@resolved_user["Id"]) if @resolved_user&.dig("Id").present?
         session
