@@ -33,6 +33,7 @@ module Notifications
         media_server_id: media_server_id,
         notification_type: "track_share",
         title: @params[:title],
+        message: "Shared a track with you",
         artist: @params[:artist],
         album: @params[:album],
         item_id: @params[:item_id],
@@ -87,14 +88,14 @@ module Notifications
 
     def broadcast_delivery(notification, recipient)
       Turbo::StreamsChannel.broadcast_prepend_to(
-        [ recipient, :notifications ],
+        "user_#{recipient.id}_notifications",
         target: "notifications_list",
         partial: "notifications/notification",
         locals: { notification: notification, current_user: recipient }
       )
 
       Turbo::StreamsChannel.broadcast_replace_to(
-        [ recipient, :notifications ],
+        "user_#{recipient.id}_notifications",
         target: "notifications_badge",
         partial: "notifications/badge",
         locals: { count: recipient.notifications.unread.count }

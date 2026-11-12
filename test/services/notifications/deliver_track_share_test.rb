@@ -18,7 +18,7 @@ module Notifications
     end
 
     test "successfully creates notification and broadcasts to recipient stream" do
-      stream = Turbo::StreamsChannel.send(:stream_name_from, [ @recipient, :notifications ])
+      stream = Turbo::StreamsChannel.send(:stream_name_from, "user_#{@recipient.id}_notifications")
 
       result = nil
       assert_difference -> { @recipient.notifications.count } => 1, -> { @sender.sent_notifications.count } => 1 do

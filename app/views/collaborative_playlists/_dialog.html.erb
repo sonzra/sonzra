@@ -1,0 +1,23 @@
+<dialog class="redesign-share-playlist-dialog" data-collaborative-playlist-target="dialog" aria-modal="true" aria-labelledby="share-playlist-title">
+  <div class="redesign-share-playlist-dialog__panel">
+    <div class="redesign-share-playlist-dialog__heading">
+      <div>
+        <p class="redesign-share-playlist-dialog__kicker">Collaboration</p>
+        <h2 id="share-playlist-title">Share playlist</h2>
+      </div>
+      <button type="button" class="redesign-share-playlist-dialog__close" aria-label="Close share dialog" data-action="collaborative-playlist#closeDialog">
+        <%= lucide_icon "x", aria: { hidden: true } %>
+      </button>
+    </div>
+    <p class="redesign-share-playlist-dialog__description">
+      Invite other listeners on this Sonzra instance to co-curate this playlist.
+    </p>
+    <ul class="redesign-share-playlist-dialog__list" data-collaborative-playlist-target="list">
+      <li class="redesign-share-playlist-dialog__loading">Loading listeners…</li>
+    </ul>
+    <p class="redesign-share-playlist-dialog__empty" data-collaborative-playlist-target="empty" hidden>
+      No other listeners on this instance are connected to this server.
+    </p>
+    <p class="redesign-share-playlist-dialog__feedback" data-collaborative-playlist-target="feedback" role="status" aria-live="polite"></p>
+  </div>
+</dialog>

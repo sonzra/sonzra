@@ -76,6 +76,44 @@ class ServerConnections::FetchLibraryCollectionTest < ActiveSupport::TestCase
     assert_equal [ "album-2" ], result.items.pluck("Id")
   end
 
+  test "enriches playlists with collaboration status when collaborative capability is supported" do
+    response = Integrations::LibraryCollectionResponseData.new(
+      content: [
+        { "Id" => "p-owned", "Name" => "My Private Mix" },
+        { "Id" => "p-collab", "Name" => "Road Trip" },
+        { "Id" => "p-shared", "Name" => "Friend Playlist" }
+      ],
+      total: 3,
+      access_token: "token"
+    )
+    client = Object.new
+    client.define_singleton_method(:library_collection) { |_, **| response }
+    client.define_singleton_method(:supports?) { |cap| cap == Integrations::Capabilities::COLLABORATIVE_PLAYLISTS }
+    client.define_singleton_method(:playlist_users) do |playlist_id|
+      case playlist_id
+      when "p-owned" then []
+      when "p-collab" then [ { "UserId" => "other-user", "CanEdit" => true } ]
+      when "p-shared" then raise Integrations::ConnectionError, "The server returned HTTP 403."
+      end
+    end
+
+    result = ServerConnections::FetchLibraryCollection.new(server_connection, :playlists, client: client).call
+
+    assert_predicate result, :success?
+    items = result.items
+    assert_equal :owned, items[0]["CollaborationStatus"]
+    assert_equal true, items[0]["IsOwner"]
+    assert_equal true, items[0]["CanDelete"]
+
+    assert_equal :collaborative, items[1]["CollaborationStatus"]
+    assert_equal true, items[1]["IsOwner"]
+    assert_equal false, items[1]["CanDelete"]
+
+    assert_equal :shared_with_me, items[2]["CollaborationStatus"]
+    assert_equal false, items[2]["IsOwner"]
+    assert_equal false, items[2]["CanDelete"]
+  end
+
   private
 
   def server_connection

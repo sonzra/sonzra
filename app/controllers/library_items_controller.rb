@@ -14,6 +14,7 @@ class LibraryItemsController < ApplicationController
       @back_path, @back_label = detail_back_destination(@result.details)
       @media_detail_header = playable_media_detail?(@result.details)
       @media_detail_title = media_detail_title(@result.details) if @media_detail_header
+      load_collaborative_playlist_details if @result.details.fetch(:kind, :music) == :playlist
     elsif @result.message.to_s.match?(/session expired|401|authentication/i)
       record_connection_alert(@server_connection)
     end
@@ -42,5 +43,56 @@ class LibraryItemsController < ApplicationController
     return item.fetch("Name") if item["Type"] == "MusicArtist"
 
     details.fetch(:album).fetch("Name")
+  end
+
+  def load_collaborative_playlist_details
+    @is_playlist_owner = false
+    client = Integrations::Client.for(
+      @server_connection,
+      access_token: @result.access_token,
+      device_id: current_device_id
+    )
+    @collaborative_supported = client.supports?(Integrations::Capabilities::COLLABORATIVE_PLAYLISTS)
+    return unless @collaborative_supported
+
+    playlist_id = @result.details.fetch(:album).fetch("Id")
+    users_result = ServerConnections::CollaborativePlaylists::FetchPlaylistUsers.new(
+      @server_connection,
+      playlist_id: playlist_id,
+      client: client
+    ).call
+    @fellow_connections = @server_connection.fellow_instance_connections
+
+    if users_result.success?
+      @is_playlist_owner = true
+      remote_users = users_result.users || []
+      remote_ids = remote_users.select { |u| u["CanEdit"] != false }.map { |u| u["UserId"] || u["Id"] }.compact
+      @collaborators = @fellow_connections.select { |conn| conn.remote_user_id.present? && remote_ids.include?(conn.remote_user_id) }.uniq(&:remote_user_id)
+    else
+      @is_playlist_owner = false
+      if @server_connection.remote_user_id.present?
+        owner_conn = @fellow_connections.find do |fellow|
+          fellow_client = Integrations::Client.for(fellow)
+          fellow_result = ServerConnections::CollaborativePlaylists::FetchPlaylistUsers.new(
+            fellow,
+            playlist_id: playlist_id,
+            client: fellow_client
+          ).call
+          next false unless fellow_result.success?
+
+          (fellow_result.users || []).any? do |u|
+            (u["UserId"] || u["Id"]) == @server_connection.remote_user_id && u["CanEdit"] != false
+          end
+        rescue StandardError
+          false
+        end
+
+        @collaborators = owner_conn ? [ owner_conn ] : []
+      end
+    end
+  rescue StandardError => e
+    Rails.logger.warn("Could not load playlist collaborators: #{e.message}")
+    @is_playlist_owner = false
+    @collaborators = []
   end
 end

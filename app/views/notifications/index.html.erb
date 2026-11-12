@@ -1,18 +1,24 @@
-<%= turbo_stream_from [current_user, :notifications] %>
+<% content_for :title, "Notifications - Sonzra" %>
 
-<main class="settings-shell redesign-utility-page">
-  <header class="settings-header settings-header--page">
-    <div class="page-title">
-      <%= link_to root_path, class: "back-link back-link--compact", aria: { label: "Back to home" } do %>
-        <%= lucide_icon "arrow-left", aria: { hidden: true } %>
-      <% end %>
-      <h1>Notifications</h1>
-      <%= render partial: "notifications/badge", locals: { count: @unread_count } %>
+<main class="redesign listen-main settings-shell">
+  <div class="settings-shell__content">
+    <div class="redesign-page-intro">
+      <div class="page-title">
+        <div>
+          <p class="eyebrow">Activity</p>
+          <h1>Notifications</h1>
+        </div>
+        <div class="page-actions">
+          <%= link_to root_path, class: "ghost-button" do %>
+            <%= lucide_icon "arrow-left", aria: { hidden: true } %>
+            <span>Back</span>
+          <% end %>
+        </div>
+      </div>
     </div>
-    <% if @unread_count.positive? %>
-      <%= button_to "Mark all as read", mark_all_read_notifications_path, method: :post, class: "secondary-button" %>
-    <% end %>
-  </header>
 
-  <%= render partial: "notifications/list", locals: { notifications: @notifications, current_user: current_user } %>
+    <div data-controller="notifications">
+      <%= render "notifications/drawer", notifications: @notifications, standalone: true %>
+    </div>
+  </div>
 </main>

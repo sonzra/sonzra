@@ -9,16 +9,18 @@ Rails.application.routes.draw do
   root "home#index"
   get "offline_shell", to: "offline_shells#show", as: :offline_shell
   resources :offline_downloads, only: :index
+  resources :notifications, only: %i[index update destroy] do
+    collection do
+      post :mark_all_read
+    end
+    patch :read, on: :member
+  end
   resource :active_server_connection, only: :update
   resources :hidden_artists, only: %i[index create destroy]
   resources :hidden_genres, only: %i[index create destroy]
   resources :media_servers, only: %i[index destroy]
   resources :recommendation_collections, only: %i[index show] do
     post :events, on: :member
-  end
-  resources :notifications, only: %i[index update] do
-    post :mark_all_read, on: :collection
-    patch :read, on: :member
   end
   resources :track_shares, only: %i[create]
   get "home/content", to: "home#content", as: :home_content
@@ -74,6 +76,9 @@ Rails.application.routes.draw do
   delete "server_connections/:server_connection_id/playlists/:id", to: "playlists#destroy", as: :playlist_server_connection
   post "server_connections/:server_connection_id/playlists/:playlist_id/items", to: "playlists#add_item", as: :playlist_items_server_connection
   delete "server_connections/:server_connection_id/playlists/:playlist_id/items/:entry_id", to: "playlists#remove_item", as: :playlist_item_server_connection
+  get "server_connections/:server_connection_id/playlists/:playlist_id/collaborators", to: "collaborative_playlists#index", as: :playlist_collaborators_server_connection
+  post "server_connections/:server_connection_id/playlists/:playlist_id/collaborators", to: "collaborative_playlists#create", as: :share_playlist_server_connection
+  delete "server_connections/:server_connection_id/playlists/:playlist_id/collaborators/:target_connection_id", to: "collaborative_playlists#destroy", as: :unshare_playlist_server_connection
   resources :server_connections do
     get :quick_connect, on: :collection
     post :start_quick_connect, on: :collection

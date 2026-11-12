@@ -384,4 +384,84 @@ class LibraryItemsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".listen-loading__actions a.primary-button[href='#{reconnect_server_connection_path(@server_connection)}']", text: "Reconnect Server"
     assert_select ".listen-loading__actions a.secondary-button[href='#{server_connections_path}']", text: "Manage servers"
   end
+
+  test "renders share playlist button and dialog when user is the playlist owner" do
+    result = ServerConnections::FetchLibraryItemDetailsResultData.new(
+      details: {
+        item: { "Id" => "playlist-1", "Name" => "Roadtrip", "Type" => "Playlist" },
+        album: { "Id" => "playlist-1", "Name" => "Roadtrip", "Type" => "Playlist" },
+        tracks: [],
+        other_albums: [],
+        similar_albums: [],
+        kind: :playlist
+      },
+      access_token: "token",
+      message: nil
+    )
+    fetch_service = Object.new
+    fetch_service.define_singleton_method(:call) { result }
+
+    client = Object.new
+    client.define_singleton_method(:supports?) { |cap| cap == Integrations::Capabilities::COLLABORATIVE_PLAYLISTS }
+    client.define_singleton_method(:playlist_users) { |_| [] }
+
+    service_class = ServerConnections::FetchLibraryItemDetails
+    original_new = service_class.method(:new)
+    service_class.define_singleton_method(:new) { |*_args, **_kwargs| fetch_service }
+
+    original_for = Integrations::Client.method(:for)
+    Integrations::Client.define_singleton_method(:for) { |*_args, **_kwargs| client }
+
+    begin
+      get library_item_server_connection_url(@server_connection, "playlist-1")
+    ensure
+      service_class.define_singleton_method(:new, original_new)
+      Integrations::Client.define_singleton_method(:for, original_for)
+    end
+
+    assert_response :success
+    assert_select "button[data-action='collaborative-playlist#openDialog']", text: /Share playlist/
+    assert_select "dialog.redesign-share-playlist-dialog", 1
+  end
+
+  test "does not render share playlist button or dialog when user is a playlist collaborator" do
+    result = ServerConnections::FetchLibraryItemDetailsResultData.new(
+      details: {
+        item: { "Id" => "playlist-1", "Name" => "Roadtrip", "Type" => "Playlist" },
+        album: { "Id" => "playlist-1", "Name" => "Roadtrip", "Type" => "Playlist" },
+        tracks: [],
+        other_albums: [],
+        similar_albums: [],
+        kind: :playlist
+      },
+      access_token: "token",
+      message: nil
+    )
+    fetch_service = Object.new
+    fetch_service.define_singleton_method(:call) { result }
+
+    client = Object.new
+    client.define_singleton_method(:supports?) { |cap| cap == Integrations::Capabilities::COLLABORATIVE_PLAYLISTS }
+    client.define_singleton_method(:playlist_users) do |_|
+      raise Integrations::ConnectionError, "The server returned HTTP 403."
+    end
+
+    service_class = ServerConnections::FetchLibraryItemDetails
+    original_new = service_class.method(:new)
+    service_class.define_singleton_method(:new) { |*_args, **_kwargs| fetch_service }
+
+    original_for = Integrations::Client.method(:for)
+    Integrations::Client.define_singleton_method(:for) { |*_args, **_kwargs| client }
+
+    begin
+      get library_item_server_connection_url(@server_connection, "playlist-1")
+    ensure
+      service_class.define_singleton_method(:new, original_new)
+      Integrations::Client.define_singleton_method(:for, original_for)
+    end
+
+    assert_response :success
+    assert_select "button[data-action='collaborative-playlist#openDialog']", 0
+    assert_select "dialog.redesign-share-playlist-dialog", 0
+  end
 end

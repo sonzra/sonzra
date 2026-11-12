@@ -66,21 +66,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_11_200000) do
     t.string "album"
     t.string "artist"
     t.string "artwork_item_id"
+    t.integer "actor_user_id"
     t.datetime "created_at", null: false
-    t.string "item_id", null: false
+    t.string "item_id"
+    t.string "link_url"
     t.integer "media_server_id"
+    t.string "message", null: false
     t.text "note"
-    t.string "notification_type", default: "track_share", null: false
+    t.string "notification_type", default: "activity", null: false
     t.datetime "read_at"
-    t.integer "recipient_id", null: false
-    t.integer "sender_id"
     t.string "title", null: false
     t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["actor_user_id"], name: "index_notifications_on_actor_user_id"
     t.index ["media_server_id"], name: "index_notifications_on_media_server_id"
-    t.index ["recipient_id", "created_at"], name: "index_notifications_on_recipient_id_and_created_at"
-    t.index ["recipient_id", "read_at"], name: "index_notifications_on_recipient_id_and_read_at"
-    t.index ["recipient_id"], name: "index_notifications_on_recipient_id"
-    t.index ["sender_id"], name: "index_notifications_on_sender_id"
+    t.index ["user_id", "created_at"], name: "index_notifications_on_user_id_and_created_at"
+    t.index ["user_id", "read_at"], name: "index_notifications_on_user_id_and_read_at"
+    t.index ["user_id"], name: "index_notifications_on_user_id"
   end
 
   create_table "recommendation_collection_events", force: :cascade do |t|
@@ -149,10 +151,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_11_200000) do
     t.datetime "created_at", null: false
     t.integer "media_server_id", null: false
     t.text "password"
+    t.string "remote_user_id"
     t.datetime "updated_at", null: false
     t.integer "user_id"
     t.text "username", null: false
     t.index ["media_server_id"], name: "index_server_connections_on_media_server_id"
+    t.index ["remote_user_id"], name: "index_server_connections_on_remote_user_id"
     t.index ["user_id", "media_server_id"], name: "index_server_connections_on_user_id_and_media_server_id", unique: true
     t.index ["user_id"], name: "index_server_connections_on_user_id"
   end
@@ -214,8 +218,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_11_200000) do
   add_foreign_key "listening_events", "server_connections"
   add_foreign_key "listening_events", "users"
   add_foreign_key "notifications", "media_servers"
-  add_foreign_key "notifications", "users", column: "recipient_id"
-  add_foreign_key "notifications", "users", column: "sender_id"
+  add_foreign_key "notifications", "users", column: "actor_user_id", on_delete: :nullify
+  add_foreign_key "notifications", "users", on_delete: :cascade
   add_foreign_key "recommendation_collection_events", "recommendation_collections"
   add_foreign_key "recommendation_collections", "server_connections"
   add_foreign_key "recommendation_collections", "users"

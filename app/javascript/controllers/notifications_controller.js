@@ -1,51 +1,63 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-  static targets = ["toggle", "panel", "list", "badge"]
+  static targets = ["toggle", "panel", "drawer", "list"]
   static values = {
     url: String
   }
 
   connect() {
-    this.boundCloseOnOutside = this.closeOnOutside.bind(this)
-    this.boundCloseOnEscape = this.closeOnEscape.bind(this)
-    document.addEventListener("click", this.boundCloseOnOutside)
-    document.addEventListener("keydown", this.boundCloseOnEscape)
+    this.closeWhenOutside = this.closeWhenOutside.bind(this)
+    this.closeOnEscape = this.closeOnEscape.bind(this)
+    this.closeOnNavigation = this.closeOnNavigation.bind(this)
+
+    document.addEventListener("click", this.closeWhenOutside)
+    document.addEventListener("keydown", this.closeOnEscape)
+    document.addEventListener("turbo:before-visit", this.closeOnNavigation)
   }
 
   disconnect() {
-    document.removeEventListener("click", this.boundCloseOnOutside)
-    document.removeEventListener("keydown", this.boundCloseOnEscape)
+    document.removeEventListener("click", this.closeWhenOutside)
+    document.removeEventListener("keydown", this.closeOnEscape)
+    document.removeEventListener("turbo:before-visit", this.closeOnNavigation)
   }
 
   toggle(event) {
     event?.stopPropagation()
-    const isHidden = this.panelTarget.hidden
-    this.panelTarget.hidden = !isHidden
-    this.toggleTarget.setAttribute("aria-expanded", String(isHidden))
-    if (isHidden) {
-      this.panelTarget.focus?.()
-    }
+    const panel = this.panel
+    if (!panel) return
+
+    panel.hidden ? this.open() : this.close()
+  }
+
+  open() {
+    if (!this.panel) return
+
+    this.panel.hidden = false
+    this.toggleTarget.setAttribute("aria-expanded", "true")
+    this.panel.focus?.()
   }
 
   close() {
-    if (!this.panelTarget.hidden) {
-      this.panelTarget.hidden = true
-      this.toggleTarget.setAttribute("aria-expanded", "false")
-    }
+    if (!this.panel) return
+
+    this.panel.hidden = true
+    if (this.hasToggleTarget) this.toggleTarget.setAttribute("aria-expanded", "false")
   }
 
-  closeOnOutside(event) {
-    if (!this.element.contains(event.target)) {
-      this.close()
-    }
+  closeWhenOutside(event) {
+    if (!this.element.contains(event.target)) this.close()
   }
 
   closeOnEscape(event) {
-    if (event.key === "Escape" && !this.panelTarget.hidden) {
+    if (event.key === "Escape" && this.panel && !this.panel.hidden) {
       this.close()
       this.toggleTarget.focus()
     }
+  }
+
+  closeOnNavigation() {
+    this.close()
   }
 
   async markAllAsRead(event) {
@@ -57,27 +69,65 @@ export default class extends Controller {
       const response = await fetch(url, {
         method: "POST",
         headers: {
-          "Accept": "text/vnd.turbo-stream.html, application/json",
+          "Accept": "text/vnd.turbo-stream.html",
           "X-CSRF-Token": document.querySelector("meta[name='csrf-token']")?.content
         }
       })
 
       if (response.ok) {
-        if (this.hasListTarget) {
-          this.listTarget.querySelectorAll(".redesign-notification-card--unread").forEach((card) => {
-            card.classList.remove("redesign-notification-card--unread")
-            card.querySelector(".redesign-notification-card__dot")?.remove()
-            card.querySelector(".redesign-notification-card__read-btn")?.remove()
-          })
-        }
-        const badge = document.getElementById("notifications_badge")
-        if (badge) {
-          const pill = badge.querySelector(".redesign-notification-badge")
-          if (pill) pill.remove()
-        }
-        const markAllBtn = this.element.querySelector(".redesign-notification-hub__mark-all")
-        if (markAllBtn) markAllBtn.remove()
+        this.listTarget.querySelectorAll(".redesign-notification-card--unread, .is-unread").forEach((item) => {
+          item.classList.remove("redesign-notification-card--unread", "is-unread")
+          item.querySelector(".redesign-notification-card__dot")?.remove()
+          item.querySelector(".redesign-notification-card__read-btn")?.remove()
+        })
+        document.getElementById("notifications_badge")?.remove()
+
+        const stream = await response.text()
+        if (stream && window.Turbo) window.Turbo.renderStreamMessage(stream)
       }
     } catch (_) {}
+  }
+
+  markRead(event) {
+    const url = event.params?.url
+    if (!url) return
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content")
+    fetch(url, {
+      method: "PATCH",
+      headers: {
+        "X-CSRF-Token": csrfToken,
+        "Accept": "text/vnd.turbo-stream.html"
+      }
+    }).then(response => {
+      if (response.ok) return response.text()
+    }).then(html => {
+      if (html && window.Turbo) window.Turbo.renderStreamMessage(html)
+    }).catch(() => {})
+  }
+
+  readAndNavigate(event) {
+    const url = event.params?.url
+    if (!url) return
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content")
+    fetch(url, {
+      method: "PATCH",
+      headers: {
+        "X-CSRF-Token": csrfToken,
+        "Accept": "text/vnd.turbo-stream.html"
+      }
+    }).then(response => {
+      if (response.ok) return response.text()
+    }).then(html => {
+      if (html && window.Turbo) window.Turbo.renderStreamMessage(html)
+    }).catch(() => {})
+    this.close()
+  }
+
+  get panel() {
+    if (this.hasPanelTarget) return this.panelTarget
+    if (this.hasDrawerTarget) return this.drawerTarget
+    return null
   }
 }

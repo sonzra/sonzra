@@ -10,7 +10,7 @@ class TrackSharesController < ApplicationController
     if result.success?
       respond_to do |format|
         format.html { redirect_back fallback_location: root_path, notice: "Track shared successfully." }
-        format.json { render json: { success: true, notification: result.notification }, status: :created }
+        format.json { render json: { success: true, notification: result.notification.as_json(methods: %i[recipient_id sender_id]) }, status: :created }
         format.turbo_stream { head :created }
       end
     else
