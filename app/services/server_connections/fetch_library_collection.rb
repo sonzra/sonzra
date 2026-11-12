@@ -20,6 +20,9 @@ module ServerConnections
         items = HiddenArtists::Filter.new(@user, @server_connection).items(items)
         items = HiddenGenres::Filter.new(@user, @server_connection).items(items)
       end
+      if @collection == :playlists && supports?(Integrations::Capabilities::COLLABORATIVE_PLAYLISTS)
+        items = enrich_playlists_collaboration_status(items)
+      end
       has_more = (@page * Library::Pagination::PAGE_SIZE) < response.total
       FetchLibraryCollectionResultData.new(items:, total: response.total, access_token: response.access_token, message: nil, has_more:)
     rescue Integrations::AuthenticationError, Integrations::ConnectionError => error
@@ -34,6 +37,61 @@ module ServerConnections
 
     def client
       @client ||= Integrations::Client.for(@server_connection, access_token: @access_token, device_id: @device_id)
+    end
+
+    def enrich_playlists_collaboration_status(items)
+      return items if items.empty?
+
+      if Rails.env.test? || items.size <= 1
+        items.map do |item|
+          item_copy = item.dup
+          enrich_single_playlist(item_copy)
+          item_copy
+        end
+      else
+        threads = items.map do |item|
+          Thread.new do
+            item_copy = item.dup
+            enrich_single_playlist(item_copy)
+            item_copy
+          end
+        end
+        threads.map(&:value)
+      end
+    end
+
+    def enrich_single_playlist(item)
+      users_result = ServerConnections::CollaborativePlaylists::FetchPlaylistUsers.new(
+        @server_connection,
+        playlist_id: item["Id"],
+        client: client
+      ).call
+
+      if users_result.success?
+        item["IsOwner"] = true
+        collaborators = (users_result.users || []).reject do |u|
+          (u["UserId"] || u["Id"]) == @server_connection.remote_user_id
+        end
+        if collaborators.any?
+          item["CollaborationStatus"] = :collaborative
+          item["IsSharedWithOthers"] = true
+          item["CanDelete"] = false
+        else
+          item["CollaborationStatus"] = :owned
+          item["IsSharedWithOthers"] = false
+          item["CanDelete"] = true
+        end
+      else
+        item["IsOwner"] = false
+        item["CollaborationStatus"] = :shared_with_me
+        item["IsSharedWithOthers"] = false
+        item["CanDelete"] = false
+      end
+    rescue StandardError
+      item["IsOwner"] = false
+      item["CollaborationStatus"] = :shared_with_me
+      item["IsSharedWithOthers"] = false
+      item["CanDelete"] = false
     end
   end
 end

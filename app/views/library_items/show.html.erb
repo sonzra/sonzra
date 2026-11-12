@@ -36,7 +36,7 @@
         </div>
       <% title_size = album["Name"].length > 48 ? "detail-hero__title--long" : album["Name"].length > 24 ? "detail-hero__title--compact" : ""; artist_name = album["AlbumArtist"] || item["AlbumArtist"]; artist_id = album.dig("AlbumArtists", 0, "Id") || item.dig("AlbumArtists", 0, "Id"); overview = album["Overview"] || item["Overview"] %>
       <div>
-        <p class="detail-hero__kind"><%= item["Type"] == "MusicArtist" ? "Artist" : kind == :playlist ? "Playlist" : "Album" %></p>
+        <p class="detail-hero__kind"><%= item["Type"] == "MusicArtist" ? "Artist" : kind == :playlist ? (@is_playlist_owner && @collaborators&.any? ? "Collaborative playlist" : (!@is_playlist_owner && @collaborators&.any? ? "Shared playlist" : (@is_playlist_owner ? "Owned playlist" : "Playlist"))) : "Album" %></p>
         <div class="detail-hero__title <%= title_size %>"><h1><%= album["Name"] %></h1></div>
         <% if artist_name.present? %><p class="detail-hero__artist"><% if artist_id.present? %><%= link_to artist_name, library_item_server_connection_path(@server_connection, artist_id) %><% else %><%= artist_name %><% end %></p><% end %>
         <% unless item["Type"] == "MusicArtist" %><p class="detail-hero__release"><%= kind == :playlist ? pluralize(details[:tracks].size, "track") : [ release_year(album), (pluralize(details[:tracks].size, "track") + " · " + album_runtime_summary(details[:tracks]) if details[:tracks].any?) ].compact.join(" · ").presence || "Album" %></p><% end %>

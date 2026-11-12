@@ -13,9 +13,27 @@
           <div class="listen-card__cover">
             <%= link_to library_item_server_connection_path(server_connection, item["Id"]), class: "listen-card__art", style: "--first:#7a5af8;--second:#43d7c6", data: { turbo_frame: "_top" } do %><% if artwork_path %><%= image_tag artwork_path, alt: "", loading: "lazy" %><% else %><%= image_tag "/brand/sonzra-mark.svg", class: "listen-card__fallback", alt: "" %><% end %><% end %>
             <% if item["Type"].in?([ "Audio", "AudioBook" ]) %><button class="listen-card__play" type="button" aria-label="Play <%= item["Name"] %>" data-action="player#replaceQueue" data-player-source-param="<%= audio_server_connection_path(server_connection, item["Id"]) %>" data-player-item-id-param="<%= item["Id"] %>" data-player-reporting-url-param="<%= playback_reports_server_connection_path(server_connection) %>" data-player-title-param="<%= item["Name"] %>" data-player-artist-param="<%= item["AlbumArtist"] || item["Artists"]&.join(", ") || "Unknown artist" %>" data-player-artwork-param="<%= artwork_path || "/brand/sonzra-mark.svg" %>" data-player-duration-param="<%= track_duration(item["RunTimeTicks"]) %>" data-player-resumable-param="<%= item["Type"] == "AudioBook" || resumable %>" <% if item["Type"] == "Audio" && !resumable %>data-player-radio-url-param="<%= radio_tracks_server_connection_path(server_connection, item["Id"]) %>" data-player-radio-eligible-param="true"<% end %> <% if resumable %>data-player-start-position-param="<%= playback_position(item) %>" data-card-options-reset-url-param="<%= reset_resume_server_connection_path(server_connection, item_id: item["Id"]) %>"<% end %>><%= lucide_icon "play", aria: { hidden: true } %></button><% elsif item["Type"].in?([ "MusicAlbum", "MusicArtist", "Playlist" ]) %><button class="listen-card__play" type="button" aria-label="Play <%= item["Name"] %>" data-action="player#replaceQueue" data-player-queue-url-param="<%= playback_queue_server_connection_path(server_connection, item["Id"]) %>"><%= lucide_icon "play", aria: { hidden: true } %></button><% end %>
+            <% if item["Type"] == "Playlist" %>
+              <% if item["CollaborationStatus"] == :collaborative || item["IsSharedWithOthers"] %>
+                <span class="listen-card__badge listen-card__badge--shared" title="Collaborative playlist">
+                  <%= lucide_icon "users", class: "listen-card__badge-icon", aria: { hidden: true } %>
+                  <span>Collaborative</span>
+                </span>
+              <% elsif item["CollaborationStatus"] == :shared_with_me || (item.key?("IsOwner") && !item["IsOwner"]) %>
+                <span class="listen-card__badge listen-card__badge--shared-with-me" title="Shared with you">
+                  <%= lucide_icon "users", class: "listen-card__badge-icon", aria: { hidden: true } %>
+                  <span>Shared</span>
+                </span>
+              <% elsif item["CollaborationStatus"] == :owned || item["IsOwner"] == true %>
+                <span class="listen-card__badge listen-card__badge--owned" title="Owned by you">
+                  <%= lucide_icon "user", class: "listen-card__badge-icon", aria: { hidden: true } %>
+                  <span>Owned</span>
+                </span>
+              <% end %>
+            <% end %>
             <%= render "shared/card_options", item: item, artwork_path: artwork_path, server_connection: server_connection if actionable %>
           </div>
-          <h3><%= link_to item["Name"], library_item_server_connection_path(server_connection, item["Id"]), data: { turbo_frame: "_top" } %></h3><p><%= resumable ? "Continue from #{track_duration(item.dig("UserData", "PlaybackPositionTicks"))}" : item["AlbumArtist"] || item["Artists"]&.join(", ") || item["Type"] %></p>
+          <h3><%= link_to item["Name"], library_item_server_connection_path(server_connection, item["Id"]), data: { turbo_frame: "_top" } %></h3><p><%= resumable ? "Continue from #{track_duration(item.dig("UserData", "PlaybackPositionTicks"))}" : item["Type"] == "Playlist" ? (item["CollaborationStatus"] == :collaborative || item["IsSharedWithOthers"] ? "Collaborative playlist" : item["CollaborationStatus"] == :shared_with_me || (item.key?("IsOwner") && !item["IsOwner"]) ? "Shared with you" : item["CollaborationStatus"] == :owned || item["IsOwner"] == true ? "Owned playlist" : "Playlist") : item["AlbumArtist"] || item["Artists"]&.join(", ") || item["Type"] %></p>
         </article>
       <% end %>
     </div>

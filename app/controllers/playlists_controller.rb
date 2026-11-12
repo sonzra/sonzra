@@ -32,6 +32,32 @@ class PlaylistsController < ApplicationController
   end
 
   def destroy
+    if client.respond_to?(:supports?) && client.supports?(Integrations::Capabilities::COLLABORATIVE_PLAYLISTS)
+      users_result = ServerConnections::CollaborativePlaylists::FetchPlaylistUsers.new(
+        server_connection,
+        playlist_id: params.expect(:id),
+        client: client
+      ).call
+
+      unless users_result.success?
+        if users_result.message.to_s.include?("403") || users_result.message.to_s.include?("404")
+          render json: { error: "Collaborators cannot delete shared playlists." }, status: :forbidden
+        else
+          render json: { error: users_result.message }, status: :bad_gateway
+        end
+        return
+      end
+
+      collaborators = (users_result.users || []).reject do |u|
+        (u["UserId"] || u["Id"]) == server_connection.remote_user_id
+      end
+
+      if collaborators.any?
+        render json: { error: "Cannot delete a playlist while it is shared with other listeners. Remove collaborators first." }, status: :unprocessable_entity
+        return
+      end
+    end
+
     client.delete_playlist(playlist_id: params.expect(:id))
     cache_remote_user_id
     head :no_content

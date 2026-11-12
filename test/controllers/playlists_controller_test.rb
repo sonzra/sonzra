@@ -147,6 +147,53 @@ class PlaylistsControllerTest < ActionDispatch::IntegrationTest
     assert_match "managed outside Sonzra", JSON.parse(response.body).fetch("error")
   end
 
+  test "forbids collaborators from deleting shared playlists" do
+    client = Object.new
+    client.define_singleton_method(:supports?) { |cap| cap == Integrations::Capabilities::COLLABORATIVE_PLAYLISTS }
+    client.define_singleton_method(:playlist_users) do |_playlist_id|
+      raise Integrations::Jellyfin::Client::ConnectionError, "The server returned HTTP 403."
+    end
+
+    with_jellyfin_client(client) do
+      delete playlist_server_connection_url(@server_connection, "shared-playlist"), as: :json
+    end
+
+    assert_response :forbidden
+    assert_equal "Collaborators cannot delete shared playlists.", JSON.parse(response.body).fetch("error")
+  end
+
+  test "forbids owner from deleting playlist while it is shared with collaborators" do
+    client = Object.new
+    client.define_singleton_method(:supports?) { |cap| cap == Integrations::Capabilities::COLLABORATIVE_PLAYLISTS }
+    client.define_singleton_method(:playlist_users) do |_playlist_id|
+      [ { "UserId" => "other-user-id", "CanEdit" => true } ]
+    end
+
+    with_jellyfin_client(client) do
+      delete playlist_server_connection_url(@server_connection, "shared-playlist"), as: :json
+    end
+
+    assert_response :unprocessable_entity
+    assert_equal "Cannot delete a playlist while it is shared with other listeners. Remove collaborators first.", JSON.parse(response.body).fetch("error")
+  end
+
+  test "allows owner to delete playlist when no collaborators are shared" do
+    client = Object.new
+    client.define_singleton_method(:supports?) { |cap| cap == Integrations::Capabilities::COLLABORATIVE_PLAYLISTS }
+    client.define_singleton_method(:playlist_users) { |_playlist_id| [] }
+    deleted_playlist_id = nil
+    client.define_singleton_method(:delete_playlist) do |playlist_id:|
+      deleted_playlist_id = playlist_id
+    end
+
+    with_jellyfin_client(client) do
+      delete playlist_server_connection_url(@server_connection, "owned-playlist"), as: :json
+    end
+
+    assert_response :no_content
+    assert_equal "owned-playlist", deleted_playlist_id
+  end
+
   test "removes a song from a playlist" do
     client = Object.new
     removed_arguments = nil
