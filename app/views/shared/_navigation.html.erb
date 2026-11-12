@@ -10,6 +10,29 @@
   </nav>
   <div class="redesign-topbar__actions">
     <button type="button" class="redesign-icon-button redesign-search-trigger" aria-label="Search your library" data-action="library-search#open"><%= lucide_icon "search", aria: { hidden: true } %><kbd>⌘ K</kbd></button>
+    <div class="redesign-notification-hub" data-controller="notifications" data-notifications-url-value="<%= notifications_path %>">
+      <button type="button" class="redesign-icon-button redesign-notification-hub__toggle" aria-label="Notifications" aria-expanded="false" data-notifications-target="toggle" data-action="notifications#toggle">
+        <%= render "notifications/badge", count: current_user.notifications.unread.count %>
+      </button>
+      <div class="redesign-notification-hub__panel" data-notifications-target="panel" hidden tabindex="-1">
+        <div class="redesign-notification-hub__header">
+          <h3>Notifications</h3>
+          <% if current_user.notifications.unread.any? %>
+            <%= button_to mark_all_read_notifications_path, method: :post, class: "redesign-notification-hub__mark-all", data: { action: "notifications#markAllAsRead" } do %>
+              <%= lucide_icon "check-check", aria: { hidden: true } %>
+              <span>Mark all read</span>
+            <% end %>
+          <% end %>
+        </div>
+        <div id="notifications_list" class="redesign-notification-hub__list" data-notifications-target="list">
+          <% if current_user.notifications.any? %>
+            <%= render partial: "notifications/notification", collection: current_user.notifications.recent.limit(20) %>
+          <% else %>
+            <p class="redesign-notification-hub__empty">No notifications yet</p>
+          <% end %>
+        </div>
+      </div>
+    </div>
     <% if current_server_connection %><span class="redesign-server-pill"><i></i><span><%= current_server_connection.name %></span></span><% end %>
     <div class="redesign-profile" data-controller="profile-menu">
       <button type="button" class="redesign-profile__toggle" aria-label="Open profile menu" aria-expanded="false" data-profile-menu-target="toggle" data-action="profile-menu#toggle"><%= lucide_icon "circle-user-round", aria: { hidden: true } %><span><%= current_user.email_address.split("@").first %></span></button>
@@ -29,6 +52,7 @@
   <button class="redesign-topbar__menu-toggle" type="button" aria-label="Open navigation menu" aria-expanded="false" data-navigation-target="toggle" data-action="navigation#toggle"><%= lucide_icon "menu", aria: { hidden: true } %></button>
   <div class="redesign-mobile-menu" data-navigation-target="menu" data-action="click->navigation#closeOnNavigation">
     <button type="button" class="redesign-mobile-menu__search" data-action="library-search#open"><%= lucide_icon "search", aria: { hidden: true } %><span>Search your library</span></button>
+    <%= link_to notifications_path, class: "redesign-mobile-menu__notifications", data: navigation_data, aria: disabled_aria do %><%= lucide_icon "bell", aria: { hidden: true } %><span>Notifications</span><% if current_user.notifications.unread.any? %><span class="redesign-notification-badge"><%= current_user.notifications.unread.count %></span><% end %><% end %>
     <% library_links.each do |label, (path, icon)| %><%= link_to path, data: navigation_data, aria: disabled_aria do %><%= lucide_icon icon, aria: { hidden: true } %><span><%= label %></span><% end %><% end %>
     <%= link_to server_connections_path, data: navigation_data, aria: disabled_aria do %><%= lucide_icon "server", aria: { hidden: true } %><span>Server connections</span><% end %>
     <%= link_to hidden_artists_path, data: navigation_data, aria: disabled_aria do %><%= lucide_icon "eye-off", aria: { hidden: true } %><span>Hidden artists</span><% end %>

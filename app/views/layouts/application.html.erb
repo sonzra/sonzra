@@ -26,7 +26,7 @@
     <%= javascript_importmap_tags %>
   </head>
   <% if authenticated? %><body class="authenticated-body <%= "media-detail-body" if @media_detail_header %> <%= "offline-shell" if @offline_shell %> redesign" data-controller="card-options media-header offline-media transition <%= "offline-connection" if @offline_shell %>" data-offline-media-scope-value="<%= current_user.id %>"><% else %><body class="redesign"><% end %>
-    <% if authenticated? %><%= render "shared/navigation", offline: @offline_shell == true %><%= render "shared/transition" %><% end %>
+    <% if authenticated? %><%= render "shared/navigation", offline: @offline_shell == true %><%= render "shared/transition" %><%= turbo_stream_from [current_user, :notifications] %><% end %>
     <%= yield %>
     <% if authenticated? %><div id="connection_alerts" class="connection-alerts" data-turbo-permanent><% if connection_alert_server_connection %><%= render "shared/reconnect_banner", server_connection: connection_alert_server_connection %><% end %></div><%= render "shared/player" %><p id="player-feedback" class="listen-player__feedback" data-player-target="queueFeedback" data-turbo-permanent role="status" aria-live="polite" hidden></p><%= render "shared/player_queue" %><%= render "shared/card_options_sheet" %><%= render "shared/share_dialog" %><dialog id="reconnect-dialog" class="reconnect-dialog" data-controller="reconnect" data-reconnect-target="dialog" aria-modal="true" aria-labelledby="reconnect-title"><turbo-frame id="reconnect_modal"></turbo-frame></dialog><% end %>
   </body>
