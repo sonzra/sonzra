@@ -108,7 +108,7 @@ test.describe("track sharing and notification visual verification", () => {
 
     // Mobile Notifications Page View
     await page.goto("/notifications")
-    await page.waitForSelector(".redesign-notification-card")
+    await page.locator("main .redesign-notification-card").first().waitFor({ state: "visible" })
     await page.waitForTimeout(400)
 
     // Capture Mobile Notifications Feed
