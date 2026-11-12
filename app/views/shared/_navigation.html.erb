@@ -12,6 +12,7 @@
     <button type="button" class="redesign-icon-button redesign-search-trigger" aria-label="Search your library" data-action="library-search#open"><%= lucide_icon "search", aria: { hidden: true } %><kbd>⌘ K</kbd></button>
     <div class="redesign-notification-hub" data-controller="notifications" data-notifications-url-value="<%= notifications_path %>">
       <button type="button" class="redesign-icon-button redesign-notification-hub__toggle" aria-label="Notifications" aria-expanded="false" data-notifications-target="toggle" data-action="notifications#toggle">
+        <%= lucide_icon "bell", aria: { hidden: true } %>
         <%= render "notifications/badge", count: current_user.notifications.unread.count %>
       </button>
       <div class="redesign-notification-hub__panel" data-notifications-target="panel" hidden tabindex="-1">
