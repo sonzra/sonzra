@@ -209,7 +209,7 @@ class Integrations::Jellyfin::CollaborativePlaylistsTest < ActiveSupport::TestCa
     end
   end
 
-  test "playlist_users returns empty array when server returns 404 Not Found" do
+  test "playlist_users raises ConnectionError when server returns 404 Not Found" do
     error_resp = Net::HTTPNotFound.new("1.1", "404", "Not Found")
     error_resp.instance_variable_set(:@read, true)
     http = FakeHttp.new([ auth_response, error_resp ])
@@ -221,7 +221,8 @@ class Integrations::Jellyfin::CollaborativePlaylistsTest < ActiveSupport::TestCa
       http: http
     )
 
-    result = client.playlist_users("playlist-123")
-    assert_equal [], result
+    assert_raises(Integrations::ConnectionError) do
+      client.playlist_users("playlist-123")
+    end
   end
 end

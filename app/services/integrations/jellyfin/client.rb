@@ -381,12 +381,6 @@ module Integrations
         token ||= authentication.fetch("AccessToken")
         data = get("Playlists/#{playlist_id}/Users", token)
         data.is_a?(Array) ? data : data.fetch("Users", [])
-      rescue ConnectionError => error
-        return [] if error.message.include?("404")
-
-        raise
-      rescue Integrations::AuthenticationError
-        raise
       end
 
       def share_playlist(playlist_id:, user_id:, can_edit: true)

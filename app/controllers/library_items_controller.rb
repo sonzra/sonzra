@@ -46,6 +46,7 @@ class LibraryItemsController < ApplicationController
   end
 
   def load_collaborative_playlist_details
+    @is_playlist_owner = false
     client = Integrations::Client.for(
       @server_connection,
       access_token: @result.access_token,
