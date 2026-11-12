@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_05_204200) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_11_194100) do
   create_table "application_settings", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.boolean "registrations_enabled", default: true, null: false
@@ -60,6 +60,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_05_204200) do
     t.string "provider", null: false
     t.datetime "updated_at", null: false
     t.index ["provider", "base_url"], name: "index_media_servers_on_provider_and_base_url", unique: true
+  end
+
+  create_table "notifications", force: :cascade do |t|
+    t.integer "actor_user_id"
+    t.datetime "created_at", null: false
+    t.string "link_url"
+    t.string "message", null: false
+    t.datetime "read_at"
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["actor_user_id"], name: "index_notifications_on_actor_user_id"
+    t.index ["user_id", "created_at"], name: "index_notifications_on_user_id_and_created_at"
+    t.index ["user_id", "read_at"], name: "index_notifications_on_user_id_and_read_at"
+    t.index ["user_id"], name: "index_notifications_on_user_id"
   end
 
   create_table "recommendation_collection_events", force: :cascade do |t|
@@ -128,10 +143,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_05_204200) do
     t.datetime "created_at", null: false
     t.integer "media_server_id", null: false
     t.text "password"
+    t.string "remote_user_id"
     t.datetime "updated_at", null: false
     t.integer "user_id"
     t.text "username", null: false
     t.index ["media_server_id"], name: "index_server_connections_on_media_server_id"
+    t.index ["remote_user_id"], name: "index_server_connections_on_remote_user_id"
     t.index ["user_id", "media_server_id"], name: "index_server_connections_on_user_id_and_media_server_id", unique: true
     t.index ["user_id"], name: "index_server_connections_on_user_id"
   end
@@ -192,6 +209,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_05_204200) do
   add_foreign_key "hidden_genres", "users"
   add_foreign_key "listening_events", "server_connections"
   add_foreign_key "listening_events", "users"
+  add_foreign_key "notifications", "users", column: "actor_user_id", on_delete: :nullify
+  add_foreign_key "notifications", "users", on_delete: :cascade
   add_foreign_key "recommendation_collection_events", "recommendation_collections"
   add_foreign_key "recommendation_collections", "server_connections"
   add_foreign_key "recommendation_collections", "users"

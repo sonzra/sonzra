@@ -7,13 +7,17 @@ require_relative "../capability_support"
 module Integrations
   module Jellyfin
     class Client
-      CAPABILITIES = [ Integrations::Capabilities::LETTER_FILTERING, Integrations::Capabilities::SONIC_GRAPH ].freeze
+      CAPABILITIES = [
+        Integrations::Capabilities::LETTER_FILTERING,
+        Integrations::Capabilities::SONIC_GRAPH,
+        Integrations::Capabilities::COLLABORATIVE_PLAYLISTS
+      ].freeze
       include Integrations::CapabilitySupport
 
       class AuthenticationError < Integrations::AuthenticationError; end
       class ConnectionError < Integrations::ConnectionError; end
 
-      def initialize(base_url:, username: nil, password: nil, access_token: nil, remote_user_id: nil, http: Net::HTTP, on_token_refreshed: nil, device_id: nil)
+      def initialize(base_url:, username: nil, password: nil, access_token: nil, remote_user_id: nil, http: Net::HTTP, on_token_refreshed: nil, on_user_resolved: nil, device_id: nil)
         @base_url = base_url
         @username = username
         @password = password
@@ -21,6 +25,7 @@ module Integrations
         @remote_user_id = remote_user_id
         @http = http
         @on_token_refreshed = on_token_refreshed
+        @on_user_resolved = on_user_resolved
         @device_id = device_id
         @reauth_attempted = false
       end
@@ -372,6 +377,71 @@ module Integrations
         ensure_success!(perform(Net::HTTP::Delete.new(uri, authorization_headers(session.fetch("AccessToken")))))
       end
 
+      def playlist_users(playlist_id, token: nil)
+        token ||= authentication.fetch("AccessToken")
+        data = get("Playlists/#{playlist_id}/Users", token)
+        data.is_a?(Array) ? data : data.fetch("Users", [])
+      end
+
+      def share_playlist(playlist_id:, user_id:, can_edit: true)
+        session = authentication
+        token = session.fetch("AccessToken")
+        json_headers = authorization_headers(token).merge("Content-Type" => "application/json")
+
+        current_users = playlist_users(playlist_id, token: token)
+        user_entry = current_users.find { |u| (u["UserId"] || u["Id"]) == user_id }
+        updated_users = if user_entry
+          current_users.map do |u|
+            uid = u["UserId"] || u["Id"]
+            uid == user_id ? { UserId: user_id, CanEdit: can_edit } : { UserId: uid, CanEdit: u["CanEdit"] != false }
+          end
+        else
+          current_users.map { |u| { UserId: (u["UserId"] || u["Id"]), CanEdit: u["CanEdit"] != false } } + [ { UserId: user_id, CanEdit: can_edit } ]
+        end
+
+        playlist_uri = URI.parse("#{base_url}/Playlists/#{playlist_id}")
+        playlist_request = Net::HTTP::Post.new(playlist_uri, json_headers)
+        playlist_request.body = JSON.generate(Users: updated_users, IsPublic: false)
+        ensure_success!(perform(playlist_request))
+
+        begin
+          user_uri = URI.parse("#{base_url}/Playlists/#{playlist_id}/Users/#{user_id}")
+          user_request = Net::HTTP::Post.new(user_uri, json_headers)
+          user_request.body = JSON.generate(CanEdit: can_edit)
+          perform(user_request)
+        rescue StandardError
+          nil
+        end
+
+        true
+      end
+
+      def unshare_playlist(playlist_id:, user_id:)
+        session = authentication
+        token = session.fetch("AccessToken")
+        json_headers = authorization_headers(token).merge("Content-Type" => "application/json")
+
+        current_users = playlist_users(playlist_id, token: token)
+        remaining_users = current_users.reject { |u| (u["UserId"] || u["Id"]) == user_id }.map do |u|
+          { UserId: (u["UserId"] || u["Id"]), CanEdit: u["CanEdit"] != false }
+        end
+
+        playlist_uri = URI.parse("#{base_url}/Playlists/#{playlist_id}")
+        playlist_request = Net::HTTP::Post.new(playlist_uri, json_headers)
+        playlist_request.body = JSON.generate(Users: remaining_users, IsPublic: false)
+        ensure_success!(perform(playlist_request))
+
+        begin
+          user_uri = URI.parse("#{base_url}/Playlists/#{playlist_id}/Users/#{user_id}")
+          delete_request = Net::HTTP::Delete.new(user_uri, authorization_headers(token))
+          perform(delete_request)
+        rescue StandardError
+          nil
+        end
+
+        true
+      end
+
       def stream_audio(item_id:, range:, access_token: nil)
         session = authentication unless access_token
         token = access_token || session.fetch("AccessToken")
@@ -431,11 +501,15 @@ module Integrations
           return { "User" => @resolved_user, "AccessToken" => access_token } if @resolved_user
           return { "User" => @resolved_user = { "Id" => remote_user_id, "Name" => username }, "AccessToken" => access_token } if remote_user_id.present? && username.present?
 
-          return { "User" => @resolved_user = get("Users/Me", access_token), "AccessToken" => current_access_token(access_token) }
+          user = get("Users/Me", access_token)
+          @resolved_user = user
+          @on_user_resolved&.call(user["Id"]) if user["Id"].present?
+          return { "User" => user, "AccessToken" => current_access_token(access_token) }
         end
 
         session = raw_authenticate_by_name
         @resolved_user = session["User"]
+        @on_user_resolved&.call(@resolved_user["Id"]) if @resolved_user&.dig("Id").present?
         session
       rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED
         raise ConnectionError, "Could not reach the server. Check the address and try again."
@@ -878,6 +952,7 @@ module Integrations
         @access_token = session.fetch("AccessToken")
         @resolved_user = session["User"]
         @on_token_refreshed&.call(@access_token)
+        @on_user_resolved&.call(@resolved_user["Id"]) if @resolved_user&.dig("Id").present?
         @access_token
       end
 
@@ -920,7 +995,10 @@ module Integrations
         response = perform(request)
         raise AuthenticationError, "Session expired." if response.code == "401"
         ensure_success!(response)
-        JSON.parse(response.body)
+        session = JSON.parse(response.body)
+        @resolved_user = session["User"]
+        @on_user_resolved&.call(@resolved_user["Id"]) if @resolved_user&.dig("Id").present?
+        session
       rescue JSON::ParserError
         raise ConnectionError, "The server returned an unexpected response."
       end
