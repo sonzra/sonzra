@@ -382,7 +382,7 @@ module Integrations
         data = get("Playlists/#{playlist_id}/Users", token)
         data.is_a?(Array) ? data : data.fetch("Users", [])
       rescue ConnectionError => error
-        return [] if error.message.include?("404") || error.message.include?("403")
+        return [] if error.message.include?("404")
 
         raise
       rescue Integrations::AuthenticationError
@@ -514,7 +514,6 @@ module Integrations
         end
 
         session = raw_authenticate_by_name
-        @access_token = session["AccessToken"]
         @resolved_user = session["User"]
         @on_user_resolved&.call(@resolved_user["Id"]) if @resolved_user&.dig("Id").present?
         session

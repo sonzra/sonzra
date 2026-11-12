@@ -191,4 +191,37 @@ class Integrations::Jellyfin::CollaborativePlaylistsTest < ActiveSupport::TestCa
       client.share_playlist(playlist_id: "playlist-123", user_id: "user-target")
     end
   end
+
+  test "playlist_users raises ConnectionError when server returns 403 Forbidden" do
+    error_resp = Net::HTTPForbidden.new("1.1", "403", "Forbidden")
+    error_resp.instance_variable_set(:@read, true)
+    http = FakeHttp.new([ auth_response, error_resp ])
+
+    client = Integrations::Jellyfin::Client.new(
+      base_url: "https://jellyfin.example.com",
+      username: "user",
+      password: "pw",
+      http: http
+    )
+
+    assert_raises(Integrations::ConnectionError) do
+      client.playlist_users("playlist-123")
+    end
+  end
+
+  test "playlist_users returns empty array when server returns 404 Not Found" do
+    error_resp = Net::HTTPNotFound.new("1.1", "404", "Not Found")
+    error_resp.instance_variable_set(:@read, true)
+    http = FakeHttp.new([ auth_response, error_resp ])
+
+    client = Integrations::Jellyfin::Client.new(
+      base_url: "https://jellyfin.example.com",
+      username: "user",
+      password: "pw",
+      http: http
+    )
+
+    result = client.playlist_users("playlist-123")
+    assert_equal [], result
+  end
 end

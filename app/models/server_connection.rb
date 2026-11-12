@@ -57,7 +57,9 @@ class ServerConnection < ApplicationRecord
     return ServerConnection.none unless media_server
 
     scope = media_server.server_connections.includes(:user)
-    persisted? ? scope.where.not(id: id) : scope
+    scope = persisted? ? scope.where.not(id: id) : scope
+    scope = scope.where.not(remote_user_id: remote_user_id) if remote_user_id.present?
+    scope
   end
 
   private

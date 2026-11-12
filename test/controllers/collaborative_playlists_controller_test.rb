@@ -57,10 +57,27 @@ class CollaborativePlaylistsControllerTest < ActionDispatch::IntegrationTest
     assert_equal true, connection_data["is_collaborator"]
   end
 
+  test "index returns 403 when user is not playlist owner" do
+    sign_in_as @user
+    client = Object.new
+    client.define_singleton_method(:supports?) { |cap| cap == Integrations::Capabilities::COLLABORATIVE_PLAYLISTS }
+    client.define_singleton_method(:playlist_users) do |_|
+      raise Integrations::ConnectionError, "The server returned HTTP 403."
+    end
+
+    with_jellyfin_client(client) do
+      get playlist_collaborators_server_connection_url(@server_connection, playlist_id: "playlist-1"), as: :json
+    end
+
+    assert_response :forbidden
+    assert_equal "Only the playlist owner can manage collaborators", JSON.parse(response.body)["error"]
+  end
+
   test "create shares playlist and delivers notification to target user" do
     sign_in_as @user
     client = Object.new
     client.define_singleton_method(:supports?) { |cap| cap == Integrations::Capabilities::COLLABORATIVE_PLAYLISTS }
+    client.define_singleton_method(:playlist_users) { |_| [] }
     client.define_singleton_method(:share_playlist) { |playlist_id:, user_id:, can_edit: true| true }
 
     assert_difference -> { @collaborator_user.notifications.count }, 1 do
@@ -79,10 +96,29 @@ class CollaborativePlaylistsControllerTest < ActionDispatch::IntegrationTest
     assert_equal @user, notification.actor_user
   end
 
+  test "create returns 403 when user is not playlist owner" do
+    sign_in_as @user
+    client = Object.new
+    client.define_singleton_method(:supports?) { |cap| cap == Integrations::Capabilities::COLLABORATIVE_PLAYLISTS }
+    client.define_singleton_method(:playlist_users) do |_|
+      raise Integrations::ConnectionError, "The server returned HTTP 403."
+    end
+
+    with_jellyfin_client(client) do
+      post share_playlist_server_connection_url(@server_connection, playlist_id: "playlist-1"),
+           params: { target_connection_id: @collaborator_connection.id, playlist_name: "Summer Vibes" },
+           as: :json
+    end
+
+    assert_response :forbidden
+    assert_equal "Only the playlist owner can manage collaborators", JSON.parse(response.body)["error"]
+  end
+
   test "destroy unshares playlist from target user" do
     sign_in_as @user
     client = Object.new
     client.define_singleton_method(:supports?) { |cap| cap == Integrations::Capabilities::COLLABORATIVE_PLAYLISTS }
+    client.define_singleton_method(:playlist_users) { |_| [] }
     client.define_singleton_method(:unshare_playlist) { |playlist_id:, user_id:| true }
 
     with_jellyfin_client(client) do
@@ -92,6 +128,23 @@ class CollaborativePlaylistsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :ok
     assert_equal true, JSON.parse(response.body)["success"]
+  end
+
+  test "destroy returns 403 when user is not playlist owner" do
+    sign_in_as @user
+    client = Object.new
+    client.define_singleton_method(:supports?) { |cap| cap == Integrations::Capabilities::COLLABORATIVE_PLAYLISTS }
+    client.define_singleton_method(:playlist_users) do |_|
+      raise Integrations::ConnectionError, "The server returned HTTP 403."
+    end
+
+    with_jellyfin_client(client) do
+      delete unshare_playlist_server_connection_url(@server_connection, playlist_id: "playlist-1", target_connection_id: @collaborator_connection.id),
+             as: :json
+    end
+
+    assert_response :forbidden
+    assert_equal "Only the playlist owner can manage collaborators", JSON.parse(response.body)["error"]
   end
 
   private

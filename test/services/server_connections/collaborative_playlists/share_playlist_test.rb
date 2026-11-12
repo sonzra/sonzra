@@ -6,10 +6,12 @@ class ServerConnections::CollaborativePlaylists::SharePlaylistTest < ActiveSuppo
   class FakeClient
     attr_reader :shared_calls, :unshared_calls, :playlist_users_calls
 
-    def initialize(supports_collab: true, playlist_users: [], fail_with: nil)
+    def initialize(supports_collab: true, playlist_users: [], fail_with: nil, fail_share_with: nil, fail_unshare_with: nil)
       @supports_collab = supports_collab
       @playlist_users = playlist_users
       @fail_with = fail_with
+      @fail_share_with = fail_share_with
+      @fail_unshare_with = fail_unshare_with
       @shared_calls = []
       @unshared_calls = []
       @playlist_users_calls = []
@@ -27,6 +29,7 @@ class ServerConnections::CollaborativePlaylists::SharePlaylistTest < ActiveSuppo
     end
 
     def share_playlist(playlist_id:, user_id:, can_edit: true)
+      raise @fail_share_with if @fail_share_with
       raise @fail_with if @fail_with
 
       @shared_calls << { playlist_id: playlist_id, user_id: user_id, can_edit: can_edit }
@@ -34,6 +37,7 @@ class ServerConnections::CollaborativePlaylists::SharePlaylistTest < ActiveSuppo
     end
 
     def unshare_playlist(playlist_id:, user_id:)
+      raise @fail_unshare_with if @fail_unshare_with
       raise @fail_with if @fail_with
 
       @unshared_calls << { playlist_id: playlist_id, user_id: user_id }
@@ -155,7 +159,7 @@ class ServerConnections::CollaborativePlaylists::SharePlaylistTest < ActiveSuppo
   end
 
   test "handles Integrations::Error from client gracefully" do
-    fake_client = FakeClient.new(fail_with: Integrations::ConnectionError.new("Network timeout"))
+    fake_client = FakeClient.new(fail_share_with: Integrations::ConnectionError.new("Network timeout"))
     service = ServerConnections::CollaborativePlaylists::SharePlaylist.new(
       @connection1, @connection2, playlist_id: "pl-42", client: fake_client
     )
@@ -164,6 +168,30 @@ class ServerConnections::CollaborativePlaylists::SharePlaylistTest < ActiveSuppo
 
     assert_not result.success?
     assert_equal "Network timeout", result.message
+  end
+
+  test "fails when caller does not own the playlist" do
+    fake_client = FakeClient.new(fail_with: Integrations::ConnectionError.new("Forbidden"))
+    service = ServerConnections::CollaborativePlaylists::SharePlaylist.new(
+      @connection1, @connection2, playlist_id: "pl-42", client: fake_client
+    )
+
+    result = service.call
+
+    assert_not result.success?
+    assert_equal "Only the playlist owner can manage collaborators", result.message
+  end
+
+  test "unshare fails when caller does not own the playlist" do
+    fake_client = FakeClient.new(fail_with: Integrations::ConnectionError.new("Forbidden"))
+    service = ServerConnections::CollaborativePlaylists::UnsharePlaylist.new(
+      @connection1, @connection2, playlist_id: "pl-42", client: fake_client
+    )
+
+    result = service.call
+
+    assert_not result.success?
+    assert_equal "Only the playlist owner can manage collaborators", result.message
   end
 
   test "unshare playlist successfully calls client unshare_playlist" do

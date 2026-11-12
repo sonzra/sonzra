@@ -3,6 +3,7 @@
 class CollaborativePlaylistsController < ApplicationController
   before_action :set_server_connection
   before_action :verify_collaborative_capability
+  before_action :verify_playlist_ownership
 
   def index
     @playlist_id = params.expect(:playlist_id)
@@ -15,7 +16,7 @@ class CollaborativePlaylistsController < ApplicationController
 
     @remote_users = @result.success? ? (@result.users || []) : []
     remote_ids = @remote_users.select { |u| u["CanEdit"] != false }.map { |u| u["UserId"] || u["Id"] }.compact
-    @fellow_connections = @server_connection.fellow_instance_connections
+    @fellow_connections = @server_connection.fellow_instance_connections.to_a.uniq { |c| c.remote_user_id.presence || c.id }
 
     respond_to do |format|
       format.json do
@@ -31,7 +32,7 @@ class CollaborativePlaylistsController < ApplicationController
           end
         }
       end
-      format.html { render partial: "dialog_content" }
+      format.html { head :no_content }
     end
   end
 
@@ -94,5 +95,20 @@ class CollaborativePlaylistsController < ApplicationController
     return if client.supports?(Integrations::Capabilities::COLLABORATIVE_PLAYLISTS)
 
     render json: { error: "Collaborative playlists are not supported by this server" }, status: :forbidden
+  end
+
+  def verify_playlist_ownership
+    result = ServerConnections::CollaborativePlaylists::FetchPlaylistUsers.new(
+      @server_connection,
+      playlist_id: params.expect(:playlist_id),
+      client: client
+    ).call
+
+    return if result.success?
+
+    respond_to do |format|
+      format.json { render json: { error: "Only the playlist owner can manage collaborators" }, status: :forbidden }
+      format.html { head :forbidden }
+    end
   end
 end

@@ -60,36 +60,38 @@ class LibraryItemsController < ApplicationController
       playlist_id: playlist_id,
       client: client
     ).call
-    remote_users = users_result.success? ? (users_result.users || []) : []
     @fellow_connections = @server_connection.fellow_instance_connections
 
-    if remote_users.empty? && @server_connection.remote_user_id.present?
-      owner_conn = @fellow_connections.find do |fellow|
-        fellow_client = Integrations::Client.for(fellow)
-        fellow_result = ServerConnections::CollaborativePlaylists::FetchPlaylistUsers.new(
-          fellow,
-          playlist_id: playlist_id,
-          client: fellow_client
-        ).call
-        next false unless fellow_result.success?
+    if users_result.success?
+      @is_playlist_owner = true
+      remote_users = users_result.users || []
+      remote_ids = remote_users.select { |u| u["CanEdit"] != false }.map { |u| u["UserId"] || u["Id"] }.compact
+      @collaborators = @fellow_connections.select { |conn| conn.remote_user_id.present? && remote_ids.include?(conn.remote_user_id) }.uniq(&:remote_user_id)
+    else
+      @is_playlist_owner = false
+      if @server_connection.remote_user_id.present?
+        owner_conn = @fellow_connections.find do |fellow|
+          fellow_client = Integrations::Client.for(fellow)
+          fellow_result = ServerConnections::CollaborativePlaylists::FetchPlaylistUsers.new(
+            fellow,
+            playlist_id: playlist_id,
+            client: fellow_client
+          ).call
+          next false unless fellow_result.success?
 
-        (fellow_result.users || []).any? do |u|
-          (u["UserId"] || u["Id"]) == @server_connection.remote_user_id && u["CanEdit"] != false
+          (fellow_result.users || []).any? do |u|
+            (u["UserId"] || u["Id"]) == @server_connection.remote_user_id && u["CanEdit"] != false
+          end
+        rescue StandardError
+          false
         end
-      rescue StandardError
-        false
-      end
 
-      if owner_conn
-        @collaborators = [ owner_conn ]
-        return
+        @collaborators = owner_conn ? [ owner_conn ] : []
       end
     end
-
-    remote_ids = remote_users.select { |u| u["CanEdit"] != false }.map { |u| u["UserId"] || u["Id"] }.compact
-    @collaborators = @fellow_connections.select { |conn| conn.remote_user_id.present? && remote_ids.include?(conn.remote_user_id) }
   rescue StandardError => e
     Rails.logger.warn("Could not load playlist collaborators: #{e.message}")
+    @is_playlist_owner = false
     @collaborators = []
   end
 end

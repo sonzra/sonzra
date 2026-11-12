@@ -17,6 +17,9 @@ module ServerConnections
         return failure("Target connection is missing") if @target_connection.nil?
         return failure("Target connection is not on the same media server") unless @target_connection.media_server_id == @server_connection.media_server_id
 
+        users_result = FetchPlaylistUsers.new(@server_connection, playlist_id: @playlist_id, client: client).call
+        return failure("Only the playlist owner can manage collaborators") unless users_result.success?
+
         remote_target_id = @target_connection.remote_user_id.presence || resolve_remote_user_id(@target_connection)
         return failure("Unable to resolve remote user account") if remote_target_id.blank?
 
