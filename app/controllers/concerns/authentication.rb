@@ -55,16 +55,17 @@ module Authentication
     end
 
     def api_token_from_header
-      header = request.headers["Authorization"].to_s
-      if header.start_with?("Bearer ")
-        header.delete_prefix("Bearer ").strip
+      header_token = if request.headers["Authorization"].to_s.start_with?("Bearer ")
+        request.headers["Authorization"].to_s.delete_prefix("Bearer ").strip
       else
         request.headers["X-API-Token"].presence || request.headers["X-Session-ID"].presence || request.headers["X-Sonzra-Token"].presence
       end
+
+      header_token.presence || params[:token].presence || params[:api_token].presence
     end
 
     def request_authentication
-      if request.format.json? || request.headers["Accept"]&.include?("application/json") || request.path.start_with?("/api/")
+      if request.format.json? || request.headers["Accept"]&.include?("application/json") || request.path.start_with?("/api/") || request.path.include?("/artwork/") || request.path.include?("/audio/")
         render json: { error: "Unauthorized" }, status: :unauthorized
       else
         session[:return_to_after_authenticating] = request.url if request.get? || request.head?

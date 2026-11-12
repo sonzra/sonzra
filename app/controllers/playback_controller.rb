@@ -1,8 +1,13 @@
 class PlaybackController < ApplicationController
   include ActionController::Live
-  allow_unauthenticated_access only: :show
+  allow_unauthenticated_access only: %i[show cors_preflight]
 
-  before_action :require_playback_access
+  before_action :set_cors_headers
+  before_action :require_playback_access, except: :cors_preflight
+
+  def cors_preflight
+    head :ok
+  end
 
   def show
     token = analyzer_request? ? server_connection.access_token : server_access_token(server_connection)
@@ -23,6 +28,14 @@ class PlaybackController < ApplicationController
   end
 
   private
+
+  def set_cors_headers
+    headers["Access-Control-Allow-Origin"] = "*"
+    headers["Access-Control-Allow-Methods"] = "GET, OPTIONS"
+    headers["Access-Control-Allow-Headers"] = "Range, Content-Type, Authorization, Accept, X-Requested-With, X-Device-ID"
+    headers["Access-Control-Expose-Headers"] = "Content-Range, Accept-Ranges, Content-Length"
+    headers["Access-Control-Max-Age"] = "86400"
+  end
 
   def client
     token = analyzer_request? ? server_connection.access_token : (server_access_token(server_connection) || server_connection.access_token)

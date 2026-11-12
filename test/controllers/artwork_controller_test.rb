@@ -41,4 +41,18 @@ class ArtworkControllerTest < ActionDispatch::IntegrationTest
   ensure
     client_class&.define_singleton_method(:new, original_new) if original_new
   end
+
+  test "authenticates with query param token and includes CORS headers" do
+    client_class = Integrations::Jellyfin::Client
+    original_new = client_class.method(:new)
+    client_class.define_singleton_method(:new) { |**_attributes| FakeClient.new }
+
+    token = users(:one).generate_token_for(:api_token)
+    get artwork_server_connection_url(@server_connection, "album-id", token: token)
+
+    assert_response :success
+    assert_equal "*", response.headers["Access-Control-Allow-Origin"]
+  ensure
+    client_class&.define_singleton_method(:new, original_new) if original_new
+  end
 end

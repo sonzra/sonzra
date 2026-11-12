@@ -1,4 +1,11 @@
 class ArtworkController < ApplicationController
+  allow_unauthenticated_access only: :cors_preflight
+  before_action :set_cors_headers
+
+  def cors_preflight
+    head :ok
+  end
+
   def show
     server_connection = current_user.server_connections.find(params.expect(:server_connection_id))
     access_token = server_access_token(server_connection) || server_connection.access_token
@@ -22,6 +29,13 @@ class ArtworkController < ApplicationController
   end
 
   private
+
+  def set_cors_headers
+    headers["Access-Control-Allow-Origin"] = "*"
+    headers["Access-Control-Allow-Methods"] = "GET, OPTIONS"
+    headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Accept, X-Requested-With"
+    headers["Access-Control-Max-Age"] = "86400"
+  end
 
   def send_fallback_artwork
     expires_in 1.hour

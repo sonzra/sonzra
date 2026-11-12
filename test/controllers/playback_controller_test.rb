@@ -48,6 +48,23 @@ class PlaybackControllerTest < ActionDispatch::IntegrationTest
     assert_equal "audio-data", response.body
   end
 
+  test "authenticates stream using query param token and sets CORS headers" do
+    client = FakeClient.new
+    client_class = Integrations::Jellyfin::Client
+    original_new = client_class.method(:new)
+    client_class.define_singleton_method(:new) { |**_attributes| client }
+
+    token = users(:one).generate_token_for(:api_token)
+    begin
+      get audio_server_connection_url(@server_connection, "track-id", token: token), headers: { "Range" => "bytes=0-" }
+    ensure
+      client_class.define_singleton_method(:new, original_new)
+    end
+
+    assert_response :partial_content
+    assert_equal "*", response.headers["Access-Control-Allow-Origin"]
+  end
+
   test "does not treat a cancelled browser audio request as a server error" do
     client = Class.new do
       def stream_audio(**)
