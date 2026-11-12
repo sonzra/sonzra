@@ -1,0 +1,68 @@
+<%#
+  Shared UI Component: Confirm Dialog
+
+  Parameters:
+    - dialog_id: Optional DOM ID for the <dialog>
+    - dialog_class: Optional additional classes for the <dialog>
+    - panel_class: Optional additional classes for the dialog panel
+    - actions_class: Optional additional classes for the actions container
+    - data: Hash of data attributes (e.g. Stimulus targets and actions)
+    - title_id: DOM ID for aria-labelledby
+    - eyebrow: Optional kicker text (e.g. "Clear queue")
+    - title: Main heading text
+    - description: Optional body text
+    - close_action: Optional Stimulus action for the 'X' button
+    - cancel_label: Text for cancel button (defaults to "Cancel")
+    - cancel_action: Stimulus action for cancel button
+    - cancel_class: Optional additional class for cancel button
+    - confirm_label: Text for confirmation button (defaults to "Confirm")
+    - confirm_action: Stimulus action for confirmation button
+    - confirm_class: Optional additional class for confirm button
+    - confirm_variant: :danger (default) or :primary
+%>
+<%
+  dialog_id = local_assigns[:dialog_id]
+  dialog_classes = ["redesign-dialog", "redesign-dialog--confirm", local_assigns[:dialog_class]].compact.join(" ")
+  panel_classes = ["redesign-dialog__panel", local_assigns[:panel_class]].compact.join(" ")
+  actions_classes = ["redesign-dialog__actions", local_assigns[:actions_class]].compact.join(" ")
+  title_id = local_assigns[:title_id] || "dialog-title-#{SecureRandom.hex(4)}"
+  confirm_variant = local_assigns[:confirm_variant] || :danger
+  confirm_btn_class = confirm_variant == :danger ? "danger-button" : "primary-button"
+  cancel_label = local_assigns[:cancel_label] || "Cancel"
+  confirm_label = local_assigns[:confirm_label] || "Confirm"
+  cancel_classes = ["secondary-button", local_assigns[:cancel_class]].compact.join(" ")
+  confirm_classes = [confirm_btn_class, local_assigns[:confirm_class]].compact.join(" ")
+  close_action = local_assigns[:close_action] || local_assigns[:cancel_action]
+  data_attrs = local_assigns[:data] || {}
+%>
+
+<dialog id="<%= dialog_id %>" class="<%= dialog_classes %>" aria-modal="true" aria-labelledby="<%= title_id %>" <%= tag.attributes(data: data_attrs) %>>
+  <div class="<%= panel_classes %>" role="document">
+    <div class="redesign-dialog__heading">
+      <div>
+        <% if local_assigns[:eyebrow].present? %>
+          <p class="redesign-dialog__eyebrow"><%= eyebrow %></p>
+        <% end %>
+        <h2 id="<%= title_id %>" class="redesign-dialog__title"><%= title %></h2>
+      </div>
+      <% if close_action.present? %>
+        <button type="button" class="redesign-dialog__close" aria-label="Close dialog" data-action="<%= close_action %>">
+          <%= lucide_icon "x", aria: { hidden: true } %>
+        </button>
+      <% end %>
+    </div>
+
+    <% if local_assigns[:description].present? %>
+      <p class="redesign-dialog__desc"><%= description %></p>
+    <% end %>
+
+    <% if local_assigns[:dialog_content].present? %>
+      <%= local_assigns[:dialog_content] %>
+    <% end %>
+
+    <div class="<%= actions_classes %>">
+      <button type="button" class="<%= cancel_classes %>" data-action="<%= cancel_action %>"><%= cancel_label %></button>
+      <button type="button" class="<%= confirm_classes %>" data-action="<%= confirm_action %>"><%= confirm_label %></button>
+    </div>
+  </div>
+</dialog>

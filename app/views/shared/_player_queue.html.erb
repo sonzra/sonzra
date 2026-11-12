@@ -27,15 +27,19 @@
       <button type="button" class="listen-queue__lyrics-follow" data-player-target="lyricsFollow" data-action="player#followLyrics" hidden>Follow current line</button>
     </section>
   </div>
-  <dialog class="listen-queue__confirm" data-player-target="clearDialog" data-action="click->player#closeClearQueueOnBackdrop">
-    <div class="listen-queue__confirm-panel">
-      <p>Clear queue</p>
-      <h2>Stop playback and remove every queued track?</h2>
-      <span>The current song will stop and the player will be hidden.</span>
-      <div class="listen-queue__confirm-actions">
-        <button type="button" class="listen-queue__confirm-cancel" data-action="player#closeClearQueuePrompt">Cancel</button>
-        <button type="button" class="listen-queue__confirm-submit" data-action="player#confirmClearQueue">Clear queue</button>
-      </div>
-    </div>
-  </dialog>
+  <%= render "shared/ui/confirm_dialog",
+        dialog_class: "listen-queue__confirm",
+        panel_class: "listen-queue__confirm-panel",
+        actions_class: "listen-queue__confirm-actions",
+        data: { player_target: "clearDialog", action: "cancel->player#closeClearQueuePrompt click->player#closeClearQueueOnBackdrop" },
+        title_id: "clear-queue-title",
+        eyebrow: "Clear queue",
+        title: "Stop playback and remove every queued track?",
+        description: "The current song will stop and the player will be hidden.",
+        cancel_action: "player#closeClearQueuePrompt",
+        cancel_class: "listen-queue__confirm-cancel",
+        confirm_action: "player#confirmClearQueue",
+        confirm_class: "listen-queue__confirm-submit",
+        confirm_label: "Clear queue",
+        confirm_variant: :danger %>
 </section>

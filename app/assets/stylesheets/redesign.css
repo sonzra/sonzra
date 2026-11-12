@@ -36,10 +36,13 @@ body.redesign { margin: 0; overflow-x: hidden; }
 .redesign :where(button, [role="button"]) { cursor: pointer; }
 .redesign [hidden] { display: none !important; }
 .redesign svg { display: block; width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
-.redesign .primary-button, .redesign .secondary-button, .redesign .ghost-button, .redesign .listen-outline-button { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 8px; padding: 0 15px; color: var(--rz-text); font-size: 12px; font-weight: 800; text-decoration: none; cursor: pointer; }
+.redesign .primary-button, .redesign .secondary-button, .redesign .ghost-button, .redesign .danger-button, .redesign .listen-outline-button { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 8px; padding: 0 15px; color: var(--rz-text); font-size: 12px; font-weight: 800; text-decoration: none; cursor: pointer; }
 .redesign .primary-button { border-radius: 999px; background: linear-gradient(135deg, var(--rz-primary), var(--rz-primary-dark)); box-shadow: 0 10px 30px rgb(122 90 248 / 25%); color: #fff; }
 .redesign .primary-button:hover { box-shadow: 0 14px 38px rgb(122 90 248 / 40%); transform: translateY(-2px); }
-.redesign .secondary-button, .redesign .ghost-button, .redesign .listen-outline-button { border: 1px solid var(--rz-line); }
+.redesign .secondary-button, .redesign .ghost-button, .redesign .listen-outline-button { border: 1px solid var(--rz-line); border-radius: 999px; background: rgb(255 255 255 / 5%); transition: background .18s ease, border-color .18s ease; }
+.redesign .secondary-button:hover, .redesign .ghost-button:hover, .redesign .listen-outline-button:hover { background: rgb(255 255 255 / 10%); border-color: rgb(255 255 255 / 20%); }
+.redesign .danger-button { border: 0; border-radius: 999px; background: linear-gradient(135deg, #ff6b8b, #e03157); box-shadow: 0 10px 30px rgb(224 49 87 / 28%); color: #fff; transition: transform .18s ease, box-shadow .18s ease, filter .18s ease; }
+.redesign .danger-button:hover { filter: brightness(1.08); box-shadow: 0 14px 38px rgb(224 49 87 / 42%); transform: translateY(-1px); }
 .redesign .listen-app, .redesign .settings-shell, .redesign .form-page, .redesign .connection-detail { min-width: 0; }
 .redesign .listen-section__heading, .redesign .settings-header, .redesign .page-title { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .redesign .listen-section__heading { align-items: end; }
@@ -464,6 +467,136 @@ html[data-turbo-preview] .redesign .listen-main:not(.listen-main--home), html[da
 .redesign-sleep-dialog__option--cancel { grid-column: 1 / -1; border-color: rgb(255 255 255 / 6%); background: transparent; color: var(--rz-muted); }
 .redesign-sleep-dialog__option--cancel svg { width: 15px; height: 15px; }
 .redesign-sleep-dialog__option--cancel:hover { border-color: rgb(255 69 104 / 35%); background: rgb(255 69 104 / 10%); color: #ff8da6; }
+
+/* Canonical Redesign Modal Dialog System */
+.redesign-dialog:not([open]),
+.redesign .redesign-dialog:not([open]),
+.redesign dialog.listen-queue__confirm:not([open]) {
+  display: none !important;
+}
+
+.redesign-dialog,
+.redesign .redesign-dialog,
+.redesign dialog.listen-queue__confirm {
+  width: min(440px, calc(100vw - 32px));
+  height: fit-content;
+  max-height: calc(100dvh - 48px);
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--rz-line);
+  border-radius: 22px;
+  background: rgb(18 18 28 / 98%);
+  color: var(--rz-text);
+  box-shadow: 0 30px 100px rgb(0 0 0 / 75%);
+  backdrop-filter: blur(20px);
+  overflow: hidden;
+  align-self: center;
+  justify-self: center;
+}
+
+.redesign-dialog::backdrop,
+.redesign .redesign-dialog::backdrop,
+.redesign dialog.listen-queue__confirm::backdrop {
+  background: rgb(0 0 0 / 72%);
+  backdrop-filter: blur(8px);
+}
+
+.redesign-dialog[open],
+.redesign .redesign-dialog[open],
+.redesign dialog.listen-queue__confirm[open] {
+  animation: redesign-dialog-enter .22s cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.redesign-dialog[open]::backdrop,
+.redesign .redesign-dialog[open]::backdrop,
+.redesign dialog.listen-queue__confirm[open]::backdrop {
+  animation: redesign-backdrop-enter .22s ease both;
+}
+
+.redesign-dialog__panel,
+.redesign .listen-queue__confirm-panel {
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+}
+
+.redesign-dialog__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.redesign-dialog__eyebrow,
+.redesign .listen-queue__confirm-panel > p:first-child {
+  margin: 0;
+  color: var(--rz-primary-light);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.redesign-dialog__title,
+.redesign .listen-queue__confirm-panel h2 {
+  margin: 5px 0 0;
+  color: var(--rz-text);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -.03em;
+  line-height: 1.25;
+}
+
+.redesign-dialog__desc,
+.redesign .listen-queue__confirm-panel span {
+  margin: 0;
+  color: var(--rz-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.redesign-dialog__close {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--rz-line);
+  border-radius: 50%;
+  background: rgb(255 255 255 / 4%);
+  color: var(--rz-muted);
+  cursor: pointer;
+  transition: background .18s ease, color .18s ease, border-color .18s ease;
+}
+
+.redesign-dialog__close:hover {
+  border-color: rgb(255 255 255 / 20%);
+  background: rgb(255 255 255 / 10%);
+  color: var(--rz-text);
+}
+
+.redesign-dialog__close svg {
+  width: 16px;
+  height: 16px;
+}
+
+.redesign-dialog__actions,
+.redesign .listen-queue__confirm-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.redesign-dialog__actions button,
+.redesign-dialog__actions a,
+.redesign .listen-queue__confirm-actions button {
+  min-height: 44px;
+  padding: 0 18px;
+  font-size: 13px;
+}
 @media (max-width: 700px) {
   .redesign .listen-player__controls > .listen-player__jump--back { display: grid !important; grid-column: 5; width: 30px; height: 33px; }
   .redesign .listen-player__controls > .listen-player__jump--forward { display: grid !important; grid-column: 7; width: 30px; height: 33px; }
@@ -890,6 +1023,34 @@ body.redesign:has(.auth-page) { padding: 0; }
 .redesign .auth-card .form-errors ul { font-size: 14px; margin: 0; padding-left: 20px; }
 
 @media (max-width: 760px) {
+  .redesign-dialog,
+  .redesign .redesign-dialog,
+  .redesign dialog.listen-queue__confirm {
+    width: min(calc(100vw - 24px), 430px);
+    height: fit-content;
+    max-height: calc(100dvh - 32px);
+    border-radius: 22px;
+  }
+
+  .redesign-dialog__panel,
+  .redesign .listen-queue__confirm-panel {
+    padding: 22px 18px calc(22px + env(safe-area-inset-bottom));
+  }
+
+  .redesign-dialog__actions,
+  .redesign .listen-queue__confirm-actions {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .redesign-dialog__actions button,
+  .redesign-dialog__actions a,
+  .redesign .listen-queue__confirm-actions button {
+    width: 100%;
+    min-height: 44px;
+  }
+
   .redesign .auth-page { padding: 24px 16px; place-items: start center; }
   .redesign .auth-card { margin-top: clamp(24px, 8vh, 80px); padding: 28px 24px; border-radius: 23px; }
   .redesign .auth-kicker { margin-top: 34px; }
