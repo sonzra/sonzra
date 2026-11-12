@@ -33,7 +33,9 @@ Rails.application.routes.draw do
   get "library/most-played-songs", to: "library#most_played_songs", as: :library_most_played_songs
   get "library/recently-added-albums", to: "library#recently_added_albums", as: :library_recently_added_albums
   get "library/genres", to: "library#genres", as: :library_genres
+  match "server_connections/:server_connection_id/artwork/:item_id", to: "artwork#cors_preflight", via: :options
   get "server_connections/:server_connection_id/artwork/:item_id", to: "artwork#show", as: :artwork_server_connection
+  match "server_connections/:server_connection_id/audio/:item_id", to: "playback#cors_preflight", via: :options
   get "server_connections/:server_connection_id/audio/:item_id", to: "playback#show", as: :audio_server_connection
   get "server_connections/:server_connection_id/lyrics/:item_id", to: "lyrics#show", as: :lyrics_server_connection
   post "server_connections/:server_connection_id/playback_reports/batch", to: "playback_reports#batch", as: :batch_playback_reports_server_connection
@@ -45,6 +47,8 @@ Rails.application.routes.draw do
   get "server_connections/:server_connection_id/sonic_graph/:item_id", to: "sonic_graphs#show", as: :sonic_graph_server_connection
 
   namespace :api do
+    match "*path", to: "v1/base#cors_preflight", via: :options
+
     namespace :v1 do
       resource :sonic_graph, only: [] do
         get :status
