@@ -14,7 +14,7 @@ class CollaborativePlaylistsController < ApplicationController
     ).call
 
     @remote_users = @result.success? ? (@result.users || []) : []
-    remote_ids = @remote_users.map { |u| u["UserId"] || u["Id"] }.compact
+    remote_ids = @remote_users.select { |u| u["CanEdit"] != false }.map { |u| u["UserId"] || u["Id"] }.compact
     @fellow_connections = @server_connection.fellow_instance_connections
 
     respond_to do |format|

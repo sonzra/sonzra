@@ -382,7 +382,11 @@ module Integrations
         token = session.fetch("AccessToken")
         data = get("Playlists/#{playlist_id}/Users", token)
         data.is_a?(Array) ? data : data.fetch("Users", [])
-      rescue Integrations::AuthenticationError, Integrations::ConnectionError
+      rescue ConnectionError => error
+        return [] if error.message.include?("404") || error.message.include?("403")
+
+        raise
+      rescue Integrations::AuthenticationError
         raise
       end
 
@@ -390,8 +394,9 @@ module Integrations
         session = authentication
         token = session.fetch("AccessToken")
         uri = URI.parse("#{base_url}/Playlists/#{playlist_id}/Users/#{user_id}")
-        uri.query = URI.encode_www_form(CanEdit: can_edit)
-        request = Net::HTTP::Post.new(uri, authorization_headers(token))
+        headers = authorization_headers(token).merge("Content-Type" => "application/json")
+        request = Net::HTTP::Post.new(uri, headers)
+        request.body = JSON.generate(CanEdit: can_edit)
         ensure_success!(perform(request))
         true
       end

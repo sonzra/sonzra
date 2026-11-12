@@ -80,7 +80,7 @@ class Integrations::Jellyfin::CollaborativePlaylistsTest < ActiveSupport::TestCa
     assert_equal users_data, result
   end
 
-  test "share_playlist issues POST to Playlists/{playlist_id}/Users/{user_id} with CanEdit param" do
+  test "share_playlist issues POST to Playlists/{playlist_id}/Users/{user_id} with JSON body" do
     http = FakeHttp.new([ auth_response, build_ok_response({}) ])
 
     client = Integrations::Jellyfin::Client.new(
@@ -91,11 +91,13 @@ class Integrations::Jellyfin::CollaborativePlaylistsTest < ActiveSupport::TestCa
     )
 
     assert client.share_playlist(playlist_id: "playlist-123", user_id: "user-target", can_edit: true)
-    assert_equal "/Playlists/playlist-123/Users/user-target?CanEdit=true", http.last_request.path
+    assert_equal "/Playlists/playlist-123/Users/user-target", http.last_request.path
     assert_equal "POST", http.last_request.method
+    assert_equal "application/json", http.last_request["Content-Type"]
+    assert_equal({ "CanEdit" => true }, JSON.parse(http.last_request.body))
   end
 
-  test "share_playlist forwards can_edit: false parameter" do
+  test "share_playlist forwards can_edit: false parameter in JSON body" do
     http = FakeHttp.new([ auth_response, build_no_content_response ])
 
     client = Integrations::Jellyfin::Client.new(
@@ -106,8 +108,10 @@ class Integrations::Jellyfin::CollaborativePlaylistsTest < ActiveSupport::TestCa
     )
 
     assert client.share_playlist(playlist_id: "playlist-123", user_id: "user-target", can_edit: false)
-    assert_equal "/Playlists/playlist-123/Users/user-target?CanEdit=false", http.last_request.path
+    assert_equal "/Playlists/playlist-123/Users/user-target", http.last_request.path
     assert_equal "POST", http.last_request.method
+    assert_equal "application/json", http.last_request["Content-Type"]
+    assert_equal({ "CanEdit" => false }, JSON.parse(http.last_request.body))
   end
 
   test "unshare_playlist issues DELETE to Playlists/{playlist_id}/Users/{user_id}" do
