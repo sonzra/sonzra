@@ -46,6 +46,7 @@ ActiveRecord::Base.transaction do
   user.notifications.create!(
     sender: sarah,
     media_server: server,
+    notification_type: "track_share",
     title: "Midnight City",
     message: "Sarah shared a track with you",
     artist: "M83",
@@ -57,6 +58,7 @@ ActiveRecord::Base.transaction do
   user.notifications.create!(
     sender: alex,
     media_server: server,
+    notification_type: "track_share",
     title: "Solaris",
     message: "Alex shared a track with you",
     artist: "Photay",
