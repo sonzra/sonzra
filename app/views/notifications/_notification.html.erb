@@ -1,48 +1,110 @@
-<%= tag.li id: dom_id(notification), class: ["redesign-notification-item", ("is-unread" unless notification.read?)] do %>
-  <div class="redesign-notification-item__icon" aria-hidden="true">
-    <% if notification.actor_user %>
-      <span class="redesign-notification-item__avatar"><%= notification.actor_user.email_address[0].upcase %></span>
-    <% else %>
-      <%= lucide_icon "bell", aria: { hidden: true } %>
-    <% end %>
-  </div>
-
-  <div class="redesign-notification-item__body">
-    <% if notification.link_url.present? %>
-      <%= link_to notification.link_url,
-                  class: "redesign-notification-item__link",
-                  data: {
-                    action: "click->notifications#readAndNavigate",
-                    notifications_url_param: notification_path(notification)
-                  } do %>
-        <strong class="redesign-notification-item__title"><%= notification.title %></strong>
-        <p class="redesign-notification-item__message"><%= notification.message %></p>
-      <% end %>
-    <% else %>
-      <div class="redesign-notification-item__text">
-        <strong class="redesign-notification-item__title"><%= notification.title %></strong>
-        <p class="redesign-notification-item__message"><%= notification.message %></p>
+<%
+  user = local_assigns[:current_user] || (respond_to?(:current_user) ? current_user : nil)
+  track_share = notification.notification_type == "track_share" && notification.item_id.present?
+  server_connection = if track_share && user && notification.media_server_id.present?
+    user.server_connections.find_by(media_server_id: notification.media_server_id)
+  end
+  server_connection ||= user&.preferred_server_connection || user&.server_connections&.first if track_share
+  artwork_param = if server_connection && notification.artwork_item_id.present?
+    art_id = notification.artwork_item_id
+    art_id = art_id.split("/artwork/").last.split("?").first if art_id.include?("/artwork/")
+    art_id.start_with?("/") || art_id.start_with?("http") ? art_id : artwork_server_connection_path(server_connection, art_id)
+  else
+    "/brand/sonzra-mark.svg"
+  end
+  source_param = audio_server_connection_path(server_connection, notification.item_id) if server_connection && track_share
+  actor_name = notification.actor_user&.email_address&.split("@")&.first || "Sonzra"
+%>
+<li id="<%= dom_id(notification) %>"
+    class="<%= class_names("redesign-notification-item", "redesign-notification-card" => track_share, "is-unread" => notification.unread?, "redesign-notification-card--unread" => track_share && notification.unread?) %>">
+  <% if track_share %>
+    <div class="redesign-notification-card__header">
+      <div class="redesign-notification-card__meta">
+        <span class="redesign-notification-card__sender"><%= actor_name %></span>
+        <span class="redesign-notification-card__time"><%= time_ago_in_words(notification.created_at) %> ago</span>
       </div>
+      <% if notification.unread? %><span class="redesign-notification-card__dot" aria-label="Unread"></span><% end %>
+    </div>
+    <% if notification.note.present? %>
+      <blockquote class="redesign-notification-card__note"><p><%= notification.note %></p></blockquote>
     <% end %>
-    <time class="redesign-notification-item__time" datetime="<%= notification.created_at.iso8601 %>"><%= time_ago_in_words(notification.created_at) %> ago</time>
-  </div>
-
-  <div class="redesign-notification-item__actions">
-    <% unless notification.read? %>
-      <%= button_to notification_path(notification),
-                    method: :patch,
-                    class: "redesign-notification-item__btn redesign-notification-item__btn--read",
-                    aria: { label: "Mark notification as read" },
-                    title: "Mark as read" do %>
-        <%= lucide_icon "check", aria: { hidden: true } %>
+    <div class="redesign-notification-card__track">
+      <div class="redesign-notification-card__artwork"><img src="<%= artwork_param %>" alt="<%= notification.title %>" loading="lazy"></div>
+      <div class="redesign-notification-card__track-info">
+        <span class="redesign-notification-card__title"><%= notification.title %></span>
+        <span class="redesign-notification-card__artist"><%= notification.artist.presence || notification.album.presence || "Shared track" %></span>
+      </div>
+      <% if source_param.present? %>
+        <div class="redesign-notification-card__actions">
+          <button type="button"
+                  class="primary-button redesign-notification-card__play"
+                  aria-label="Play <%= notification.title %>"
+                  data-action="click->player#replaceQueue click->notifications#markRead"
+                  data-notifications-url-param="<%= notification_path(notification) %>"
+                  data-player-title-param="<%= notification.title %>"
+                  data-player-artist-param="<%= notification.artist %>"
+                  data-player-artwork-param="<%= artwork_param %>"
+                  data-player-source-param="<%= source_param %>"
+                  data-player-item-id-param="<%= notification.item_id %>">
+            <%= lucide_icon "play", aria: { hidden: true } %><span>Play</span>
+          </button>
+          <button type="button"
+                  class="secondary-button redesign-notification-card__queue"
+                  aria-label="Add <%= notification.title %> to queue"
+                  data-action="click->player#appendQueue click->notifications#markRead"
+                  data-notifications-url-param="<%= notification_path(notification) %>"
+                  data-player-title-param="<%= notification.title %>"
+                  data-player-artist-param="<%= notification.artist %>"
+                  data-player-artwork-param="<%= artwork_param %>"
+                  data-player-source-param="<%= source_param %>"
+                  data-player-item-id-param="<%= notification.item_id %>">
+            <%= lucide_icon "plus", aria: { hidden: true } %><span>Add to queue</span>
+          </button>
+        </div>
       <% end %>
-    <% end %>
-    <%= button_to notification_path(notification),
-                  method: :delete,
-                  class: "redesign-notification-item__btn redesign-notification-item__btn--dismiss",
-                  aria: { label: "Dismiss notification" },
-                  title: "Dismiss" do %>
-      <%= lucide_icon "x", aria: { hidden: true } %>
-    <% end %>
-  </div>
-<% end %>
+      <% if notification.unread? %>
+        <%= button_to notification_path(notification),
+                      method: :patch,
+                      class: "ghost-button redesign-notification-card__read-btn",
+                      aria: { label: "Mark as read" },
+                      title: "Mark as read" do %>
+          <%= lucide_icon "check", aria: { hidden: true } %><span>Read</span>
+        <% end %>
+      <% end %>
+    </div>
+  <% else %>
+    <div class="redesign-notification-item__icon" aria-hidden="true">
+      <% if notification.actor_user %>
+        <span class="redesign-notification-item__avatar"><%= notification.actor_user.email_address[0].upcase %></span>
+      <% else %>
+        <%= lucide_icon "bell", aria: { hidden: true } %>
+      <% end %>
+    </div>
+    <div class="redesign-notification-item__body">
+      <% if notification.link_url.present? %>
+        <%= link_to notification.link_url,
+                    class: "redesign-notification-item__link",
+                    data: { action: "click->notifications#readAndNavigate", notifications_url_param: notification_path(notification) } do %>
+          <strong class="redesign-notification-item__title"><%= notification.title %></strong>
+          <p class="redesign-notification-item__message"><%= notification.message %></p>
+        <% end %>
+      <% else %>
+        <div class="redesign-notification-item__text">
+          <strong class="redesign-notification-item__title"><%= notification.title %></strong>
+          <p class="redesign-notification-item__message"><%= notification.message %></p>
+        </div>
+      <% end %>
+      <time class="redesign-notification-item__time" datetime="<%= notification.created_at.iso8601 %>"><%= time_ago_in_words(notification.created_at) %> ago</time>
+    </div>
+    <div class="redesign-notification-item__actions">
+      <% if notification.unread? %>
+        <%= button_to notification_path(notification), method: :patch, class: "redesign-notification-item__btn redesign-notification-item__btn--read", aria: { label: "Mark notification as read" }, title: "Mark as read" do %>
+          <%= lucide_icon "check", aria: { hidden: true } %>
+        <% end %>
+      <% end %>
+      <%= button_to notification_path(notification), method: :delete, class: "redesign-notification-item__btn redesign-notification-item__btn--dismiss", aria: { label: "Dismiss notification" }, title: "Dismiss" do %>
+        <%= lucide_icon "x", aria: { hidden: true } %>
+      <% end %>
+    </div>
+  <% end %>
+</li>

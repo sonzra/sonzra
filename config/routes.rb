@@ -9,10 +9,11 @@ Rails.application.routes.draw do
   root "home#index"
   get "offline_shell", to: "offline_shells#show", as: :offline_shell
   resources :offline_downloads, only: :index
-  resources :notifications, only: [ :index, :update, :destroy ] do
+  resources :notifications, only: %i[index update destroy] do
     collection do
       post :mark_all_read
     end
+    patch :read, on: :member
   end
   resource :active_server_connection, only: :update
   resources :hidden_artists, only: %i[index create destroy]
@@ -21,6 +22,7 @@ Rails.application.routes.draw do
   resources :recommendation_collections, only: %i[index show] do
     post :events, on: :member
   end
+  resources :track_shares, only: %i[create]
   get "home/content", to: "home#content", as: :home_content
   get "library/artists", to: "library#artists", as: :library_artists
   get "library/albums", to: "library#albums", as: :library_albums

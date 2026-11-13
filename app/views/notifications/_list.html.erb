@@ -1,0 +1,13 @@
+<div id="notifications_list" class="redesign-notifications-list">
+  <% if notifications.any? %>
+    <% notifications.each do |notification| %>
+      <%= render partial: "notifications/notification", locals: { notification: notification, current_user: local_assigns[:current_user] } %>
+    <% end %>
+  <% else %>
+    <section class="empty-state">
+      <%= image_tag "/brand/sonzra-mark.svg", alt: "", class: "empty-state__mark" %>
+      <h2>No notifications yet</h2>
+      <p>Shared tracks and recommendations will appear here.</p>
+    </section>
+  <% end %>
+</div>

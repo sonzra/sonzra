@@ -32,7 +32,7 @@ module Notifications
 
       Turbo::StreamsChannel.broadcast_update_to(
         "user_#{@user.id}_notifications",
-        target: "notifications_unread_count",
+        target: "notifications_badge",
         partial: "notifications/badge",
         locals: { count: @user.notifications.unread.count }
       )

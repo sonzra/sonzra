@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_11_194100) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_11_200000) do
   create_table "application_settings", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.boolean "registrations_enabled", default: true, null: false
@@ -63,15 +63,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_11_194100) do
   end
 
   create_table "notifications", force: :cascade do |t|
+    t.string "album"
+    t.string "artist"
+    t.string "artwork_item_id"
     t.integer "actor_user_id"
     t.datetime "created_at", null: false
+    t.string "item_id"
     t.string "link_url"
+    t.integer "media_server_id"
     t.string "message", null: false
+    t.text "note"
+    t.string "notification_type", default: "activity", null: false
     t.datetime "read_at"
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.integer "user_id", null: false
     t.index ["actor_user_id"], name: "index_notifications_on_actor_user_id"
+    t.index ["media_server_id"], name: "index_notifications_on_media_server_id"
     t.index ["user_id", "created_at"], name: "index_notifications_on_user_id_and_created_at"
     t.index ["user_id", "read_at"], name: "index_notifications_on_user_id_and_read_at"
     t.index ["user_id"], name: "index_notifications_on_user_id"
@@ -209,6 +217,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_11_194100) do
   add_foreign_key "hidden_genres", "users"
   add_foreign_key "listening_events", "server_connections"
   add_foreign_key "listening_events", "users"
+  add_foreign_key "notifications", "media_servers"
   add_foreign_key "notifications", "users", column: "actor_user_id", on_delete: :nullify
   add_foreign_key "notifications", "users", on_delete: :cascade
   add_foreign_key "recommendation_collection_events", "recommendation_collections"

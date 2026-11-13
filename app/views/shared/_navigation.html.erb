@@ -11,15 +11,22 @@
   <div class="redesign-topbar__actions">
     <button type="button" class="redesign-icon-button redesign-search-trigger" aria-label="Search your library" data-action="library-search#open"><%= lucide_icon "search", aria: { hidden: true } %><kbd>⌘ K</kbd></button>
     <% if current_server_connection %><span class="redesign-server-pill"><i></i><span><%= current_server_connection.name %></span></span><% end %>
-    <div class="redesign-notifications" data-controller="notifications">
+    <div class="redesign-notifications redesign-notification-hub">
       <%= turbo_stream_from "user_#{current_user.id}_notifications" %>
-      <button type="button" class="redesign-icon-button redesign-notifications__trigger" aria-label="Notifications" aria-expanded="false" data-notifications-target="toggle" data-action="notifications#toggle">
-        <%= lucide_icon "bell", aria: { hidden: true } %>
-        <span id="notifications_unread_count" class="redesign-notifications__badge-container">
+      <% if current_page?(notifications_path) %>
+        <%= link_to notifications_path, class: "redesign-icon-button redesign-notifications__trigger", aria: { label: "Notifications" } do %>
+          <%= lucide_icon "bell", aria: { hidden: true } %>
           <%= render "notifications/badge", count: current_user.notifications.unread.count %>
-        </span>
-      </button>
-      <%= render "notifications/drawer", notifications: current_user.notifications.recent %>
+        <% end %>
+      <% else %>
+        <div data-controller="notifications">
+          <button type="button" class="redesign-icon-button redesign-notifications__trigger redesign-notification-hub__toggle" aria-label="Notifications" aria-expanded="false" data-notifications-target="toggle" data-action="notifications#toggle">
+            <%= lucide_icon "bell", aria: { hidden: true } %>
+            <%= render "notifications/badge", count: current_user.notifications.unread.count %>
+          </button>
+          <%= render "notifications/drawer", notifications: current_user.notifications.recent %>
+        </div>
+      <% end %>
     </div>
     <div class="redesign-profile" data-controller="profile-menu">
       <button type="button" class="redesign-profile__toggle" aria-label="Open profile menu" aria-expanded="false" data-profile-menu-target="toggle" data-action="profile-menu#toggle"><%= lucide_icon "circle-user-round", aria: { hidden: true } %><span><%= current_user.email_address.split("@").first %></span></button>
@@ -40,7 +47,7 @@
   <button class="redesign-topbar__menu-toggle" type="button" aria-label="Open navigation menu" aria-expanded="false" data-navigation-target="toggle" data-action="navigation#toggle"><%= lucide_icon "menu", aria: { hidden: true } %></button>
   <div class="redesign-mobile-menu" data-navigation-target="menu" data-action="click->navigation#closeOnNavigation">
     <button type="button" class="redesign-mobile-menu__search" data-action="library-search#open"><%= lucide_icon "search", aria: { hidden: true } %><span>Search your library</span></button>
-    <%= link_to notifications_path, data: navigation_data, aria: disabled_aria do %><%= lucide_icon "bell", aria: { hidden: true } %><span>Notifications</span><% end %>
+    <%= link_to notifications_path, class: "redesign-mobile-menu__notifications", data: navigation_data, aria: disabled_aria do %><%= lucide_icon "bell", aria: { hidden: true } %><span>Notifications</span><% if current_user.notifications.unread.any? %><span class="redesign-notification-badge"><%= current_user.notifications.unread.count %></span><% end %><% end %>
     <% library_links.each do |label, (path, icon)| %><%= link_to path, data: navigation_data, aria: disabled_aria do %><%= lucide_icon icon, aria: { hidden: true } %><span><%= label %></span><% end %><% end %>
     <%= link_to server_connections_path, data: navigation_data, aria: disabled_aria do %><%= lucide_icon "server", aria: { hidden: true } %><span>Server connections</span><% end %>
     <%= link_to hidden_artists_path, data: navigation_data, aria: disabled_aria do %><%= lucide_icon "eye-off", aria: { hidden: true } %><span>Hidden artists</span><% end %>

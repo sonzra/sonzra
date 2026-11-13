@@ -1,6 +1,9 @@
-<% count = local_assigns.fetch(:count, 0) %>
-<% if count > 0 %>
-  <span class="redesign-notifications__badge" aria-label="<%= pluralize(count, 'unread notification') %>">
-    <%= count > 99 ? "99+" : count %>
-  </span>
-<% end %>
+<% count = local_assigns.fetch(:count, 0).to_i %>
+<span id="notifications_badge"
+      class="redesign-notification-badge"
+      <%= "hidden" if count.zero? %>
+      aria-live="polite"
+      role="status"
+      aria-label="<%= pluralize(count, 'unread notification') %>">
+  <%= count > 9 ? "9+" : count %>
+</span>

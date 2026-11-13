@@ -17,6 +17,8 @@
       </div>
     </div>
 
-    <%= render "notifications/drawer", notifications: @notifications, standalone: true %>
+    <div data-controller="notifications">
+      <%= render "notifications/drawer", notifications: @notifications, standalone: true %>
+    </div>
   </div>
 </main>

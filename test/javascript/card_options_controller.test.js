@@ -12,6 +12,7 @@ describe("card options controller", () => {
   beforeEach(async () => {
     vi.useFakeTimers()
     vi.stubGlobal("requestAnimationFrame", (callback) => callback())
+    vi.stubGlobal("matchMedia", vi.fn().mockImplementation(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
     vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {})
     HTMLDialogElement.prototype.showModal = function showModal() {
       this.open = true
@@ -52,6 +53,7 @@ describe("card options controller", () => {
         <button data-card-options-target="queueAction"></button>
         <button data-card-options-target="resetAction"></button>
         <button data-card-options-target="favoriteAction"></button>
+        <button data-card-options-target="shareAction" hidden></button>
         <button data-card-options-target="offlineAction"></button>
         <button data-card-options-target="deletePlaylistAction" data-card-options-delete-playlist-url="/server_connections/1/playlists/playlist-7"></button>
         <button data-card-options-target="hideGenreAction" hidden></button>
@@ -367,5 +369,62 @@ describe("card options controller", () => {
     )
     expect(showFeedbackMock).toHaveBeenCalledWith("Hidden Holiday from mixes")
     expect(visitMock).not.toHaveBeenCalled()
+  })
+
+  it("reveals share action for audio cards and configures share data attributes", async () => {
+    const card = document.createElement("article")
+    card.className = "listen-card"
+    card.innerHTML = `
+      <button class="listen-card__play"
+        data-player-source-param="/server_connections/5/audio/track-10"
+        data-player-item-id-param="track-10"
+        data-player-title-param="Starlight"
+        data-player-artist-param="Muse"
+        data-player-artwork-param="/artwork/track-10.jpg"
+      ></button>
+      <div class="listen-card__options"
+        data-card-options-item-id="track-10"
+        data-card-options-item-type="Audio"
+      ></div>
+    `
+    document.body.appendChild(card)
+
+    cardOptionsController.open(card)
+
+    expect(cardOptionsController.shareActionTarget.hidden).toBe(false)
+    expect(cardOptionsController.shareActionTarget.dataset.shareItemId).toBe("track-10")
+    expect(cardOptionsController.shareActionTarget.dataset.shareTitle).toBe("Starlight")
+    expect(cardOptionsController.shareActionTarget.dataset.shareArtist).toBe("Muse")
+    expect(cardOptionsController.shareActionTarget.dataset.shareArtworkUrl).toBe("/artwork/track-10.jpg")
+    expect(cardOptionsController.shareActionTarget.dataset.shareMediaServerId).toBe("5")
+  })
+
+  it("dispatches sonzra:open-share event when openShareDialog is triggered", async () => {
+    const dispatchSpy = vi.fn()
+    window.addEventListener("sonzra:open-share", dispatchSpy)
+
+    cardOptionsController.shareActionTarget.dataset.shareItemId = "track-22"
+    cardOptionsController.shareActionTarget.dataset.shareTitle = "Time"
+    cardOptionsController.shareActionTarget.dataset.shareArtist = "Pink Floyd"
+    cardOptionsController.shareActionTarget.dataset.shareAlbum = "Dark Side of the Moon"
+    cardOptionsController.shareActionTarget.dataset.shareArtworkUrl = "/art/dsotm.jpg"
+    cardOptionsController.shareActionTarget.dataset.shareMediaServerId = "9"
+
+    cardOptionsController.openShareDialog({
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn()
+    })
+
+    expect(dispatchSpy).toHaveBeenCalledOnce()
+    const event = dispatchSpy.mock.calls[0][0]
+    expect(event.detail).toEqual({
+      itemId: "track-22",
+      title: "Time",
+      artist: "Pink Floyd",
+      album: "Dark Side of the Moon",
+      artworkUrl: "/art/dsotm.jpg",
+      mediaServerId: "9",
+      serverConnectionId: ""
+    })
   })
 })

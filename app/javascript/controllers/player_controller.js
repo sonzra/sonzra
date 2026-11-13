@@ -971,13 +971,19 @@ export default class extends Controller {
         playlistButton.ariaLabel = `Add ${track.title} to playlist`
         playlistButton.innerHTML = `${this.icon("list-plus")}<span>Add to playlist</span>`
         playlistButton.addEventListener("click", () => { closeMoreMenu(); this.addQueuedTrackToPlaylist(queueIndex) })
+        const shareButton = document.createElement("button")
+        shareButton.type = "button"
+        shareButton.className = "listen-queue__item-menu-action listen-queue__item-share"
+        shareButton.ariaLabel = `Share ${track.title}`
+        shareButton.innerHTML = `${this.icon("share-2")}<span>Share track</span>`
+        shareButton.addEventListener("click", () => { closeMoreMenu(); this.shareQueuedTrack(queueIndex) })
         const downloadButton = document.createElement("button")
         downloadButton.type = "button"
         downloadButton.className = "listen-queue__item-menu-action listen-queue__item-download"
         downloadButton.ariaLabel = `Download ${track.title} for offline playback`
         downloadButton.innerHTML = `${this.icon("download")}<span>Download</span>`
         downloadButton.addEventListener("click", () => { closeMoreMenu(); this.downloadQueuedTrack(queueIndex, downloadButton) })
-        moreActions.append(favoriteButton, playlistButton, downloadButton)
+        moreActions.append(favoriteButton, playlistButton, shareButton, downloadButton)
       }
       const removeButton = document.createElement("button")
       removeButton.type = "button"
@@ -1126,6 +1132,29 @@ export default class extends Controller {
       itemId: track.itemId,
       itemType: "Audio"
     })
+  }
+
+  shareQueuedTrack(index) {
+    if (this.offlineMode) return
+    const track = this.queue[index]
+    if (!track?.itemId) return
+    const match = track?.source?.match(/\/server_connections\/([^/]+)/)
+    const serverConnectionId = match ? match[1] : ""
+    const mediaServerId = serverConnectionId
+
+    window.dispatchEvent(new CustomEvent("sonzra:open-share", {
+      bubbles: true,
+      composed: true,
+      detail: {
+        itemId: track.itemId,
+        title: track.title || "",
+        artist: track.artist || "",
+        album: track.album || "",
+        artworkUrl: track.artwork || "",
+        mediaServerId,
+        serverConnectionId
+      }
+    }))
   }
 
   async downloadQueuedTrack(index, button) {
@@ -2440,6 +2469,7 @@ export default class extends Controller {
       radio: '<path d="M4.9 8.9a10 10 0 0 1 14.2 0"></path><path d="M7.8 11.8a6 6 0 0 1 8.4 0"></path><path d="M10.7 14.7a2 2 0 0 1 2.6 0"></path><path d="M12 16v5"></path><circle cx="12" cy="18" r="1"></circle>'
       , ellipsis: '<circle cx="5" cy="12" r="1.5" fill="currentColor"></circle><circle cx="12" cy="12" r="1.5" fill="currentColor"></circle><circle cx="19" cy="12" r="1.5" fill="currentColor"></circle>'
       , "list-plus": '<path d="M11 12H3"></path><path d="M16 6H3"></path><path d="M16 18H3"></path><path d="M18 9v6"></path><path d="M21 12h-6"></path>'
+      , "share-2": '<circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>'
       , download: '<path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path>'
       , "volume-2": '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>'
       , "volume-x": '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="22" x2="16" y1="9" y2="15"></line><line x1="16" x2="22" y1="9" y2="15"></line>'
