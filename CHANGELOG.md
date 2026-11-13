@@ -4,6 +4,51 @@
 
 No changes yet.
 
+## 1.1.0 — 2026-11-13
+
+### Added
+
+- **Direct Track Sharing Across Surfaces:**
+  - Added "Share track" action across context menus (card options menu on shelves, search, grids) and the active playback queue without interrupting continuous playback (#40, #44).
+  - Interactive `.redesign-share-dialog` modal dialog to select fellow instance recipients with track metadata preview, 280-character note counter, and toast feedback (#40, #44).
+  - Tenant-safe delivery service (`DeliverTrackShare`) resolving server connections to canonical `media_server_id`s, sanitizing artwork paths, preventing self-sharing, and mapping recipient playback to their authenticated connection (#40, #44).
+  - `TrackSharesController` with Turbo Stream, JSON, and HTML responders preserving persistent player state (#40, #44).
+- **Collaborative Shared Playlists:**
+  - Collaborative playlist management integrated directly with Jellyfin media server (`COLLABORATIVE_PLAYLISTS` capability) (#41, #42).
+  - Ability for playlist owners to share custom playlists with other users on the same server instance with real-time Turbo Stream synchronization (#41, #42).
+  - Redesign-themed share management dialog with search, user selection, and dynamic collaborator management (#41, #42).
+  - Enforced playlist ownership permissions: only owners can delete playlists (and only when all collaborator shares have been revoked); collaborators cannot delete shared playlists (#41, #42).
+  - Visual status pill badges (`Collaborative`, `Shared`, `Owned`) on playlist cards across library collections and playlist details views (#41, #42).
+  - Optimized `remote_user_id` caching on `ServerConnection` records for fast user mapping and fellow instance connection lookups (#41, #42).
+- **In-App Notification Hub & Real-Time Delivery:**
+  - Real-time in-app notification system powered by Turbo Streams and Action Cable with recipient tenant scoping, unread counters, and note attachments (#40, #41, #42, #44).
+  - Top navigation bar notification bell icon with unread count badge, and dropdown drawer with one-click inline playback (#40, #41, #42, #44).
+  - Dedicated notifications inbox at `/notifications` with bulk mark-all-read and dismiss interactions (#40, #41, #42, #44).
+  - Automated notification delivery for incoming track shares and collaborative playlist invitations (#40, #41, #42, #44).
+- **Headless Client & Smart TV REST API (`/api/v1`):**
+  - Dedicated headless JSON API endpoints for external mobile, desktop, and 10-foot Smart TV clients (such as `sonzra-tizen`) (#34):
+    - `GET /api/v1/library/artists`: Paginated artist catalog with sorting and search support.
+    - `GET /api/v1/library/albums`: Paginated album catalog enriched with server connection metadata and artwork URLs.
+    - `GET /api/v1/library/items/:id`: Detailed item playback metadata, audio stream endpoints, and artwork URLs.
+    - `POST /api/v1/playback_reports`: Playback progress, start, and completion scrobbling telemetry reports.
+    - `POST /api/v1/session` & `DELETE /api/v1/session`: Token-based and session authentication.
+  - Multi-method authentication support via Bearer tokens, `X-API-Token`, `X-Session-ID`, and session cookies (#34).
+- **Cross-Project Parity Automation:**
+  - Introduced cross-project parity audit protocol and dedicated agent skill to automatically track, verify, and synchronize feature and API updates between `sonzra` and `sonzra-tizen` (#35, #36, #37).
+
+### Changed
+
+- **Release Image Publishing Pipeline:**
+  - Automated multi-architecture container image builds (`linux/amd64` and `linux/arm64`) to GitHub Container Registry (`ghcr.io/sonzra/sonzra`) directly from the release workflow (#33).
+  - Added `workflow_dispatch` manual trigger with tag input to `publish-image.yml` for reproducible backfills (#33).
+
+### Fixed
+
+- **Query Token Authentication & CORS Streaming Headers:**
+  - Allowed query parameter token authentication (`?token=...` or `?api_token=...`) on playback and artwork routes for players (such as HTML `<audio>` elements and image tags) unable to provide custom HTTP headers (#43).
+  - Added CORS response headers (`Access-Control-Allow-Origin: *`, `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers`) to `/artwork` and `/playback` routes to support cross-origin streaming on remote and web players (#43).
+  - Added explicit `OPTIONS` preflight request routing for streaming and artwork endpoints (#43).
+
 ## 1.0.1 — 2026-11-09
 
 ### Fixed
